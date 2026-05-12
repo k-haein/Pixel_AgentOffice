@@ -1,0 +1,6 @@
+/* Global reset only — App.css owns the rest. */
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

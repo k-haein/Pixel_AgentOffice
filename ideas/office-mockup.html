@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>AI Agent Office - Layout Mockup</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    font-family: 'Courier New', monospace;
+    color: #e8e8e8;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { text-align: center; margin: 0 0 4px; font-size: 22px; }
+  .subtitle { text-align: center; opacity: 0.6; margin-bottom: 24px; font-size: 13px; }
+
+  .office {
+    position: relative;
+    width: 980px;
+    height: 620px;
+    margin: 0 auto;
+    background: #e8dfd0;
+    background-image:
+      linear-gradient(to right, rgba(110,90,60,0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(110,90,60,0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+    border: 6px solid #5a4a36;
+    box-shadow: 0 0 0 3px #3a2e22, 0 18px 40px rgba(0,0,0,0.55);
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+
+  /* Top windows */
+  .windows {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 32px;
+    background: repeating-linear-gradient(
+      to right,
+      #87ceeb 0 80px,
+      #6fb6d9 80px 84px,
+      #87ceeb 84px 164px,
+      #6fb6d9 164px 168px
+    );
+    border-bottom: 4px solid #5a4a36;
+  }
+
+  /* Boss area divider */
+  .boss-area {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    height: 130px;
+    background: rgba(212,180,131,0.18);
+    border: 2px dashed rgba(90,74,54,0.4);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .desk {
+    position: absolute;
+    width: 72px;
+    height: 52px;
+    background: #fafafa;
+    border: 2px solid #8b7355;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.18);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .desk:hover { transform: scale(1.06); z-index: 10; }
+
+  .desk.boss {
+    width: 130px;
+    height: 76px;
+    background: #f4e4bc;
+    border: 3px solid #5a3a0f;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.25);
+  }
+
+  /* Chair behind desk */
+  .desk::before {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 8px;
+    background: #4a4a4a;
+    border-radius: 3px 3px 0 0;
+  }
+
+  /* Agent (top-down: head circle) */
+  .agent {
+    width: 22px;
+    height: 22px;
+    background: #ffb6a3;
+    border-radius: 50%;
+    border: 2px solid #5a3a0f;
+    margin-top: -11px;
+    position: relative;
+  }
+  .desk.boss .agent {
+    width: 28px;
+    height: 28px;
+    margin-top: -14px;
+    background: #ffd9a3;
+  }
+
+  /* States */
+  .agent.working::after {
+    content: '✦';
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    padding: 0 5px;
+    border-radius: 8px;
+    border: 1.5px solid #333;
+    font-size: 10px;
+    color: #d97500;
+    animation: think 1.2s infinite;
+    white-space: nowrap;
+  }
+  .agent.done::after {
+    content: '✓';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #c8f0c8;
+    padding: 0 5px;
+    border-radius: 8px;
+    border: 1.5px solid #2a8a2a;
+    font-size: 10px;
+    color: #1a6a1a;
+    font-weight: bold;
+  }
+  .agent.error::after {
+    content: '!';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffd0d0;
+    padding: 0 6px;
+    border-radius: 8px;
+    border: 1.5px solid #aa2a2a;
+    font-size: 11px;
+    color: #aa2a2a;
+    font-weight: bold;
+  }
+  @keyframes think {
+    0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.9); }
+    50%      { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+  }
+
+  .nameplate {
+    font-size: 9px;
+    background: #fff8e0;
+    border: 1px solid #8b7355;
+    padding: 1px 4px;
+    margin-top: 4px;
+    border-radius: 2px;
+    color: #2a2118;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+  .desk.boss .nameplate {
+    background: #ffd700;
+    border-color: #8a6a00;
+    font-size: 10px;
+  }
+
+  .dept-label {
+    position: absolute;
+    font-size: 11px;
+    color: #2a2a2a;
+    background: rgba(255,255,255,0.85);
+    padding: 3px 10px;
+    border-radius: 3px;
+    border: 1.5px solid #5a4a36;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+
+  /* Doorway at bottom */
+  .door {
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 14px;
+    background: #6b4423;
+    border: 2px solid #3a2410;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .legend {
+    max-width: 980px;
+    margin: 28px auto 0;
+    background: #232338;
+    padding: 18px 24px;
+    border-radius: 6px;
+    border: 1.5px solid #5a4a36;
+    font-size: 13px;
+  }
+  .legend h2 { margin: 0 0 10px; font-size: 15px; color: #ffd700; }
+  .legend ul { margin: 0; padding-left: 20px; line-height: 1.7; }
+  .legend .row { display: flex; gap: 32px; }
+  .legend .row > div { flex: 1; }
+
+  /* === Elevator (좌측 상단, 층 전환) === */
+  .elevator {
+    position: absolute;
+    top: 40px;
+    left: 14px;
+    width: 58px;
+    height: 80px;
+    background: #4a4a5a;
+    border: 3px solid #2a2a3a;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+    z-index: 5;
+  }
+  .elevator:hover { transform: scale(1.06); }
+  .elevator-doors {
+    width: 40px;
+    height: 48px;
+    background: linear-gradient(to right, #aaa 0%, #888 49%, #222 49%, #222 51%, #888 51%, #aaa 100%);
+    border: 2px solid #222;
+  }
+  .elevator-label {
+    background: #ffcc00;
+    color: #000;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 1px 4px;
+    margin-top: 3px;
+    border: 1px solid #8a6a00;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+  }
+  .elevator-arrow {
+    position: absolute;
+    top: -10px;
+    font-size: 13px;
+    color: #ffcc00;
+    animation: bounce 1.2s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%     { transform: translateY(-3px); }
+  }
+
+  /* === Token Board (사장석 뒤 벽) === */
+  .token-board {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 220px;
+    height: 30px;
+    background: #1a1a1a;
+    border: 3px solid #5a4a36;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+    z-index: 4;
+  }
+  .token-board::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 8px;
+    background: #5a4a36;
+  }
+  .token-label {
+    color: #00ff88;
+    font-size: 9px;
+    font-weight: bold;
+    text-shadow: 0 0 4px #00ff88;
+  }
+  .token-bar {
+    flex: 1;
+    height: 9px;
+    background: #2a2a2a;
+    border: 1px solid #000;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .token-bar-fill {
+    width: 72%;
+    height: 100%;
+    background: linear-gradient(to right, #00ff88 0%, #ffcc00 80%, #ff4040 100%);
+    animation: led-pulse 2s infinite;
+  }
+  @keyframes led-pulse {
+    0%, 100% { opacity: 1; }
+    50%     { opacity: 0.65; }
+  }
+  .token-percent {
+    color: #ffcc00;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* === Sun (창밖 시간대 표시) === */
+  .sun {
+    position: absolute;
+    top: 6px;
+    right: 70px;
+    width: 18px;
+    height: 18px;
+    background: #ffd700;
+    border-radius: 50%;
+    box-shadow: 0 0 14px #ffd700, 0 0 6px #fff;
+    z-index: 1;
+    animation: led-pulse 3s infinite;
+  }
+</style>
+</head>
+<body>
+  <h1>🏢 AI Agent Office — Basic Layout Mockup</h1>
+  <p class="subtitle">한 화면에 모든 부서가 보임 · 리더는 최상단 사장석 · 부서별 클러스터</p>
+
+  <div class="office">
+    <div class="windows"></div>
+    <div class="sun"></div>
+    <div class="boss-area"></div>
+
+    <!-- Elevator (층 전환, 좌측 상단) -->
+    <div class="elevator" title="2층 Team Office로 이동">
+      <div class="elevator-arrow">▲</div>
+      <div class="elevator-doors"></div>
+      <div class="elevator-label">FL 2</div>
+    </div>
+
+    <!-- Token Board (사장석 뒤 벽) -->
+    <div class="token-board" title="실시간 토큰 사용량">
+      <span class="token-label">TOKENS</span>
+      <div class="token-bar"><div class="token-bar-fill"></div></div>
+      <span class="token-percent">72%</span>
+    </div>
+
+    <!-- Boss (Leader) -->
+    <div class="desk boss" style="top: 88px; left: 50%; transform: translateX(-50%);">
+      <div class="agent working"></div>
+      <div class="nameplate">👑 nxt-leader</div>
+    </div>
+
+    <!-- Worker Team (left) -->
+    <div class="dept-label" style="top: 195px; left: 40px;">📐 WORKER</div>
+    <div class="desk" style="top: 230px; left: 30px;">
+      <div class="agent"></div>
+      <div class="nameplate">nxt-layout</div>
+    </div>
+    <div class="desk" style="top: 230px; left: 120px;">
+      <div class="agent working"></div>
+      <div class="nameplate">nxt-grid</div>
+    </div>
+    <div class="desk" style="top: 320px; left: 30px;">
+      <div class="agent done"></div>
+      <div class="nameplate">nxt-script</div>
+    </div>
+    <div class="desk" style="top: 320px; left: 120px;">
+      <div class="agent"></div>
+      <div class="nameplate">nxt-i18n</div>
+    </div>
+
+    <!-- Reviewer Team (right) -->
+    <div class="dept-label" style="top: 195px; right: 40px;">🔍 REVIEWER</div>
+    <div class="desk" style="top: 230px; right: 30px;">
+      <div class="agent"></div>
+      <div class="nameplate">nxt-reviewer</div>
+    </div>
+    <div class="desk" style="top: 230px; right: 120px;">
+      <div class="agent"></div>
+      <div class="nameplate">cmm-reviewer</div>
+    </div>
+    <div class="desk" style="top: 230px; right: 210px;">
+      <div class="agent error"></div>
+      <div class="nameplate">cmmlib-rev</div>
+    </div>
+    <div class="desk" style="top: 320px; right: 30px;">
+      <div class="agent"></div>
+      <div class="nameplate">i18n-rev</div>
+    </div>
+    <div class="desk" style="top: 320px; right: 120px;">
+      <div class="agent"></div>
+      <div class="nameplate">ibsheet-rev</div>
+    </div>
+    <div class="desk" style="top: 320px; right: 210px;">
+      <div class="agent working"></div>
+      <div class="nameplate">screen-rev</div>
+    </div>
+
+    <!-- Tester Team (bottom left) -->
+    <div class="dept-label" style="top: 425px; left: 40px;">🧪 TESTER</div>
+    <div class="desk" style="top: 460px; left: 30px;">
+      <div class="agent"></div>
+      <div class="nameplate">nxt-tester</div>
+    </div>
+    <div class="desk" style="top: 460px; left: 120px;">
+      <div class="agent"></div>
+      <div class="nameplate">nr</div>
+    </div>
+
+    <!-- Planner Team (bottom right) -->
+    <div class="dept-label" style="top: 425px; right: 40px;">📋 PLANNER</div>
+    <div class="desk" style="top: 460px; right: 30px;">
+      <div class="agent"></div>
+      <div class="nameplate">pw-planner</div>
+    </div>
+    <div class="desk" style="top: 460px; right: 120px;">
+      <div class="agent working"></div>
+      <div class="nameplate">pw-generator</div>
+    </div>
+    <div class="desk" style="top: 460px; right: 210px;">
+      <div class="agent done"></div>
+      <div class="nameplate">pw-healer</div>
+    </div>
+
+    <div class="door"></div>
+  </div>
+
+  <div class="legend">
+    <div class="row">
+      <div>
+        <h2>📋 상태 표시</h2>
+        <ul>
+          <li><b>(빈 머리)</b> 대기 중 — 명령 받을 준비</li>
+          <li><b>✦ (깜빡임)</b> 일하는 중 — 애니메이션</li>
+          <li><b>✓</b> 완료 — 결과물 있음</li>
+          <li><b>!</b> 에러 — 처리 실패</li>
+        </ul>
+      </div>
+      <div>
+        <h2>🎯 인터랙션 (예정)</h2>
+        <ul>
+          <li>책상 <b>더블클릭</b> → 채팅 팝업</li>
+          <li>리더 <b>더블클릭</b> → 하위 워커에게 자동 분배</li>
+          <li>여러 에이전트 동시 working → 병렬 처리</li>
+          <li><b>호버</b> 시 책상 살짝 확대 (미리보기)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
