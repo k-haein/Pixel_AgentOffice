@@ -2,8 +2,8 @@
 
 > 픽셀 아트 사무실에서 AI 에이전트를 직원처럼 채용·배치·명령할 수 있는 데스크톱 앱의 기획 아카이브.
 
-**Status**: M1 마일스톤 달성 — 동작하는 Electron 데스크탑 앱 완성
-**Period**: 2026-05-12, 기획 + M1 구현
+**Status**: M2 마일스톤 달성 — UI 채널 완성 (Claude 연결 전 준비)
+**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2)
 **Target stack**: Electron + React + Phaser.js + TypeScript
 **Distribution**: 사용자 본인 Claude API 키 입력 방식의 `.exe` 인스톨러
 
@@ -137,8 +137,12 @@ PixelAgentOffice/
 ├─ screenshots/                 ← 스크린샷 + 캡처 가이드
 │   └─ HOW-TO-CAPTURE.md
 └─ milestones/                  ← 마일스톤별 코드 스냅샷
-    └─ M1-basic-ui/             ← Electron + Phaser 기본 UI 완성
-        ├─ retrospective.md     ← 회고: 무엇을 만들었고 무엇을 배웠나
-        ├─ electron/            ← 메인 프로세스 코드
-        └─ src/                 ← React + Phaser 소스 코드
+    ├─ M1-basic-ui/             ← Electron + Phaser 기본 UI (2026-05-12)
+    │   ├─ retrospective.md
+    │   ├─ electron/
+    │   └─ src/
+    └─ M2-ui-channel/           ← 채용·메모·설정 모달 + 영속화 (2026-05-13)
+        ├─ retrospective.md
+        ├─ electron/  (+ data/store.ts)
+        └─ src/       (+ components/, shared/, types/)
 ```
