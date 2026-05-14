@@ -49,3 +49,8 @@ release/
 
 # ===== Claude Code local settings =====
 .claude/settings.local.json
+
+# ===== Playwright (E2E test) =====
+playwright-report/
+test-results/
+.playwright-cache/
