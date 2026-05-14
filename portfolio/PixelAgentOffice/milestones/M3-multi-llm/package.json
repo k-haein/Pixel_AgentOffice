@@ -1,0 +1,44 @@
+{
+  "name": "pixelagentoffice",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test:e2e": "tsc -b && vite build && playwright test",
+    "test:e2e:no-build": "playwright test",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
+    "@google/generative-ai": "^0.24.1",
+    "phaser": "^4.1.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "dotenv": "^17.4.2",
+    "electron": "^42.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12",
+    "vite-plugin-electron": "^0.29.1",
+    "vite-plugin-electron-renderer": "^0.14.7",
+    "wait-on": "^9.0.10"
+  }
+}

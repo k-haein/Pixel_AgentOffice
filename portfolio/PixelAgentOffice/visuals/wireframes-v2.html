@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>PixelAgentOffice — Wireframes v2 (M3 + 미래 비전)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: #14141f;
+    font-family: 'Courier New', monospace;
+    color: #e8e8e8;
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { text-align: center; margin: 0 0 6px; font-size: 26px; color: #ffd700; }
+  h1 .badge { font-size: 12px; background: #ffd700; color: #14141f; padding: 3px 10px; border-radius: 4px; vertical-align: middle; margin-left: 8px; }
+  .subtitle { text-align: center; opacity: 0.65; margin-bottom: 24px; font-size: 13px; }
+  .toc {
+    max-width: 1100px;
+    margin: 0 auto 40px;
+    background: #1c1c2c;
+    padding: 16px 24px;
+    border-radius: 8px;
+    border: 2px solid #3a3a4a;
+  }
+  .toc h2 { font-size: 14px; color: #ffcc66; margin: 0 0 10px; }
+  .toc ol { margin: 0; padding-left: 24px; line-height: 1.9; font-size: 13px; }
+  .toc a { color: #fffbed; text-decoration: none; }
+  .toc a:hover { color: #ffd700; text-decoration: underline; }
+  .impl-status {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 8px;
+  }
+  .impl-done { background: #6abf6a; color: #fff; }
+  .impl-planned { background: #d49040; color: #fff; }
+  .impl-future { background: #6080d4; color: #fff; }
+
+  h2 { color: #ffcc66; margin: 0 0 8px; font-size: 19px; display: flex; align-items: center; gap: 8px; }
+  .note { font-size: 12px; opacity: 0.7; margin-bottom: 14px; }
+  section {
+    max-width: 1100px;
+    margin: 0 auto 48px;
+    background: #1c1c2c;
+    border: 2px solid #3a3a4a;
+    border-radius: 8px;
+    padding: 24px;
+  }
+  .section-label {
+    display: inline-block;
+    background: #ffcc66;
+    color: #1c1c2c;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+  .annotations {
+    background: #232338;
+    border-left: 3px solid #ffcc66;
+    padding: 8px 14px;
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .annotations strong { color: #ffcc66; }
+  .annotations ul { margin: 4px 0; padding-left: 22px; }
+
+  /* ===== Mockup Frame ===== */
+  .mockup-frame {
+    background: #2a2a3a;
+    border: 3px solid #5a5a6a;
+    border-radius: 6px;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .mockup-titlebar {
+    background: #3a3a4a;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #aaa;
+    border-bottom: 1px solid #1a1a2a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mockup-titlebar::before {
+    content: '● ● ●';
+    color: #555;
+    letter-spacing: 2px;
+  }
+  .mockup-body {
+    background: #e8dfd0;
+    padding: 24px;
+    color: #2a2a2a;
+    min-height: 200px;
+    position: relative;
+  }
+
+  /* ===== Office Scene (Floor 1) ===== */
+  .floor1 {
+    background: #e8dfd0;
+    background-image:
+      linear-gradient(to right, rgba(110,90,60,0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(110,90,60,0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+    padding: 20px;
+    position: relative;
+    min-height: 360px;
+    border-radius: 4px;
+  }
+  .windows {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 28px;
+    background: repeating-linear-gradient(to right, #87ceeb 0 80px, #6fb6d9 80px 84px);
+    border-bottom: 3px solid #5a4a36;
+  }
+  .sun {
+    position: absolute;
+    top: 4px; right: 80px;
+    width: 14px; height: 14px;
+    background: #ffd700;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #ffd700;
+  }
+  .cloud {
+    position: absolute; top: 6px;
+    height: 12px;
+    background: #fff;
+    border-radius: 8px;
+  }
+  .elevator {
+    position: absolute;
+    top: 50px; left: 14px;
+    width: 50px; height: 70px;
+    background: #4a4a5a;
+    border: 3px solid #2a2a3a;
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .elevator-doors {
+    width: 34px; height: 42px;
+    background: linear-gradient(to right, #888 49%, #222 49%, #222 51%, #888 51%);
+    border: 1.5px solid #222;
+  }
+  .elevator-label {
+    background: #ffcc00; color: #000;
+    font-size: 7px; font-weight: bold;
+    padding: 1px 4px;
+    margin-top: 2px;
+    border: 1px solid #8a6a00;
+    border-radius: 2px;
+  }
+  .workstation {
+    position: absolute;
+    width: 130px;
+    text-align: center;
+  }
+  .chair {
+    width: 50px; height: 50px;
+    background: #6a4a30;
+    border: 2px solid #3a1a00;
+    margin: 0 auto -10px;
+    border-radius: 6px 6px 2px 2px;
+  }
+  .clawd-pixel {
+    width: 36px; height: 36px;
+    background: #e87a4a;
+    border: 2px solid #1a0e08;
+    margin: 0 auto;
+    position: relative;
+    border-radius: 3px;
+  }
+  .clawd-pixel.haewol { background: #7ab5e0; opacity: 0.85; }
+  .clawd-pixel::before, .clawd-pixel::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    width: 5px; height: 6px;
+    background: #1a0e08;
+  }
+  .clawd-pixel::before { left: 6px; }
+  .clawd-pixel::after { right: 6px; }
+  .legs {
+    display: flex; justify-content: center; gap: 3px;
+    margin-top: 1px;
+  }
+  .leg { width: 4px; height: 8px; background: #e87a4a; border: 1.5px solid #1a0e08; }
+  .haewol-legs .leg { background: #7ab5e0; opacity: 0.85; }
+  .chat-bubble-icon {
+    position: absolute;
+    top: -28px; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 18px;
+    background: #fff;
+    border: 2px solid #2a1408;
+    border-radius: 4px;
+    font-size: 9px;
+    color: #5a5a5a;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .chat-bubble-icon::after {
+    content: '';
+    position: absolute;
+    bottom: -7px; left: 8px;
+    border: 5px solid transparent;
+    border-top-color: #2a1408;
+  }
+  .desk {
+    width: 110px; height: 36px;
+    background: #c9a878;
+    border: 2px solid #5a3a0f;
+    margin: 6px auto 0;
+    position: relative;
+    border-radius: 2px;
+  }
+  .monitor {
+    position: absolute;
+    top: -22px; left: 35px;
+    width: 40px; height: 24px;
+    background: #222;
+    border: 2px solid #1a1a1a;
+  }
+  .monitor::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    right: 2px; bottom: 4px;
+    background: #3a5a72;
+  }
+  .memo {
+    position: absolute;
+    bottom: 6px; left: 6px;
+    width: 14px; height: 14px;
+    background: #fff4a6;
+    border: 1.5px solid #8a6a20;
+    cursor: pointer;
+  }
+  .mouse {
+    position: absolute;
+    bottom: 8px; right: 6px;
+    width: 10px; height: 12px;
+    background: #9a9a9a;
+    border: 1.5px solid #2a1408;
+    border-radius: 4px;
+  }
+  .nameplate {
+    display: inline-block;
+    background: #fff8e0;
+    border: 1.5px solid #8b7355;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #2a2118;
+    margin-top: 6px;
+    border-radius: 2px;
+  }
+  .token-board {
+    position: absolute;
+    top: 38px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 26px;
+    background: #1a1a1a;
+    border: 3px solid #5a4a36;
+    border-radius: 3px;
+    display: flex; align-items: center; padding: 0 8px; gap: 6px;
+  }
+  .token-board .led {
+    color: #00ff88;
+    font-size: 9px;
+    font-weight: bold;
+  }
+  .token-bar {
+    flex: 1; height: 8px;
+    background: #2a2a2a;
+    border: 1px solid #000;
+    border-radius: 2px; overflow: hidden;
+  }
+  .token-bar-fill {
+    width: 72%; height: 100%;
+    background: linear-gradient(to right, #00ff88, #ffcc00, #ff4040);
+  }
+  .token-percent { color: #ffcc00; font-size: 10px; font-weight: bold; }
+
+  /* ===== Modal Mock ===== */
+  .modal-mock {
+    background: #fff;
+    border: 3px solid #5a3a0f;
+    border-radius: 6px;
+    color: #2a2a2a;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .modal-mock .head {
+    background: #f4e4bc;
+    border-bottom: 2px solid #8b7355;
+    padding: 10px 14px;
+    font-weight: bold;
+    color: #5a3a0f;
+    font-size: 14px;
+  }
+  .modal-mock .body { padding: 14px; }
+  .modal-mock h4 {
+    margin: 12px 0 6px;
+    font-size: 12px;
+    color: #5a3a0f;
+  }
+  .modal-mock .field {
+    background: #fafaf0;
+    border: 1.5px solid #d0c0a0;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .modal-mock .group-label {
+    font-size: 10px;
+    color: #6a5a3a;
+    margin-top: 6px;
+    font-weight: bold;
+  }
+  .pill-group {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin: 4px 0;
+  }
+  .pill-mock {
+    background: #fff;
+    border: 1.5px solid #8b7355;
+    padding: 3px 10px;
+    font-size: 10px;
+    border-radius: 12px;
+    color: #5a3a0f;
+  }
+  .pill-mock.on {
+    background: #5a3a0f;
+    color: #ffcc66;
+  }
+  .modal-mock .footer {
+    background: #f4e4bc;
+    padding: 8px 14px;
+    border-top: 1.5px solid #8b7355;
+    display: flex; gap: 6px; justify-content: flex-end;
+    font-size: 11px;
+  }
+  .btn-mock {
+    padding: 4px 14px;
+    border-radius: 3px;
+    font-weight: bold;
+    border: 1.5px solid;
+    cursor: pointer;
+  }
+  .btn-primary-mock {
+    background: #5a3a0f; color: #ffcc66; border-color: #2a1a00;
+  }
+  .btn-secondary-mock {
+    background: #fff; color: #5a3a0f; border-color: #8b7355;
+  }
+  .btn-danger-mock {
+    background: #c0392b; color: #fff; border-color: #8a1a0a;
+  }
+
+  /* ===== Chat Popup ===== */
+  .chat-mock {
+    width: 320px;
+    background: #fff;
+    border: 3px solid #5a3a0f;
+    border-radius: 6px;
+    color: #2a2a2a;
+    margin: 0 auto;
+  }
+  .chat-head {
+    background: #f4e4bc;
+    border-bottom: 1.5px solid #8b7355;
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px;
+  }
+  .chat-head .ava {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #e87a4a; border: 2px solid #1a0e08;
+  }
+  .chat-head strong { color: #5a3a0f; }
+  .chat-head .status {
+    margin-left: auto;
+    font-size: 9px;
+    color: #2a8a2a;
+  }
+  .chat-body {
+    background: #fafaf0;
+    padding: 10px;
+    font-size: 11px;
+    min-height: 130px;
+  }
+  .msg-bubble {
+    display: inline-block;
+    background: #ffe599;
+    border: 1px solid #b8860b;
+    padding: 4px 8px;
+    border-radius: 8px;
+    max-width: 80%;
+    margin-bottom: 6px;
+  }
+  .msg-agent-bubble {
+    background: #fff;
+    border: 1px solid #aaa;
+  }
+  .chat-foot {
+    border-top: 1.5px solid #8b7355;
+    padding: 6px 8px;
+    display: flex; gap: 4px;
+    background: #fff;
+  }
+  .chat-foot input {
+    flex: 1;
+    background: #fafaf0;
+    border: 1.5px solid #8b7355;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 11px;
+  }
+
+  /* ===== Onboarding ===== */
+  .onboarding {
+    background: #f4e4bc;
+    padding: 20px;
+    border-radius: 6px;
+  }
+  .onboarding h3 {
+    text-align: center;
+    color: #5a3a0f;
+    margin: 0 0 14px;
+  }
+  .onboarding-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .onb-card {
+    background: #fff;
+    border: 2px solid #8b7355;
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #2a2a2a;
+  }
+  .onb-card.recommended {
+    background: #fff8e0;
+    border-color: #5a3a0f;
+    border-width: 3px;
+  }
+  .onb-emoji { font-size: 22px; }
+  .onb-title { font-weight: bold; color: #5a3a0f; margin: 4px 0; }
+  .onb-desc { font-size: 10px; color: #6a5a3a; }
+
+  /* ===== Night mode ===== */
+  .night-mode {
+    background: #0a0a18;
+    border: 5px solid #0a0a10;
+    border-radius: 4px;
+    padding: 24px;
+    color: #ccc;
+    min-height: 280px;
+    position: relative;
+  }
+  .night-window {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 24px;
+    background: #0a0a30;
+    border-bottom: 3px solid #0a0a10;
+    color: #ffe;
+    font-size: 8px;
+    letter-spacing: 6px;
+    padding-top: 8px;
+    text-align: center;
+  }
+  .moon-icon {
+    position: absolute;
+    top: 4px; right: 60px;
+    width: 14px; height: 14px;
+    background: #ffe;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,255,224,0.6);
+  }
+  .depletion-row {
+    display: flex; justify-content: space-around;
+    margin-top: 50px;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .reaction-char {
+    background: #fff;
+    border: 2px solid #5a3a0f;
+    border-radius: 4px;
+    padding: 8px;
+    width: 86px;
+    text-align: center;
+    color: #2a2a2a;
+    font-size: 9px;
+  }
+  .reaction-emoji { font-size: 22px; display: block; }
+
+  /* ===== Promotion modal ===== */
+  .promo-modal {
+    max-width: 460px;
+    margin: 0 auto;
+    background: #fff;
+    border: 3px solid #5a3a0f;
+    padding: 18px;
+    border-radius: 6px;
+    color: #2a2a2a;
+  }
+  .promo-modal .char-frame {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .promo-quote {
+    background: #f4e4bc;
+    border-left: 3px solid #5a3a0f;
+    padding: 10px 14px;
+    font-style: italic;
+    font-size: 13px;
+    margin: 10px 0;
+  }
+  .promo-stats {
+    background: #fafaf0;
+    border: 1px dashed #d0c0a0;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #6a5a3a;
+    line-height: 1.7;
+  }
+  .promo-actions {
+    display: flex; gap: 8px; margin-top: 14px;
+    justify-content: center;
+  }
+
+  /* ===== Team Office (Floor 2) ===== */
+  .floor2 {
+    background: #2a3a4a;
+    background-image:
+      linear-gradient(to right, rgba(100,150,200,0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(100,150,200,0.1) 1px, transparent 1px);
+    background-size: 24px 24px;
+    border: 5px solid #1a2a3a;
+    border-radius: 4px;
+    padding: 16px;
+    color: #fff;
+    min-height: 280px;
+  }
+  .team-leader {
+    background: #ffe599;
+    border: 3px solid #5a3a0f;
+    color: #2a2a2a;
+    padding: 8px;
+    width: 110px;
+    text-align: center;
+    margin: 0 auto 30px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  .team-workers {
+    display: flex; justify-content: space-around; gap: 10px; flex-wrap: wrap;
+  }
+  .team-worker {
+    background: #fff;
+    border: 2px solid #8b7355;
+    color: #2a2a2a;
+    padding: 6px;
+    width: 90px;
+    text-align: center;
+    font-size: 10px;
+    border-radius: 3px;
+  }
+  .floor-tag {
+    background: #ffcc66;
+    color: #1c1c2c;
+    padding: 2px 8px;
+    font-weight: bold;
+    font-size: 10px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
+
+  hr.spacer { border: none; margin: 30px 0; }
+
+  /* Persona */
+  .persona-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .persona-card {
+    background: #232338;
+    border: 1.5px solid #5a4a36;
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .persona-name {
+    color: #ffd700;
+    font-weight: bold;
+    margin: 0 0 4px;
+    font-size: 13px;
+  }
+  .persona-list {
+    font-size: 11px;
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🏢 PixelAgentOffice — Wireframes <span class="badge">v2 · M3 시점</span></h1>
+<p class="subtitle">기획자 포트폴리오용 · 현재 구현 + 미래 비전 9개 화면 · 부록은 <a href="../PRD.md" style="color:#ffd700">PRD.md</a> 참조</p>
+
+<div class="toc">
+  <h2>📑 목차</h2>
+  <ol>
+    <li><a href="#sec-persona">페르소나 & 사용자 여정</a></li>
+    <li><a href="#sec-office">Floor 1 사무실 (메인 화면)<span class="impl-status impl-done">구현됨</span></a></li>
+    <li><a href="#sec-chat">채팅 팝업<span class="impl-status impl-done">구현됨</span></a></li>
+    <li><a href="#sec-memo">메모지 모달 (지침 편집)<span class="impl-status impl-done">구현됨</span></a></li>
+    <li><a href="#sec-hire">채용 모달<span class="impl-status impl-done">구현됨</span></a></li>
+    <li><a href="#sec-settings">설정 모달 — 다중 LLM<span class="impl-status impl-done">구현됨</span></a></li>
+    <li><a href="#sec-onboarding">첫 실행 안내 화면<span class="impl-status impl-future">미래 비전</span></a></li>
+    <li><a href="#sec-night">🌙 토큰 고갈 밤 모드<span class="impl-status impl-planned">계획 (M5)</span></a></li>
+    <li><a href="#sec-promo">진급 모달 — 캐릭터 voice<span class="impl-status impl-planned">계획 (M6)</span></a></li>
+    <li><a href="#sec-team">Floor 2 — Team Office<span class="impl-status impl-future">미래 비전 (Phase 2)</span></a></li>
+  </ol>
+</div>
+
+<!-- ===== 0. Persona ===== -->
+<section id="sec-persona">
+  <span class="section-label">CONTEXT</span>
+  <h2>👤 페르소나 & 핵심 시나리오</h2>
+  <p class="note">와이어프레임을 보기 전에 누가 / 어떤 상황에서 쓰는지.</p>
+
+  <div class="persona-grid">
+    <div class="persona-card">
+      <h3 class="persona-name">🎯 Primary: 페르소나 채팅 사용자</h3>
+      <ul class="persona-list">
+        <li>작가/학생/디자이너/마케터</li>
+        <li>이미 ChatGPT·Claude 앱에서 시스템 프롬프트 사용 중</li>
+        <li>페인: 페르소나마다 채팅창 분리 안 됨, 매번 복붙</li>
+        <li>기대: "내 글쓰기 도우미 Mary"가 일관되게 답하길</li>
+        <li>기술 수준: 코드 X, GUI만</li>
+      </ul>
+    </div>
+    <div class="persona-card">
+      <h3 class="persona-name">⚙️ Secondary: AI 얼리어답터 / 개발자</h3>
+      <ul class="persona-list">
+        <li>API 키 사용 익숙, 여러 모델 비교</li>
+        <li>페인: 자기 멀티 에이전트 시각화 도구 없음</li>
+        <li>기대: 자기 프로젝트 에이전트를 시각화 (Phase 2)</li>
+        <li>기술 수준: 코드 작성 가능</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>핵심 사용자 여정 (Journey 1 — 신규)</strong>
+    <ul>
+      <li>1. .exe 더블클릭 → 사무실 등장 (Mary, Haewol 기본 2명)</li>
+      <li>2. ⚙ 설정 → LLM 선택 → API 키 입력</li>
+      <li>3. 💬 말풍선 클릭 → 첫 대화 → "오, 진짜 답하네!"</li>
+      <li>4. 📝 메모지 → 커스텀 지침 추가 → 톤 변화 확인</li>
+      <li>5. "내가 직원을 키운다" 감각 → 애착 형성</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 1. Floor 1 Office ===== -->
+<section id="sec-office">
+  <span class="section-label">SCREEN 1</span>
+  <h2>🏢 Floor 1 사무실 (메인 화면)</h2>
+  <p class="note">앱 실행 시 첫 화면. 픽셀 사무실 + Mary(편집자, 오렌지) + Haewol(작가, 파란 해파리, alpha 0.85).</p>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">PixelAgentOffice — Floor 1 · Solo Office · 직원 2/2</div>
+    <div class="mockup-body" style="background: #2a2a3e; padding: 12px;">
+      <div class="floor1">
+        <div class="windows"></div>
+        <div class="sun"></div>
+        <div class="cloud" style="left: 160px; width: 40px;"></div>
+        <div class="cloud" style="left: 360px; width: 28px;"></div>
+
+        <div class="elevator">
+          <div class="elevator-doors"></div>
+          <div class="elevator-label">FL 2</div>
+        </div>
+
+        <div class="token-board">
+          <span class="led">TOKENS</span>
+          <div class="token-bar"><div class="token-bar-fill"></div></div>
+          <span class="token-percent">72%</span>
+        </div>
+
+        <div class="workstation" style="left: 130px; top: 150px;">
+          <div class="chair"></div>
+          <div class="clawd-pixel">
+            <div class="chat-bubble-icon">💬</div>
+          </div>
+          <div class="legs">
+            <div class="leg"></div><div class="leg"></div>
+            <div class="leg"></div><div class="leg"></div>
+          </div>
+          <div class="desk">
+            <div class="monitor"></div>
+            <div class="memo" title="📝 메모지"></div>
+            <div class="mouse"></div>
+          </div>
+          <div class="nameplate">✍️ Mary · 편집자</div>
+        </div>
+
+        <div class="workstation" style="right: 80px; top: 150px;">
+          <div class="chair"></div>
+          <div class="clawd-pixel haewol">
+            <div class="chat-bubble-icon">💬</div>
+          </div>
+          <div class="legs haewol-legs">
+            <div class="leg"></div><div class="leg"></div>
+            <div class="leg"></div><div class="leg"></div>
+          </div>
+          <div class="desk">
+            <div class="monitor"></div>
+            <div class="memo"></div>
+            <div class="mouse"></div>
+          </div>
+          <div class="nameplate">🪼 Haewol · 작가</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>디자인 결정</strong>
+    <ul>
+      <li><strong>💬 말풍선 단일 클릭</strong> = 채팅. 더블클릭보다 발견성 ↑ (사용자 피드백 반영)</li>
+      <li><strong>📝 메모지</strong> = 지침 편집. "사용자가 관리하는 것"만 시각적으로 노출</li>
+      <li><strong>🛗 엘리베이터</strong> = Floor 2 (Team Office) 전환 — 게임적 메타포</li>
+      <li><strong>토큰 보드 (상단 LED 바)</strong> = 사무실 전체 자원 표시. 80% → 깜빡임, 0% → 밤 도래</li>
+      <li><strong>캐릭터 외형 차별화</strong>: Mary(주황 Clawd) vs Haewol(파란 해파리 + 무지개 광택 + 투명감)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 2. Chat Popup ===== -->
+<section id="sec-chat">
+  <span class="section-label">SCREEN 2</span>
+  <h2>💬 채팅 팝업</h2>
+  <p class="note">캐릭터 💬 클릭 시 우측 하단 등장. 실제 LLM API 호출.</p>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">PixelAgentOffice</div>
+    <div class="mockup-body" style="background: #e8dfd0; min-height: 250px; position: relative;">
+      <div style="position: absolute; right: 20px; bottom: 20px;">
+        <div class="chat-mock">
+          <div class="chat-head">
+            <div class="ava">✍️</div>
+            <div>
+              <strong>Mary</strong><br>
+              <span style="font-size: 9px; color: #6a5a3a;">편집자 · 🧠 sonnet</span>
+            </div>
+            <span class="status">● 작업 중</span>
+            <span style="margin-left: 8px; cursor: pointer; color: #5a3a0f; font-weight: bold;">×</span>
+          </div>
+          <div class="chat-body">
+            <div style="text-align: center; font-style: italic; font-size: 10px; opacity: 0.6; margin-bottom: 8px;">
+              ✍️ Mary (편집자)와의 대화가 시작되었습니다.
+            </div>
+            <div style="text-align: right;">
+              <div class="msg-bubble">이 글 다듬어 줄래?</div>
+            </div>
+            <div>
+              <div class="msg-bubble msg-agent-bubble">읽어볼게요. 핵심 메시지는 살리되 문장이 너무 길어요. 짧고 또렷한 버전을 만들어봤어요.</div>
+            </div>
+          </div>
+          <div class="chat-foot">
+            <input value="" placeholder="명령을 입력하세요... (Enter)">
+            <button class="btn-mock btn-primary-mock">전송</button>
+          </div>
+          <div style="background: #f4e4bc; padding: 4px 10px; font-size: 9px; color: #6a5a3a; border-top: 1.5px solid #8b7355; text-align: center;">
+            💬 실제 LLM과 대화 중 · 💸 토큰 비용 발생
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>핵심 UX</strong>
+    <ul>
+      <li><strong>모델 명시</strong> (🧠 sonnet) — 사용자가 어떤 LLM과 대화 중인지 늘 인식</li>
+      <li><strong>상태 인디케이터</strong> — ● 작업 중 / ● 대기 / 작업 중일 때 캐릭터 머리 위 ✦ 동기화</li>
+      <li><strong>비용 푸터</strong> — Gemini 무료 시 "🆓 무료" / Claude 시 "💸 토큰 비용 발생"</li>
+      <li><strong>에러 처리</strong> — provider별 친절 메시지 (quota=0, INVALID_KEY, RATE_LIMIT 등)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 3. Memo Modal ===== -->
+<section id="sec-memo">
+  <span class="section-label">SCREEN 3</span>
+  <h2>📝 메모지 모달 — 지침 편집</h2>
+  <p class="note">책상의 노란 메모지 클릭 시. 사용자가 관리하는 것만 노출 (메모리는 백그라운드).</p>
+
+  <div class="modal-mock">
+    <div class="head">📝 ✍️ Mary의 메모</div>
+    <div class="body">
+      <div style="background: #fff8e0; border: 1.5px solid #d0c0a0; padding: 8px 12px; margin-bottom: 10px;">
+        <div style="font-weight: bold; color: #5a3a0f;">Mary</div>
+        <div style="font-size: 10px; color: #6a5a3a;">편집자 · 🏆 사원 · 입사 2026-05-12</div>
+      </div>
+
+      <h4>⚙️ 기본 지침 <span style="background:#ddd;color:#555;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:normal;">읽기 전용</span></h4>
+      <pre style="background: #f0e8d8; padding: 8px 10px; font-size: 10px; margin: 0; border: 1px solid #d0c0a0;">당신은 Mary, 꼼꼼한 편집자입니다.
+짧고 또렷한 문장을 선호합니다.</pre>
+
+      <h4>✏️ 커스텀 지침 <span style="background:#6abf6a;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:bold;">편집 가능</span></h4>
+      <div class="field" style="min-height: 40px;">
+        - 반말 금지<br>
+        - 비유는 최대 2개까지
+      </div>
+
+      <h4>🧠 대화 모델</h4>
+      <div class="pill-group">
+        <div class="group-label">🆓 무료 (Google)</div>
+      </div>
+      <div class="pill-group">
+        <span class="pill-mock">Gemini 2.5 Pro</span>
+        <span class="pill-mock">Gemini 2.5 Flash</span>
+        <span class="pill-mock">Gemini 2.0 Flash</span>
+      </div>
+      <div class="pill-group">
+        <div class="group-label">💸 유료 (Anthropic)</div>
+      </div>
+      <div class="pill-group">
+        <span class="pill-mock">Claude Opus</span>
+        <span class="pill-mock on">Claude Sonnet</span>
+        <span class="pill-mock">Claude Haiku</span>
+      </div>
+
+      <h4>💾 메모리 모드</h4>
+      <div class="pill-group">
+        <span class="pill-mock">OFF</span>
+        <span class="pill-mock">MANUAL</span>
+        <span class="pill-mock">ASK</span>
+        <span class="pill-mock on">AUTO ⭐</span>
+      </div>
+
+      <h4>📊 그간 활동</h4>
+      <div style="font-size: 11px;">
+        총 대화 0회 · 메모 갱신 0회 · 받은 칭찬 0회
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn-mock btn-danger-mock">🗑 해고</button>
+      <div style="flex: 1;"></div>
+      <button class="btn-mock btn-secondary-mock">취소</button>
+      <button class="btn-mock btn-primary-mock">💾 저장</button>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>핵심 디자인 결정 — "메모지 vs 메모리" 분리</strong>
+    <ul>
+      <li><strong>메모지에는 지침만</strong>: 기본(읽기 전용) + 커스텀(편집)</li>
+      <li><strong>메모리는 백그라운드</strong>: <code>data/memories/&lt;agent-id&gt;.md</code> 파일에 시스템이 자동 누적 (M4부터). 사용자가 의식할 필요 X.</li>
+      <li><strong>왜?</strong> "Mary 여러 명이면 메모리를 일일이 관리 못 함" — 사용자 통찰</li>
+      <li>3-레이어 시스템 프롬프트 = 기본 지침 + 커스텀 지침 + 자동 메모리 (모두 합쳐서 LLM 전송)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 4. Hire Modal ===== -->
+<section id="sec-hire">
+  <span class="section-label">SCREEN 4</span>
+  <h2>📋 채용 모달</h2>
+  <p class="note">상단바 "+ 채용" 클릭. 템플릿 선택 → 정체성 → 직급/모델/진급 방식.</p>
+
+  <div class="modal-mock">
+    <div class="head">📋 새 직원 채용</div>
+    <div class="body">
+      <h4>👤 캐릭터 템플릿</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div style="background: #ffe599; border: 3px solid #5a3a0f; padding: 14px 8px; text-align: center; border-radius: 4px;">
+          <div style="font-size: 32px;">✍️</div>
+          <div style="font-weight: bold; color: #5a3a0f;">편집자</div>
+          <div style="font-size: 10px; color: #6a5a3a;">Mary</div>
+        </div>
+        <div style="background: #fff; border: 2px solid #d0c0a0; padding: 14px 8px; text-align: center; border-radius: 4px;">
+          <div style="font-size: 32px;">🪼</div>
+          <div style="font-weight: bold; color: #5a3a0f;">작가</div>
+          <div style="font-size: 10px; color: #6a5a3a;">Haewol</div>
+        </div>
+      </div>
+
+      <h4>🪪 정체성</h4>
+      <div class="field">이름: Mary</div>
+      <div class="field">역할: 편집자</div>
+      <div class="field" style="min-height: 30px; color: #999;">커스텀 지침 (선택): 예) 반말 금지</div>
+
+      <h4>🏆 초기 직급</h4>
+      <div class="pill-group">
+        <span class="pill-mock on">알바</span>
+        <span class="pill-mock">사원</span>
+        <span class="pill-mock">대리</span>
+        <span class="pill-mock">과장</span>
+        <span class="pill-mock">부장</span>
+      </div>
+
+      <h4>📈 진급 방식</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+        <div style="background: #f4e4bc; border: 1.5px solid #5a3a0f; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          <strong>⏰ 시간</strong><br>입사 후 일정 기간
+        </div>
+        <div style="background: #fff; border: 1.5px solid #d0c0a0; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          📊 정량 · 대화/메모 횟수
+        </div>
+        <div style="background: #fff; border: 1.5px solid #d0c0a0; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          ⭐ 정성 · 칭찬 횟수
+        </div>
+        <div style="background: #fff; border: 1.5px solid #d0c0a0; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          🛑 수동
+        </div>
+      </div>
+
+      <h4>🧠 대화 모델</h4>
+      <div class="pill-group">
+        <span class="pill-mock on">Gemini 2.5 Flash</span>
+        <span class="pill-mock">Gemini 2.0 Flash</span>
+        <span class="pill-mock">Claude Sonnet</span>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn-mock btn-secondary-mock">취소</button>
+      <button class="btn-mock btn-primary-mock">✓ 채용 완료</button>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>핵심 UX</strong>
+    <ul>
+      <li><strong>템플릿 = 시각 외형</strong>. 사용자가 시각적으로 선택 → 코드/설정 부담 X</li>
+      <li><strong>초기 직급 선택 가능</strong> — "이미 베테랑이야!" 하면 부장부터 시작</li>
+      <li><strong>진급 방식 사용자 결정</strong> — 5가지 모드 중 선호에 맞게 (강제 X)</li>
+      <li><strong>기본값 무료 모델</strong> (Gemini Flash) — 진입 장벽 ↓</li>
+      <li>채용 후 빈 자리 자동 배치 (M2에서 버그 발견 + 수정)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 5. Settings Modal ===== -->
+<section id="sec-settings">
+  <span class="section-label">SCREEN 5</span>
+  <h2>⚙️ 설정 모달 — 다중 LLM</h2>
+  <p class="note">상단바 ⚙ 클릭. Anthropic + Google 두 키, Free/Paid 모델 그룹.</p>
+
+  <div class="modal-mock">
+    <div class="head">⚙️ 설정</div>
+    <div class="body">
+      <h4>🆓 Google AI API 키 <span style="color:#2a8a2a;font-size:9px;">(무료 권장)</span></h4>
+      <p style="font-size: 10px; color: #6a5a3a; margin: 4px 0;">
+        발급: aistudio.google.com/apikey — Google 계정만, 신용카드 불필요
+      </p>
+      <div style="background: #e0f0e0; border: 1.5px solid #6abf6a; padding: 4px 10px; font-size: 10px; color: #1a6a1a; border-radius: 4px; margin-bottom: 4px;">
+        ✓ 저장됨
+      </div>
+      <div class="field">●●●●●●●●●●●●</div>
+      <button style="margin-top: 4px; background: none; border: none; color: #aa2a2a; font-size: 10px; text-decoration: underline; cursor: pointer; padding: 0;">🗑 삭제</button>
+
+      <h4>💸 Anthropic API 키 <span style="color:#aa6020;font-size:9px;">(유료, 한국어 강함)</span></h4>
+      <p style="font-size: 10px; color: #6a5a3a; margin: 4px 0;">
+        console.anthropic.com — 카드 등록 + $5 선불 충전 (학습용 월 $1~5)
+      </p>
+      <div class="field" style="color: #999;">sk-ant-...</div>
+
+      <h4>🧠 기본 대화 모델</h4>
+      <div class="group-label">🆓 무료 (Google)</div>
+      <div style="display: flex; flex-direction: column; gap: 3px; margin: 4px 0;">
+        <div style="background: #f4e4bc; border: 1.5px solid #5a3a0f; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          <strong>Gemini 2.5 Flash</strong> — 무료 · 균형 (분당 10회)
+        </div>
+        <div style="background: #fff; border: 1.5px solid #d0c0a0; padding: 4px 8px; border-radius: 3px; font-size: 10px;">
+          ⭐ Gemini 2.0 Flash — 무료 · 한도 큼 (분당 15회)
+        </div>
+      </div>
+
+      <h4>💰 일일 비용 한도 ($)</h4>
+      <div class="field">5.00</div>
+      <p style="font-size: 10px; color: #aa6020; margin: 4px 0;">
+        🚧 자동 차단은 M3-b에서 활성화. 지금은 값만 저장.
+      </p>
+    </div>
+    <div class="footer">
+      <button class="btn-mock btn-secondary-mock">취소</button>
+      <button class="btn-mock btn-primary-mock">저장</button>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>다중 LLM 통합 디자인</strong>
+    <ul>
+      <li><strong>두 키 입력란 분리</strong> — Google + Anthropic 따로 (Provider별 독립)</li>
+      <li><strong>무료/유료 라벨</strong> — 사용자에게 비용 의식 명확하게 ("이걸 누르면 돈 든다")</li>
+      <li><strong>OS 키체인 암호화</strong> — Windows DPAPI / macOS Keychain. 평문 저장 X</li>
+      <li><strong>모델 선택 그룹화</strong> — Free/Paid로 묶어서 사용자 의사결정 부담 ↓</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 6. Onboarding (Future) ===== -->
+<section id="sec-onboarding">
+  <span class="section-label">SCREEN 6 · 미래</span>
+  <h2>🚪 첫 실행 안내 화면 <span class="impl-status impl-future">미래 비전</span></h2>
+  <p class="note">진입 장벽 완화를 위한 핵심 화면. 4가지 옵션을 사용자 상황·예산에 맞게 선택.</p>
+
+  <div class="onboarding">
+    <h3>어떻게 시작할까요?</h3>
+    <div class="onboarding-options">
+      <div class="onb-card recommended">
+        <div class="onb-emoji">🆓</div>
+        <div class="onb-title">Groq로 시작 (카드 X)</div>
+        <div class="onb-desc">완전 무료, 카드 등록 절대 불필요<br>품질 보통, 한국어 약함<br>둘러보기·학습용에 최적</div>
+      </div>
+      <div class="onb-card">
+        <div class="onb-emoji">💎</div>
+        <div class="onb-title">Claude로 시작</div>
+        <div class="onb-desc">한국어 품질 최고<br>카드 등록 + $5 선불 충전<br>선불식이라 절대 안전</div>
+      </div>
+      <div class="onb-card">
+        <div class="onb-emoji">⚖️</div>
+        <div class="onb-title">Gemini로 시작</div>
+        <div class="onb-desc">카드 등록 필요 (한국 사용자)<br>무료 한도 안에선 ₩0<br>균형 잡힌 품질</div>
+      </div>
+      <div class="onb-card">
+        <div class="onb-emoji">🎮</div>
+        <div class="onb-title">데모 모드 (둘러보기)</div>
+        <div class="onb-desc">API 없이 mock 응답<br>UI만 체험 가능<br>나중에 진짜 LLM 연결 가능</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>비즈니스 결정의 시각화</strong>
+    <ul>
+      <li><strong>비전 vs 현실 충돌의 해결</strong>: "Claude 구독자 무료" 모델 불가능 (ToS) → 사용자에게 다양한 진입점 제공</li>
+      <li><strong>"카드 X 옵션"</strong>이 첫 번째 — 가장 큰 진입 장벽 제거</li>
+      <li><strong>품질·비용 트레이드오프</strong>를 사용자가 인지하고 선택</li>
+      <li>나중에 설정에서 다른 LLM으로 자유 전환 가능 (가두기 효과 X)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 7. Night Mode ===== -->
+<section id="sec-night">
+  <span class="section-label">SCREEN 7 · M5</span>
+  <h2>🌙 토큰 고갈 밤 모드 <span class="impl-status impl-planned">계획</span></h2>
+  <p class="note">시그니처 폴리시. 토큰 0% 도달 → 사무실 컴퓨터 OFF → 직원들이 성격대로 반응 → 백그라운드 메모 압축.</p>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">PixelAgentOffice — 휴게 시간 🌙</div>
+    <div class="mockup-body" style="background: #0a0a18; padding: 0;">
+      <div class="night-mode">
+        <div class="night-window">★ . ✦ . ★ . ✦</div>
+        <div class="moon-icon"></div>
+
+        <div style="text-align: center; margin-top: 40px; color: #ffcc66; font-size: 14px; font-weight: bold;">
+          ⚠️ 토큰 한도 도달 — 모든 직원 휴식 중
+        </div>
+        <div style="text-align: center; font-size: 11px; opacity: 0.65; margin-top: 4px;">
+          다음 회복: 매일 0시 (4시간 12분 남음)
+        </div>
+
+        <div class="depletion-row">
+          <div class="reaction-char">
+            <span class="reaction-emoji">😎</span>
+            <div style="font-weight: bold; margin-top: 4px;">"앗싸~ 퇴근!"</div>
+            <div style="opacity: 0.7;">😎 게으름 캐릭터</div>
+          </div>
+          <div class="reaction-char">
+            <span class="reaction-emoji">😢</span>
+            <div style="font-weight: bold; margin-top: 4px;">시무룩...</div>
+            <div style="opacity: 0.7;">😢 성실 캐릭터</div>
+          </div>
+          <div class="reaction-char">
+            <span class="reaction-emoji">😴</span>
+            <div style="font-weight: bold; margin-top: 4px;">Zzz...</div>
+            <div style="opacity: 0.7;">😴 잠꾸러기</div>
+          </div>
+          <div class="reaction-char">
+            <span class="reaction-emoji">☕</span>
+            <div style="font-weight: bold; margin-top: 4px;">자판기</div>
+            <div style="opacity: 0.7;">☕ 간식러</div>
+          </div>
+          <div class="reaction-char">
+            <span class="reaction-emoji">🎮</span>
+            <div style="font-weight: bold; margin-top: 4px;">핸드폰 게임</div>
+            <div style="opacity: 0.7;">🎮 게이머</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>"에러를 폴리시로 격상" — 디자인 통찰</strong>
+    <ul>
+      <li>토큰 다 쓴 상황을 "한도 초과 빨간 메시지" 대신 "직원들이 휴식하는 모습"으로 표현</li>
+      <li>캐릭터 성격(personality) 속성에 따라 다른 반응 → 같은 외형도 성격 다르면 다른 행동</li>
+      <li><strong>SNS 콘텐츠 자체 생성</strong> — 15초 영상으로 만들기 좋음 (홍보 자산)</li>
+      <li>야간 = 메모리 압축 시점 → 시스템적 의미도 부여 (M4 메모리 시스템과 통합)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 8. Promotion Modal ===== -->
+<section id="sec-promo">
+  <span class="section-label">SCREEN 8 · M6</span>
+  <h2>🏆 진급 모달 — 캐릭터 voice <span class="impl-status impl-planned">계획</span></h2>
+  <p class="note">자동 진급 X → 캐릭터가 자기 입장에서 요청. 5가지 진급 조건 모드.</p>
+
+  <div class="promo-modal">
+    <div class="char-frame">
+      <div class="clawd-pixel" style="margin: 0 auto;">
+        <div class="chat-bubble-icon">💬</div>
+      </div>
+      <div class="legs">
+        <div class="leg"></div><div class="leg"></div>
+        <div class="leg"></div><div class="leg"></div>
+      </div>
+    </div>
+
+    <h3 style="text-align: center; margin: 0; color: #5a3a0f;">✨ 진급 제안</h3>
+
+    <div class="promo-quote">
+      "사장님... 잠시 시간 괜찮으세요?<br>
+      제가 입사한 지도 어느덧 두 달이네요.<br>
+      혹시 진급 평가가 있을까요?"
+    </div>
+
+    <div style="text-align: center; font-size: 12px; margin: 10px 0;">
+      <strong>현재</strong>: ✏️ 대리 → <strong>희망</strong>: 📊 과장
+    </div>
+
+    <div class="promo-stats">
+      <strong>📈 그간 성과:</strong><br>
+      • 대화 127회<br>
+      • 메모 12회 갱신<br>
+      • 칭찬 8회 (👍)<br>
+      • 입사일: 2026-03-15 (2개월)
+    </div>
+
+    <div class="promo-actions">
+      <button class="btn-mock btn-secondary-mock">⏭ 나중에</button>
+      <button class="btn-mock btn-secondary-mock">🤔 아직 일러</button>
+      <button class="btn-mock btn-primary-mock">😊 진급</button>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>"캐릭터가 도구가 아닌 직원" — 핵심 디자인</strong>
+    <ul>
+      <li>❌ <strong>"Mary가 똑똑해졌어요!"</strong> (사용자 시점, 도구 취급) — 사용자가 거부</li>
+      <li>✅ <strong>"저... 진급 평가 가능할까요?"</strong> (캐릭터 시점, 직원 존중)</li>
+      <li>캐릭터 성격에 따라 톤 다양화:
+        <br>· Mary(꼼꼼) → 정중<br>
+        · Haewol(작가) → 시적·은유<br>
+        · 칸트(철학자) → 철학적<br>
+        · 게으름 → "어... 진급? 일 더 많아져요?"
+      </li>
+      <li>거절: "아직 일러" → 시무룩 → 다시 일함 / "나중에" → 1~2주 후 재제안</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 9. Floor 2 ===== -->
+<section id="sec-team">
+  <span class="section-label">SCREEN 9 · Phase 2</span>
+  <h2>👔 Floor 2 — Team Office <span class="impl-status impl-future">미래 비전</span></h2>
+  <p class="note">엘리베이터로 이동. Leader → Workers 멀티 에이전트 구조. Seegene 프로젝트 임포트 가능.</p>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">PixelAgentOffice — Floor 2 · Team Office</div>
+    <div class="mockup-body" style="background: #d0d8e0; padding: 20px;">
+      <div class="floor2">
+        <span class="floor-tag">FLOOR 2 · TEAM OFFICE</span>
+
+        <div class="team-leader">
+          👑 nxt-leader<br>
+          <span style="font-size: 9px; opacity: 0.7;">Orchestrator</span>
+        </div>
+
+        <div style="text-align: center; color: #ffcc66; margin: -20px 0 14px;">↓ 자동 분배</div>
+
+        <div class="team-workers">
+          <div class="team-worker">📐<br>nxt-layout<br><span style="font-size:8px;opacity:0.7;">레이아웃 변환</span></div>
+          <div class="team-worker">🔲<br>nxt-grid<br><span style="font-size:8px;opacity:0.7;">그리드 변환</span></div>
+          <div class="team-worker">📜<br>nxt-script<br><span style="font-size:8px;opacity:0.7;">스크립트 변환</span></div>
+          <div class="team-worker">🌐<br>nxt-i18n<br><span style="font-size:8px;opacity:0.7;">국제화</span></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; font-size: 11px; color: #fff; opacity: 0.9; line-height: 1.7;">
+          ⬆️ Leader 더블클릭 → "이 파일들 변환해줘" → 자동 분배<br>
+          각 워커 동시 작업 → Leader가 결과 통합 → 사용자에게 보고
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <strong>이중 모드 아키텍처 — "같은 건물, 다른 층"</strong>
+    <ul>
+      <li><strong>Floor 1 (Solo)</strong>: 1:1 페르소나 대화. 일반 사용자 대상 메인 화면</li>
+      <li><strong>Floor 2 (Team)</strong>: 멀티 에이전트 협업. 개발자/Power user 대상</li>
+      <li><strong>엘리베이터 픽셀 아이콘</strong>으로 자연스러운 전환 → 같은 컨셉, 다른 사용 패턴</li>
+      <li><strong>Seegene 프로젝트 임포트</strong>: <code>.claude/agents/*.md</code> 16개 자동 로드. 외부 에이전트 정의를 우리 사무실에 시각화.</li>
+      <li><strong>Phase 2 / 3로 점진 도입</strong> — Phase 1 Solo만 우선 안정화</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== Memo ===== -->
+<section style="background: #232338;">
+  <h2>📌 와이어프레임 메모</h2>
+  <ul style="line-height: 1.9; font-size: 13px;">
+    <li>모든 화면에 같은 <strong>디자인 언어</strong> (우드/베이지 + 아이보리 카드 + LED 액센트)</li>
+    <li>화면 옆 노란 박스 = 디자이너가 알려두는 <strong>의사결정 메모</strong> (annotations)</li>
+    <li>구현 상태 라벨로 <strong>현재(완성)와 미래(계획)를 구분</strong> → 채용 담당자가 현황 즉시 파악</li>
+    <li>각 화면이 <strong>독립적</strong>이라 단일 mockup으로도 컨텍스트 충분</li>
+    <li>전체 흐름은 PRD의 <a href="../PRD.md" style="color:#ffd700">User Journeys</a> 섹션 참조</li>
+  </ul>
+</section>
+
+</body>
+</html>

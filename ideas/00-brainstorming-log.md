@@ -513,7 +513,7 @@
 
 ---
 
-## 29. 세션 저장 (현재 — Day 2 종료)
+## 29. 세션 저장 (Day 2 종료)
 
 **사용자**: "여기까지 세션 정리해. 그리고 커밋할꺼야."
 
@@ -525,26 +525,261 @@
 
 ---
 
-## 결정 진화 요약 (M2 완료 시점)
+# ─── Day 3 (2026-05-14) ───
 
-| 항목 | 처음 | M1 | 최종 (M2) |
-|---|---|---|---|
-| 메인 컨셉 | A+C 하이브리드 | 이중 모드 | **Solo + Team 이중 모드 유지** |
-| 백엔드 | Python/Node | TypeScript + Electron 42 | 유지 |
-| 픽셀 엔진 | Phaser/Pixi/CSS | Phaser 4 + React 19 | 유지 |
-| 렌더링 방식 | 직사각형 모음 | 픽셀 그리드 | 유지 |
-| 캐릭터 | 미정 | Clawd 12×12 | 유지 |
-| 첫 에이전트 | 학습/글쓰기 | Mary 1명 (하드코딩) | **Mary + Haewol (영속화)** |
-| 채팅 UI | 채팅창 | 우측 하단 모달 + 더블클릭 | **+ 💬 말풍선 단일 클릭** |
-| 데이터 | 메모리 | 하드코딩 | **JSON 영속화 (`app-data.json`)** |
-| 에이전트 정의 | 미정 | 코드 안 | **사용자가 채용 모달로 동적 생성** |
-| 지침 시스템 | 미정 | 단순 system prompt | **3-레이어 (기본·커스텀·메모리)** |
-| 메모리 시스템 | 미정 | 미정 | **4모드 (AUTO 기본) + 보존 버퍼** |
-| 직급 시스템 | 미정 | 미정 | **제안+승인, 5가지 조건 모드** |
-| 감정 표현 | 작업 ✦만 | 작업 ✦만 | **30+ 이모트 카탈로그 설계** |
-| 토큰 자원 | 미정 | 미정 | **전체 공유 (사무실 바)** |
-| LLM 연결 | 미정 | mock 응답 | mock 유지 (M3-a 예정) |
-| 코드 베이스 | 없음 | M1 동작 | **M2 UI 채널 완성** ⭐ |
+## 30. M3-a Claude 연결 코드 완성
+
+**사용자**: "자 이제 드디어 클로드 연결하자"
+
+**Claude 작업** (사용자 테스트 전, 코드만 완성):
+- `@anthropic-ai/sdk` 설치
+- `electron/claude/apiKey.ts` — Electron safeStorage 입출력
+- `electron/claude/client.ts` — Anthropic API 호출 (비-스트리밍, 에러 분류)
+- `electron/main.ts` — IPC 핸들러 5종 추가 (apikey:save/has/delete/isAvailable, claude:chat)
+- `electron/preload.ts` — `window.api` 메서드 추가
+- `src/types/global.d.ts` — Api 타입 노출
+- `src/components/SettingsModal.tsx` — 실제 키 저장 + ✓ 저장됨 토스트 + 삭제 버튼
+- `src/components/ChatPopup.tsx` — mock → 실제 Claude 호출, 에러 분기 친절 메시지
+- 빌드 + dev 서버 동작 확인 (Electron 윈도우 떴음)
+
+---
+
+## 31. 🚨 비즈니스 모델 충돌 발견
+
+**사용자 깊이 질문 4가지**:
+1. Claude 연결 = 기존 채팅방 연결?
+2. 채팅이 어디 쌓이는지? Claude 앱과 공유?
+3. 성격·역할은 지침? Projects 기능과 관계?
+4. UI 릴레이일 뿐?
+
+**Claude의 답**:
+- API 호출 ≠ 채팅방. 직접 두뇌에 말 거는 방식
+- Claude.ai (앱/웹)과 Anthropic API는 완전 분리. 데이터 공유 안 됨
+- 매번 시스템 프롬프트 같이 보냄
+- 우리 앱 = "픽셀 사무실 인터폰 시스템"
+
+**사용자의 핵심 우려 발견**:
+> "엥 잠깐만 이러면 사용자들한테 무료로 뿌릴 수가 없잖아. 나는 이미 클로드를 쓰고있는 사람한테 UI 인터페이스를 무료로 제공해주고 싶었던건데"
+
+**Claude의 조사** (claude-code-guide 에이전트 활용):
+- Claude.ai Pro 구독을 외부 앱에서 활용 불가능 (Anthropic ToS 명시적 금지)
+- Claude Agent SDK는 API 키 인증만 지원, OAuth X
+- → 사용자가 원했던 "이미 Claude 쓰는 사람에게 UI만 무료 제공" 모델 **불가능**
+
+**대안 4가지 제시**:
+- A. BYOK 유지 (사용자가 직접 결제)
+- B. 우리가 결제 + 백엔드 (SaaS 사업 결심)
+- C. **다중 LLM 지원** — Gemini 무료 티어 활용 ⭐ 채택
+- D. 데모 모드 (mock 응답)
+
+---
+
+## 32. 🌐 다중 LLM 지원 — Provider Abstraction (M3-b)
+
+**사용자 결정**: "제미나이 무료버전과 클로드 유료버전 두가지를 지원하는건?" → 채택
+
+**Claude 작업 (대규모 리팩토링)**:
+- `@google/generative-ai` 설치
+- `electron/llm/` 폴더 신규 (기존 `electron/claude/` 통합 후 삭제):
+  - `types.ts` — LLMProvider 인터페이스, ChatRequest, LLMError
+  - `anthropic.ts` — Anthropic Provider (기존 client.ts 정리)
+  - `gemini.ts` — Google Generative AI Provider
+  - `registry.ts` — model에서 provider 자동 추론
+  - `dispatch.ts` — 통합 chat() 함수
+  - `apiKeys.ts` — provider별 키 저장 + 하위 호환 마이그레이션
+- `electron/main.ts` — IPC 갱신 (apikey 핸들러에 provider 인수, claude:chat → llm:chat)
+- `electron/preload.ts` — `window.api` 인터페이스 갱신
+- `src/shared/types.ts` — Model 타입 6종으로 확장 + `MODEL_INFO` 메타 (label/tier/provider/desc)
+- `src/components/SettingsModal.tsx` — Google + Anthropic 두 키 입력란 분리, Free/Paid 모델 그룹 UI
+- `src/components/HireModal.tsx` + `MemoModal.tsx` — 모델 선택을 Free/Paid 그룹으로
+- `src/components/ChatPopup.tsx` — `chatWithLLM` 사용, provider별 에러 메시지
+- `DEFAULT_SETTINGS.defaultModel` → `gemini-2-5-flash` (무료 우선)
+
+---
+
+## 33. 🎭 Playwright E2E 셋업
+
+**사용자**: "Playwright-electron 이거 설정할 수 있어?"
+
+**Claude 작업**:
+- `@playwright/test` + `dotenv` 설치
+- `playwright.config.ts` — Electron 테스트 설정
+- `.env.local.example` — 키 템플릿 (gitignored .env.local 만들기)
+- `tests/e2e/helpers.ts` — `launchApp()`, 환경변수 키 로딩
+- `tests/e2e/01-launch.spec.ts` — 앱 띄움 + 타이틀 검증
+- `tests/e2e/02-api-key.spec.ts` — 설정 모달에서 Gemini 키 저장
+- `tests/e2e/03-gemini-chat.spec.ts` — 직원 모델 Gemini로 변경 + 채팅 + 응답 검증
+- `App.tsx`에 `window.__test` 헬퍼 노출 (Phaser 캔버스 우회용)
+- `package.json` scripts: `test:e2e`, `test:e2e:no-build`, `test:e2e:report`
+- ESLint config에 `tests/**` 제외
+- 빌드/린트 0 errors 통과
+
+---
+
+## 34. 🐛 Gemini quota=0 디버깅
+
+**사용자**: "이거 바로 한도초과 뜨는데 뭐야?"
+
+**Claude의 1차 진단**: Gemini 2.5 Pro 무료 한도 작음 (분당 5회) → Flash로 변경 권장
+
+**사용자**: "flash 해도 안된다니까 다시 확인해봐"
+
+**Claude 작업** — gemini.ts에 raw error 로깅 추가:
+```
+[gemini] raw error: ... limit: 0, model: gemini-2.0-flash ...
+```
+
+**진짜 원인 발견**: 신규 Google Cloud 프로젝트는 **기본 quota = 0** (2024년 정책 변화).
+- 키 발급은 됐지만 사용 권한이 명시적으로 0
+- 결제 활성화하거나 기존 프로젝트에서 발급해야 함
+
+**코드 개선**: gemini.ts에 `limit: 0` 케이스 분기 추가, 친절 가이드 메시지로 변경.
+
+---
+
+## 35. 💳 결제 등록 + 한도 논의
+
+**사용자**: 결제 카드 등록 진행 → 화면 캡처들 공유
+
+**확인된 사항**:
+- Google AI Studio "결제" 페이지에선 한도 설정 안 됨 (상태만 표시)
+- 진짜 예산 한도 설정 = **Google Cloud Console**의 Budgets & Alerts
+- 카드 등록만으로는 자동 청구 X, 무료 한도 안에선 ₩0 유지
+- 자동 차단 원하면 Cloud Function 추가 셋업 필요
+
+**Anthropic Claude 비교**:
+- 선불 충전식이라 절대 한도 넘김 없음
+- $5 충전하면 학습용 한 달 충분
+- 한국어 품질 더 좋음
+
+---
+
+## 36. 💔 BYOK 진입 장벽 재인식 — Groq/백엔드/데모 옵션
+
+**사용자 핵심 질문**: "이거 다른사람들도 이렇게 등록해야해?"
+
+**Claude의 정직한 답변**:
+- 네, 일반 사용자도 카드 등록 거의 필수 (2024년 이후 Google 정책 변화)
+- BYOK 모델의 본질적 한계 — "결제 없이 무료 배포" 어렵움
+- 부담을 줄이는 대안:
+  - **(A) Groq 추가** — 카드 등록 절대 없는 진짜 무료 LLM (Llama, 분당 30회). 5분이면 통합 가능
+  - **(B) 백엔드 만들기** — 사업 결심
+  - **(C) 데모 모드** — mock으로 둘러보기
+  - **(D) Ollama 로컬** — PC 사양 필요
+
+**사용자 상태**: 고민 중. 결정 보류.
+
+---
+
+## 37. 세션 정리 + PRD 요청
+
+**사용자**: "고민이 드네... 일단 여기까지 세션 정리해줘. 그리고 지금까지 대화하면서 생긴 아이디어나 이야기 흐름같은 것들을 잘 기억해줘. 그리고 이 프로젝트에 대해 PRD나 와이어프레임같은거 만들 수 있어?"
+
+**Claude 작업**:
+- 본 파일 갱신 (Day 3 섹션 30~37 추가)
+- `12-business-model.md` 신규 작성 — 비즈니스 모델 옵션 종합 정리
+- `portfolio/PixelAgentOffice/milestones/M3-multi-llm/` 코드 스냅샷 + retrospective
+- 포트폴리오 README 갱신
+- PRD/와이어프레임 작업 옵션 제시 (다음 라운드)
+
+---
+
+## 38. 📐 PRD + 와이어프레임 v2 작성 (포트폴리오용)
+
+**사용자**: "기획자 포트폴리오 용 prd와 와이어프레임이야. 기획자 포트폴리오로 제출하기 좋은 형식이면 좋겠어."
+
+**Claude 작업** — `portfolio/PixelAgentOffice/` 아래에:
+- `PRD.md` 신규 (~600줄, 12 섹션): Problem / Vision / Personas / Features / User Journeys / IA / Tech Architecture / Business Model / Metrics / Roadmap / Risks / Appendix + "자랑스러운 것 7가지" 자기 PR 섹션
+- `visuals/wireframes-v2.html` 신규 (9개 화면): Floor 1, 채팅 팝업, 메모지, 채용, 설정, 첫 실행 안내, 밤 모드, 진급 모달, Floor 2. 각 화면에 *annotations* — "이 결정을 한 이유" 메모 (정적 mockup이 아니라 *사고 과정*을 동봉)
+- README.md에 PRD/wireframes-v2 링크를 상단에 입석
+
+**의사결정 — 왜 이런 구조?**:
+- 기획자 포트폴리오는 *완성품*보다 *사고 과정*이 평가받는다 → "자랑스러운 것 7가지" 섹션 + annotations 입석
+- 30초 요약을 가장 앞에 → 평가자의 시간 존중
+
+---
+
+## 39. 🗜️ 컨텍스트 압축 — 무엇이 보존됐는가
+
+**사용자**: "너 컨텍스트 많아졌는데 이거 압축해야하지 않아? 압축하면 정보가 날라가나? ... 시도했다가 버린 옵션 디테일 -> 이게 좀 아쉽네. 이것까지 다 기록되어있나? 확인해봐봐"
+
+**Claude 작업** — 보존 현황 grep 검수 (11개 카테고리):
+
+| 카테고리 | 보존? | 위치 |
+|---|---|---|
+| Python vs Electron 트레이드오프 | ✅ | 03-stack |
+| Phaser vs Pixi vs CSS 비교 | ✅ | 04-ui-options |
+| LLM 9종 비교표 | ✅ | 12-business-model |
+| BYOK / 백엔드 / Groq / Ollama / 데모 4 옵션 | ✅ | 12-business-model |
+| Clawd v1/v2/v3/v4 iteration | ✅ | 05-character (Day 1) |
+| 메모지 vs 메모리 정정 | ✅ | 본 로그 Day 2 |
+| Anthropic ToS 조사 (claude-code-guide) | ✅ | 본 로그 sec 31 |
+| Gemini quota=0 디버깅 | ✅ | 본 로그 sec 34 + retrospective |
+| 사용자가 뒤집은 결정 5건 | ✅ | 각 섹션 |
+| ESLint react-hooks 룰 대응 | ⚠️ | 코드만 (로그 누락) |
+| PIXEL_SIZE / 채팅 UI 위치 옵션 | ⚠️ | 일부만 |
+
+**결론**: 약 **87% 보존**. 핵심 의사결정/뒤집힌 결정/디버깅 과정 모두 보존. PRD가 사실상 압축본 역할.
+→ **압축 안전**.
+
+---
+
+## 40. 💥 Gemini 2.0 Flash 폐기 발견 — 모델 마이그레이션
+
+**사용자 보고**: 채팅 시도 시 "⚠️ 네트워크 연결을 확인해주세요" 표시.
+
+**의심 → 검증 흐름**:
+1. 코드 분석 — 우리 `msg.includes('fetch')` 조건이 SDK 에러 메시지 (`Error fetching from <url>`)에 false-positive로 걸려 *모든 API 에러를 NETWORK로 오분류*
+2. 에러 분류 로직 개선 — `fetch` 단어 의존 제거, HTTP status 유무로 진짜 네트워크 에러만 구분 (`fetch failed`, `ENOTFOUND`, `ECONNREFUSED`, `ETIMEDOUT`, `EAI_AGAIN`, `getaddrinfo`)
+3. fallback 메시지에 raw 노출 (`Gemini API ({status}): {msg}`) → 사용자가 실제 에러를 볼 수 있게
+4. 사용자가 재시도 → **`status: 404` "This model `models/gemini-2.0-flash` is no longer available to new users"** 잡힘
+
+**진짜 원인**: Google이 신규 사용자에게 `gemini-2.0-flash` 모델 신규 발급 차단. 우리 시그니처 무료 옵션이었던 모델이 죽음.
+
+**Claude 대응**:
+- `Model` 타입 union에서 `gemini-2-0-flash` 제거
+- 살아있는 무료 옵션 2종 유지 (`gemini-2-5-flash`, `gemini-2-5-pro`)
+- `DEPRECATED_MODELS` 매핑 신규 — 폐기된 모델 ID → 살아있는 모델 ID
+- `store.ts loadData()` 마이그레이션 추가 — 기존 직원이 폐기 모델을 가지고 있으면 로드 시 자동 치환 후 디스크 재저장
+- 모든 UI 모달 (Hire/Memo/Settings)에서 옵션 제거
+- `gemini.ts resolveModelId()`에서 폐기 케이스 제거
+
+**검증** — 사용자 환경에서 "잘되는것같아" 확인.
+
+**의사결정 — 왜 alias로 풀지 않았는가?**:
+- 옵션 A: `gemini-2-0-flash`를 alias로 두고 내부적으로 `gemini-2.5-flash`로 라우팅 → 사용자에게 모델 UI에서 보이는 라벨과 실제 호출이 어긋남. 디버깅 어려워짐
+- 옵션 B (채택): 완전 제거 + 자동 마이그레이션. UI ≡ 실제 호출. *기존 사용자 데이터는 한 번에 깔끔하게 갱신*
+
+**시그널**: 외부 의존(Google 모델 라인업)이 흔들리면 우리 default 옵션이 즉시 무너진다. `DEPRECATED_MODELS` 패턴은 미래에 또 발생할 폐기에 재사용 가능.
+
+---
+
+## 41. 세션 종료 + 커밋
+
+**사용자**: "잘되는것같아. 세션 정리하고 커밋하자."
+
+**Claude 작업**:
+- 본 파일에 Day 3 후반부 (38~41) 추가
+- M3 retrospective의 "다음 단계" 항목 갱신 (오늘 발견된 dead model 이슈 반영)
+- 미커밋 작업물 (M3 코드 + 테스트 + 기획 + 오늘 fix)을 의미 단위로 분할 커밋
+- 포트폴리오 스냅샷 동기화
+
+---
+
+## 결정 진화 요약 (M3 코드 완성 시점)
+
+| 항목 | 처음 | M1 | M2 | 최종 (M3) |
+|---|---|---|---|---|
+| 메인 컨셉 | A+C 하이브리드 | 이중 모드 | 유지 | 유지 |
+| 백엔드 | Python/Node | Electron 42 + TS | 유지 | 유지 |
+| LLM | 미정 | mock | mock | **Anthropic + Google 다중 provider** ⭐ |
+| Provider 추상화 | 없음 | 없음 | 없음 | **LLMProvider 인터페이스 + dispatch** |
+| 모델 선택 | 미정 | 미정 | Sonnet 기본 | **5종 (Free 2 + Paid 3), Gemini 2.5 Flash 기본** *(Google 2.0 Flash 신규 차단 → 마이그레이션 처리)* |
+| Dead model 정책 | 없음 | 없음 | 없음 | **`DEPRECATED_MODELS` 매핑 + 로드 시 자동 마이그레이션** |
+| API 키 저장 | 미정 | 미정 | UI만 | **OS 키체인 (safeStorage), provider별 분리** |
+| 비즈니스 모델 | 미정 | 미정 | BYOK 가정 | **BYOK 유지, 진입 장벽 인식, Groq/데모 고민 중** |
+| 자동 테스트 | 없음 | 없음 | 없음 | **Playwright E2E 3개 시나리오** ⭐ |
+| 코드 베이스 | 없음 | M1 | M2 UI 채널 | **M3 다중 LLM 코드 완성** ⭐ |
 
 ---
 

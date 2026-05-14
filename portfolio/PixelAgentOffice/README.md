@@ -2,8 +2,20 @@
 
 > 픽셀 아트 사무실에서 AI 에이전트를 직원처럼 채용·배치·명령할 수 있는 데스크톱 앱의 기획 아카이브.
 
-**Status**: M2 마일스톤 달성 — UI 채널 완성 (Claude 연결 전 준비)
-**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2)
+**Status**: M3 코드 완성 — 다중 LLM (Claude + Gemini) + E2E 테스트
+**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2) → 2026-05-14 (M3 + PRD/와이어프레임)
+
+---
+
+## 📋 핵심 문서 (포트폴리오 평가용)
+
+| 문서 | 설명 | 읽는 시간 |
+|---|---|---|
+| 📄 **[PRD.md](PRD.md)** | 프로덕트 요구사항 문서 (기획자 시점) | 8~10분 |
+| 📐 **[wireframes-v2.html](visuals/wireframes-v2.html)** | 9개 화면 와이어프레임 + annotations | 5분 |
+| 📓 [planning/00-brainstorming-log.md](planning/00-brainstorming-log.md) | 의사결정 흐름 일지 (Day 1~3, 37 세션) | 15분 |
+
+→ **시간 없으시면 PRD부터.** 30초 요약 + 차별화 3가지 + 사용자 페르소나 + 키 features 한눈에.
 **Target stack**: Electron + React + Phaser.js + TypeScript
 **Distribution**: 사용자 본인 Claude API 키 입력 방식의 `.exe` 인스톨러
 
@@ -138,11 +150,10 @@ PixelAgentOffice/
 │   └─ HOW-TO-CAPTURE.md
 └─ milestones/                  ← 마일스톤별 코드 스냅샷
     ├─ M1-basic-ui/             ← Electron + Phaser 기본 UI (2026-05-12)
-    │   ├─ retrospective.md
-    │   ├─ electron/
-    │   └─ src/
-    └─ M2-ui-channel/           ← 채용·메모·설정 모달 + 영속화 (2026-05-13)
+    ├─ M2-ui-channel/           ← 채용·메모·설정 모달 + 영속화 (2026-05-13)
+    └─ M3-multi-llm/            ← Claude + Gemini + E2E 테스트 + Dead-model 마이그레이션 (2026-05-14)
         ├─ retrospective.md
-        ├─ electron/  (+ data/store.ts)
-        └─ src/       (+ components/, shared/, types/)
+        ├─ electron/  (+ llm/ 6개 파일, store.ts 마이그레이션 포함)
+        ├─ src/       (+ Model 5종 + MODEL_INFO + DEPRECATED_MODELS)
+        └─ tests/e2e/ (+ Playwright 3 시나리오)
 ```
