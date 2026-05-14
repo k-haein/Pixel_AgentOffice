@@ -87,6 +87,22 @@ function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // E2E 테스트 헬퍼 (Electron renderer는 신뢰 가능 환경, prod에서도 둠)
+  useEffect(() => {
+    ;(window as unknown as { __test?: object }).__test = {
+      openChat: (employeeId: string) => {
+        const emp = employeesRef.current.find(e => e.id === employeeId)
+        if (emp) eventBus.emit('chat:open', emp)
+      },
+      refreshEmployees: async () => {
+        const data = await window.api.loadData()
+        setEmployees(data.employees)
+        eventBus.emit('office:set-employees', data.employees)
+      },
+      getFirstEmployeeId: () => employeesRef.current[0]?.id ?? null,
+    }
+  }, [])
+
   const handleHired = (employee: Employee) => {
     setEmployees(prev => [...prev, employee])
   }

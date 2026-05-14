@@ -5,10 +5,19 @@ import {
   type AppData,
   type Employee,
   type Settings,
+  type Model,
   TEMPLATES,
   DEFAULT_SETTINGS,
   DEFAULT_MAX_EMPLOYEES,
+  DEPRECATED_MODELS,
 } from '../../src/shared/types'
+
+/** 저장된 모델이 폐기된 ID면 살아있는 ID 로 교체 */
+function migrateModel(m: string | undefined | null, fallback: Model): Model {
+  if (!m) return fallback
+  if (m in DEPRECATED_MODELS) return DEPRECATED_MODELS[m]
+  return m as Model
+}
 
 const DATA_FILE_NAME = 'app-data.json'
 
@@ -78,8 +87,8 @@ function migrateEmployee(emp: Partial<Employee>): Employee {
     emoji: emp.emoji ?? '👤',
     baseInstructions: emp.baseInstructions ?? '',
     customInstructions: emp.customInstructions ?? '',
-    model: emp.model ?? DEFAULT_SETTINGS.defaultModel,
-    memoryModel: emp.memoryModel ?? DEFAULT_SETTINGS.defaultMemoryModel,
+    model: migrateModel(emp.model, DEFAULT_SETTINGS.defaultModel),
+    memoryModel: migrateModel(emp.memoryModel, DEFAULT_SETTINGS.defaultMemoryModel),
     memoryMode: emp.memoryMode ?? 'auto',
     rank: emp.rank ?? '사원',
     promotionMode: emp.promotionMode ?? 'time',
@@ -97,13 +106,21 @@ export async function loadData(): Promise<AppData> {
   try {
     const raw = await fs.readFile(filePath, 'utf-8')
     const parsed = JSON.parse(raw) as Partial<AppData>
-    // 필드 누락 시 default 채우기 (마이그레이션)
+    // 필드 누락 시 default 채우기 + 폐기된 모델 마이그레이션
+    const settingsRaw = parsed.settings ?? {}
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      ...settingsRaw,
+      defaultModel: migrateModel(settingsRaw.defaultModel, DEFAULT_SETTINGS.defaultModel),
+      defaultMemoryModel: migrateModel(settingsRaw.defaultMemoryModel, DEFAULT_SETTINGS.defaultMemoryModel),
+    }
     const data: AppData = {
       employees: (parsed.employees ?? []).map(migrateEmployee),
       maxEmployees: parsed.maxEmployees ?? DEFAULT_MAX_EMPLOYEES,
-      settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
+      settings,
     }
-    cachedData = data
+    // 마이그레이션 결과를 디스크에 다시 쓰기 (영구화)
+    await saveData(data)
     return data
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {

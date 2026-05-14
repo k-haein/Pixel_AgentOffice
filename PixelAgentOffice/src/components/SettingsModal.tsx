@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import type { Model, Settings } from '../shared/types'
+import { useEffect, useState } from 'react'
+import { type Model, type Settings, MODEL_INFO } from '../shared/types'
+import type { ProviderName } from '../../electron/llm/types'
 
 type Props = {
   onClose: () => void
@@ -7,21 +8,46 @@ type Props = {
   onSaved: (settings: Settings) => void
 }
 
-const MODEL_OPTIONS: { value: Model; label: string; desc: string }[] = [
-  { value: 'claude-opus-4-7', label: 'Opus', desc: '최고 성능 · 비쌈' },
-  { value: 'claude-sonnet-4-7', label: 'Sonnet', desc: '균형 · 기본 권장' },
-  { value: 'claude-haiku-4-7', label: 'Haiku', desc: '빠름 · 저렴' },
+const ALL_MODELS: Model[] = [
+  'gemini-2-5-flash',
+  'gemini-2-5-pro',
+  'claude-opus-4-7',
+  'claude-sonnet-4-7',
+  'claude-haiku-4-7',
 ]
 
+type KeyState = { has: boolean; input: string }
+
 export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
-  const [apiKey, setApiKey] = useState('')
-  // TODO M3-a: load `hasStoredKey` from safeStorage and show "•••••• (저장됨)" placeholder
-  const hasStoredKey = false
+  const [keys, setKeys] = useState<Record<ProviderName, KeyState>>({
+    anthropic: { has: false, input: '' },
+    google: { has: false, input: '' },
+  })
+  const [storageAvailable, setStorageAvailable] = useState(true)
   const [defaultModel, setDefaultModel] = useState<Model>(initialSettings.defaultModel)
   const [memoryModel, setMemoryModel] = useState<Model>(initialSettings.defaultMemoryModel)
   const [dailyLimit, setDailyLimit] = useState<number>(initialSettings.dailyLimitUsd)
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([
+      window.api.hasApiKey('anthropic'),
+      window.api.hasApiKey('google'),
+      window.api.isApiKeyStorageAvailable(),
+    ]).then(([hasA, hasG, available]) => {
+      if (!mounted) return
+      setKeys({
+        anthropic: { has: hasA, input: '' },
+        google: { has: hasG, input: '' },
+      })
+      setStorageAvailable(available)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const handleSave = async () => {
     setSaving(true)
@@ -31,20 +57,68 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
         defaultMemoryModel: memoryModel,
         dailyLimitUsd: dailyLimit,
       })
-      // TODO M3-a: API 키는 별도 safeStorage 저장
       onSaved(updated)
-      // 저장 완료 피드백 잠깐 보여주고 닫기
+
+      // Provider별 키 저장
+      for (const provider of ['anthropic', 'google'] as ProviderName[]) {
+        const k = keys[provider].input.trim()
+        if (k) {
+          await window.api.saveApiKey(provider, k)
+        }
+      }
+
+      // 키 상태 새로고침
+      const [hasA, hasG] = await Promise.all([
+        window.api.hasApiKey('anthropic'),
+        window.api.hasApiKey('google'),
+      ])
+      setKeys({
+        anthropic: { has: hasA, input: '' },
+        google: { has: hasG, input: '' },
+      })
+
       setSavedFeedback(true)
       setSaving(false)
-      setTimeout(() => {
-        onClose()
-      }, 900)
+      setTimeout(() => onClose(), 900)
     } catch (err) {
       console.error('Settings save failed', err)
       alert('저장 실패: ' + (err as Error).message)
       setSaving(false)
     }
   }
+
+  const handleDeleteKey = async (provider: ProviderName) => {
+    if (!window.confirm(`${provider === 'anthropic' ? 'Anthropic' : 'Google'} API 키를 삭제하시겠습니까?`)) {
+      return
+    }
+    try {
+      await window.api.deleteApiKey(provider)
+      setKeys(prev => ({ ...prev, [provider]: { has: false, input: '' } }))
+    } catch (err) {
+      alert('삭제 실패: ' + (err as Error).message)
+    }
+  }
+
+  const setInput = (provider: ProviderName, value: string) => {
+    setKeys(prev => ({ ...prev, [provider]: { ...prev[provider], input: value } }))
+  }
+
+  const renderModelGroup = (tier: 'free' | 'paid', current: Model, onSelect: (m: Model) => void) => (
+    <div className="model-options">
+      {ALL_MODELS.filter(m => MODEL_INFO[m].tier === tier).map(m => (
+        <label key={m} className={`model-option ${current === m ? 'selected' : ''}`}>
+          <input
+            type="radio"
+            value={m}
+            checked={current === m}
+            onChange={() => onSelect(m)}
+          />
+          <span className="model-label">{MODEL_INFO[m].label}</span>
+          <span className="model-desc">{MODEL_INFO[m].desc}</span>
+        </label>
+      ))}
+    </div>
+  )
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -55,87 +129,95 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
         </div>
 
         <div className="modal-body">
-          {/* API Key */}
+          {/* === Google API Key (무료) === */}
           <section className="modal-section">
-            <h3>🔑 API 키 (Anthropic)</h3>
-            <div className="modal-alert">
-              🚧 <strong>아직 작동 안 함</strong> — 입력해도 저장되지 않습니다. 다음 마일스톤(M3-a)에서 활성화 예정. 클로드 연결과 함께 작동합니다.
-            </div>
+            <h3>🆓 Google AI API 키 <span style={{ color: '#2a8a2a', fontSize: 11 }}>(무료 권장)</span></h3>
+            <p className="modal-hint">
+              발급:{' '}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+                aistudio.google.com/apikey
+              </a>
+              {' '}— Google 계정만 있으면 즉시 발급, 신용카드 불필요.
+            </p>
+            {keys.google.has && (
+              <div className="key-stored-badge">✓ 저장됨</div>
+            )}
+            <input
+              type="password"
+              className="modal-input"
+              placeholder={keys.google.has ? '새 키 입력 시 교체됨' : 'AIza... 형식'}
+              value={keys.google.input}
+              onChange={e => setInput('google', e.target.value)}
+              disabled={!storageAvailable}
+            />
+            {keys.google.has && (
+              <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('google')}>
+                🗑 삭제
+              </button>
+            )}
+          </section>
+
+          {/* === Anthropic API Key (유료) === */}
+          <section className="modal-section">
+            <h3>💸 Anthropic API 키 <span style={{ color: '#aa6020', fontSize: 11 }}>(유료, 한국어 강함)</span></h3>
             <p className="modal-hint">
               발급:{' '}
               <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">
                 console.anthropic.com
               </a>
+              {' '}— 신용카드 + 선불 충전 필요 (학습용 월 $1~5).
             </p>
+            {keys.anthropic.has && (
+              <div className="key-stored-badge">✓ 저장됨</div>
+            )}
             <input
               type="password"
               className="modal-input"
-              placeholder={hasStoredKey ? '•••••••••••• (저장됨)' : 'sk-ant-...'}
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              disabled
+              placeholder={keys.anthropic.has ? '새 키 입력 시 교체됨' : 'sk-ant-...'}
+              value={keys.anthropic.input}
+              onChange={e => setInput('anthropic', e.target.value)}
+              disabled={!storageAvailable}
             />
+            {keys.anthropic.has && (
+              <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('anthropic')}>
+                🗑 삭제
+              </button>
+            )}
           </section>
 
-          {/* Default Model */}
+          {!storageAvailable && (
+            <div className="modal-alert">
+              ⚠️ OS 키체인을 사용할 수 없는 환경입니다. API 키 안전 저장이 비활성화됨.
+            </div>
+          )}
+
+          {/* === Default Model === */}
           <section className="modal-section">
             <h3>🧠 기본 대화 모델</h3>
-            <p className="modal-hint">
-              새 직원을 채용할 때 기본으로 사용될 모델. 직원마다 메모지에서 변경 가능.
-            </p>
-            <div className="model-options">
-              {MODEL_OPTIONS.map(opt => (
-                <label key={opt.value} className={`model-option ${defaultModel === opt.value ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="defaultModel"
-                    value={opt.value}
-                    checked={defaultModel === opt.value}
-                    onChange={() => setDefaultModel(opt.value)}
-                  />
-                  <span className="model-label">{opt.label}</span>
-                  <span className="model-desc">{opt.desc}</span>
-                </label>
-              ))}
-            </div>
+            <p className="modal-hint">새 직원 채용 시 기본값. 직원마다 메모지에서 변경 가능.</p>
+            <div className="modal-subhead">🆓 무료 (Google)</div>
+            {renderModelGroup('free', defaultModel, setDefaultModel)}
+            <div className="modal-subhead">💸 유료 (Anthropic)</div>
+            {renderModelGroup('paid', defaultModel, setDefaultModel)}
           </section>
 
-          {/* Memory Model */}
+          {/* === Memory Model === */}
           <section className="modal-section">
             <h3>💾 메모리 갱신 모델</h3>
             <p className="modal-hint">
-              메모리 압축은 저렴한 Haiku 권장. 백그라운드 작업이라 빠르기만 하면 충분.
+              메모 압축용 (M4부터 동작). 빠르고 저렴한 모델 권장.
             </p>
-            <div className="model-options">
-              {MODEL_OPTIONS.map(opt => (
-                <label key={opt.value} className={`model-option ${memoryModel === opt.value ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="memoryModel"
-                    value={opt.value}
-                    checked={memoryModel === opt.value}
-                    onChange={() => setMemoryModel(opt.value)}
-                  />
-                  <span className="model-label">{opt.label}</span>
-                  <span className="model-desc">{opt.desc}</span>
-                </label>
-              ))}
-            </div>
+            <div className="modal-subhead">🆓 무료 (Google)</div>
+            {renderModelGroup('free', memoryModel, setMemoryModel)}
+            <div className="modal-subhead">💸 유료 (Anthropic)</div>
+            {renderModelGroup('paid', memoryModel, setMemoryModel)}
           </section>
 
-          {/* Daily Limit */}
+          {/* === Daily Limit === */}
           <section className="modal-section">
             <h3>💰 일일 비용 한도 ($)</h3>
             <p className="modal-hint">
-              하루 누적 API 사용액이 이 금액을 넘으면 호출을 차단합니다.
-              실제 사용량은{' '}
-              <a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noreferrer">
-                Anthropic 콘솔
-              </a>
-              에서 확인할 수 있어요.
-            </p>
-            <p className="modal-hint" style={{ color: '#aa6020' }}>
-              🚧 자동 차단도 다음 마일스톤(M3-b)에서 활성화. 지금은 값만 저장됩니다.
+              유료 모델(Claude)에만 적용. 실제 사용량은 Anthropic 콘솔에서 확인. 자동 차단은 M3-b에서.
             </p>
             <input
               type="number"

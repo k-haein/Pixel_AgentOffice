@@ -18,9 +18,35 @@ export type Rank =
   | '레전드'
 
 export type Model =
+  // Anthropic (유료, BYOK)
   | 'claude-opus-4-7'
   | 'claude-sonnet-4-7'
   | 'claude-haiku-4-7'
+  // Google (무료 티어)
+  | 'gemini-2-5-pro'
+  | 'gemini-2-5-flash'
+
+/** 모델별 메타 정보 — UI에서 활용 */
+export type ModelTier = 'paid' | 'free'
+export const MODEL_INFO: Record<Model, {
+  label: string
+  tier: ModelTier
+  provider: 'anthropic' | 'google'
+  desc: string
+}> = {
+  'claude-opus-4-7': { label: 'Claude Opus', tier: 'paid', provider: 'anthropic', desc: '최고 성능 · 비쌈' },
+  'claude-sonnet-4-7': { label: 'Claude Sonnet', tier: 'paid', provider: 'anthropic', desc: '균형 · 권장' },
+  'claude-haiku-4-7': { label: 'Claude Haiku', tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴' },
+  'gemini-2-5-pro': { label: 'Gemini 2.5 Pro', tier: 'free', provider: 'google', desc: '⚠️ 무료 한도 빡빡 (분당 5회)' },
+  'gemini-2-5-flash': { label: 'Gemini 2.5 Flash', tier: 'free', provider: 'google', desc: '⭐ 무료 · 균형 (분당 10회)' },
+}
+
+/** 폐기된 모델 ID → 살아있는 모델 ID 매핑.
+ *  저장 데이터에 옛 모델이 남아있으면 로드 시 자동 치환된다. */
+export const DEPRECATED_MODELS: Record<string, Model> = {
+  // 2026년 시점에 Google이 신규 사용자에게 차단함 (404)
+  'gemini-2-0-flash': 'gemini-2-5-flash',
+}
 
 export type Employee = {
   id: string
@@ -87,8 +113,8 @@ export const TEMPLATES: Record<Template, {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  defaultModel: 'claude-sonnet-4-7',
-  defaultMemoryModel: 'claude-haiku-4-7',
+  defaultModel: 'gemini-2-5-flash', // 무료 우선
+  defaultMemoryModel: 'gemini-2-5-flash',
   dailyLimitUsd: 5,
 }
 

@@ -6,6 +6,7 @@ import {
   type Template,
   type PromotionMode,
   TEMPLATES,
+  MODEL_INFO,
 } from '../shared/types'
 
 type Props = {
@@ -30,11 +31,8 @@ const PROMOTION_MODES: { value: PromotionMode; label: string; desc: string }[] =
   { value: 'off', label: '🛑 수동', desc: '자동 제안 OFF' },
 ]
 
-const MODEL_OPTIONS: { value: Model; label: string }[] = [
-  { value: 'claude-opus-4-7', label: 'Opus' },
-  { value: 'claude-sonnet-4-7', label: 'Sonnet' },
-  { value: 'claude-haiku-4-7', label: 'Haiku' },
-]
+const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
+const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
 
 function makeId(template: Template): string {
   return `${template}-${Date.now().toString(36)}`
@@ -221,15 +219,29 @@ export function HireModal({
           {/* Model */}
           <section className="modal-section">
             <h3>🧠 대화 모델</h3>
+            <div className="modal-subhead">🆓 무료 (Google)</div>
             <div className="pill-row">
-              {MODEL_OPTIONS.map(opt => (
+              {FREE_MODELS.map(m => (
                 <button
-                  key={opt.value}
+                  key={m}
                   type="button"
-                  className={`pill ${model === opt.value ? 'selected' : ''}`}
-                  onClick={() => setModel(opt.value)}
+                  className={`pill ${model === m ? 'selected' : ''}`}
+                  onClick={() => setModel(m)}
                 >
-                  {opt.label}
+                  {MODEL_INFO[m].label}
+                </button>
+              ))}
+            </div>
+            <div className="modal-subhead">💸 유료 (Anthropic)</div>
+            <div className="pill-row">
+              {PAID_MODELS.map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`pill ${model === m ? 'selected' : ''}`}
+                  onClick={() => setModel(m)}
+                >
+                  {MODEL_INFO[m].label}
                 </button>
               ))}
             </div>

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { eventBus, type ChatAgent } from './eventBus'
+import { eventBus } from './eventBus'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
 import { type Employee, TEMPLATES } from '../shared/types'
@@ -376,13 +376,7 @@ export class OfficeScene extends Phaser.Scene {
     })
     // 클릭 → 채팅 열기 (단일 클릭)
     chatBubble.on('pointerup', () => {
-      const agent: ChatAgent = {
-        id: employee.id,
-        name: employee.name,
-        role: employee.role,
-        emoji: employee.emoji,
-      }
-      eventBus.emit('chat:open', agent)
+      eventBus.emit('chat:open', employee)
     })
     // 부드럽게 떠다님
     this.tweens.add({
@@ -447,13 +441,7 @@ export class OfficeScene extends Phaser.Scene {
     clawd.on('pointerup', () => {
       const now = Date.now()
       if (now - lastClick < 350) {
-        const agent: ChatAgent = {
-          id: employee.id,
-          name: employee.name,
-          role: employee.role,
-          emoji: employee.emoji,
-        }
-        eventBus.emit('chat:open', agent)
+        eventBus.emit('chat:open', employee)
       }
       lastClick = now
     })

@@ -8,6 +8,15 @@ import {
   removeEmployee,
   updateSettings,
 } from './data/store'
+import {
+  saveApiKey,
+  hasApiKey,
+  deleteApiKey,
+  isAvailable as isApiKeyStorageAvailable,
+} from './llm/apiKeys'
+import { chat } from './llm/dispatch'
+import { invalidateAllCaches } from './llm/registry'
+import { LLMError, type ChatRequest, type ProviderName } from './llm/types'
 import type { Employee, Settings } from '../src/shared/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -40,26 +49,54 @@ function createWindow() {
   }
 }
 
-// === IPC 핸들러 ===
 function registerIpc() {
-  ipcMain.handle('data:load', async () => {
-    return await loadData()
+  // === Data ===
+  ipcMain.handle('data:load', async () => loadData())
+  ipcMain.handle('employee:add', async (_e, employee: Employee) => addEmployee(employee))
+  ipcMain.handle('employee:update', async (_e, id: string, patch: Partial<Employee>) =>
+    updateEmployee(id, patch),
+  )
+  ipcMain.handle('employee:remove', async (_e, id: string) => removeEmployee(id))
+  ipcMain.handle('settings:update', async (_e, patch: Partial<Settings>) => updateSettings(patch))
+
+  // === API Keys (provider별) ===
+  ipcMain.handle('apikey:save', async (_e, provider: ProviderName, key: string) => {
+    await saveApiKey(provider, key)
+    invalidateAllCaches()
+    return { ok: true }
   })
 
-  ipcMain.handle('employee:add', async (_event, employee: Employee) => {
-    return await addEmployee(employee)
+  ipcMain.handle('apikey:has', async (_e, provider: ProviderName) => hasApiKey(provider))
+
+  ipcMain.handle('apikey:delete', async (_e, provider: ProviderName) => {
+    await deleteApiKey(provider)
+    invalidateAllCaches()
+    return { ok: true }
   })
 
-  ipcMain.handle('employee:update', async (_event, id: string, patch: Partial<Employee>) => {
-    return await updateEmployee(id, patch)
-  })
+  ipcMain.handle('apikey:isAvailable', async () => isApiKeyStorageAvailable())
 
-  ipcMain.handle('employee:remove', async (_event, id: string) => {
-    return await removeEmployee(id)
-  })
-
-  ipcMain.handle('settings:update', async (_event, patch: Partial<Settings>) => {
-    return await updateSettings(patch)
+  // === LLM 호출 (provider 자동 추론) ===
+  ipcMain.handle('llm:chat', async (_e, request: ChatRequest) => {
+    try {
+      const response = await chat(request)
+      return { ok: true, response }
+    } catch (err) {
+      if (err instanceof LLMError) {
+        return {
+          ok: false,
+          error: { code: err.code, message: err.message, provider: err.provider },
+        }
+      }
+      return {
+        ok: false,
+        error: {
+          code: 'UNKNOWN' as const,
+          message: (err as Error).message ?? '알 수 없는 오류',
+          provider: 'anthropic' as ProviderName,
+        },
+      }
+    }
   })
 }
 
