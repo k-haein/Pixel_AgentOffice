@@ -3,6 +3,7 @@ import { eventBus } from './eventBus'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
 import { type Employee, TEMPLATES } from '../shared/types'
+import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
 // ========================================================
 // Pixel sprites (PIXEL_SIZE = 2 통일)
@@ -149,6 +150,22 @@ export class OfficeScene extends Phaser.Scene {
   private deskY = 0
   private isShutdown = false
 
+  // === 시간대 시스템 ===
+  /** 강제 야간 모드 (토큰 고갈 시 외부에서 true로 설정) */
+  private forcedNight = false
+  /** 현재 적용된 시간대 — 트랜지션 중복 방지용 */
+  private currentTimeOfDay: TimeOfDay | null = null
+  /** 다음 시간대 자동 체크 타이머 */
+  private timeRefreshTimer?: Phaser.Time.TimerEvent
+  /** 하늘 / 천체 / 구름 / 별 — 시간대마다 색 갱신해야 하는 요소들 참조 */
+  private skyBand?: Phaser.GameObjects.Rectangle
+  private skyDivider?: Phaser.GameObjects.Rectangle
+  private celestialBody?: Phaser.GameObjects.Container
+  private clouds: Phaser.GameObjects.Container[] = []
+  private stars: Phaser.GameObjects.Rectangle[] = []
+  /** 현재 시간대 라벨 (UI 표시용) */
+  private timeLabel?: Phaser.GameObjects.Text
+
   // 리스너 참조 (cleanup 위해 보관) — payload: unknown으로 받고 내부에서 캐스팅
   private setEmployeesHandler = (payload: unknown) => {
     // 씬 tear down 중에 listener가 호출될 수 있어 다중 가드
@@ -163,6 +180,13 @@ export class OfficeScene extends Phaser.Scene {
       ws.workingBubble.setVisible(state === 'working')
       ws.chatBubble.setVisible(state !== 'working')
     }
+  }
+  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대 */
+  private nightModeHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const { forced } = payload as { forced: boolean }
+    this.forcedNight = forced
+    this.applyTimeOfDay(this.resolveTimeOfDay(), true)
   }
 
   constructor() {
@@ -191,9 +215,28 @@ export class OfficeScene extends Phaser.Scene {
     }
     grid.strokePath()
 
-    // Sky band
-    this.add.rectangle(width / 2, 16, width, 32, 0x87ceeb)
-    this.add.rectangle(width / 2, 34, width, 4, 0x5a4a36)
+    // Sky band — 색은 시간대 시스템이 결정 (applyTimeOfDay)
+    this.skyBand = this.add.rectangle(width / 2, 16, width, 32, 0x87ceeb)
+    this.skyDivider = this.add.rectangle(width / 2, 34, width, 4, 0x5a4a36)
+
+    // Stars (밤 시간대에만 보이게 alpha 조정) — 살짝 깜빡이는 점들
+    const STAR_POSITIONS: Array<[number, number, number]> = [
+      [80, 8, 2], [220, 12, 1.5], [340, 6, 2], [510, 14, 1.5],
+      [620, 9, 2], [780, 11, 1.5], [870, 6, 2], [1010, 13, 1.5],
+    ]
+    for (const [x, y, size] of STAR_POSITIONS) {
+      const star = this.add.rectangle(x, y, size * 2, size * 2, 0xfff8d0, 0)
+      star.setDepth(0)
+      this.stars.push(star)
+      // 별마다 약간씩 다른 깜빡임
+      this.tweens.add({
+        targets: star,
+        scale: { from: 0.7, to: 1.2 },
+        yoyo: true,
+        repeat: -1,
+        duration: 1500 + Math.random() * 1500,
+      })
+    }
 
     // Clouds
     const cloudPositions: Array<[number, number, string[]]> = [
@@ -205,6 +248,7 @@ export class OfficeScene extends Phaser.Scene {
     for (const [x, y, pixels] of cloudPositions) {
       const cloud = drawPixelGrid(this, pixels, CLOUD_PALETTE, x, y, 2)
       cloud.setDepth(1)
+      this.clouds.push(cloud)
       this.tweens.add({
         targets: cloud,
         x: cloud.x + width + 100,
@@ -216,9 +260,10 @@ export class OfficeScene extends Phaser.Scene {
       })
     }
 
-    // Sun
+    // Sun / Moon — 시간대에 따라 색·표시 변경
     const sun = drawPixelGrid(this, SUN, SUN_PALETTE, width - 120, 16, 2)
     sun.setDepth(2)
+    this.celestialBody = sun
     this.tweens.add({
       targets: sun,
       alpha: { from: 0.75, to: 1 },
@@ -244,9 +289,26 @@ export class OfficeScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
+    // 시간대 라벨 — 우측 상단에 작게 (현재 사무실이 어느 시간대인지 표시)
+    this.timeLabel = this.add
+      .text(width - 18, 56, '', {
+        fontFamily: '"Courier New", monospace',
+        fontSize: '12px',
+        color: '#5a3a0f',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        padding: { x: 6, y: 3 },
+      })
+      .setOrigin(1, 0)
+      .setDepth(5)
+
+    // 시간대 초기 적용 (현재 시각 기반)
+    this.applyTimeOfDay(this.resolveTimeOfDay(), false)
+    this.scheduleNextTimeRefresh()
+
     // Listen for data changes from React (참조 보관해서 cleanup 가능)
     eventBus.on('office:set-employees', this.setEmployeesHandler)
     eventBus.on('agent:set-state', this.setStateHandler)
+    eventBus.on('office:night-mode', this.nightModeHandler)
 
     // Scene shutdown 시 listener 자동 제거 (HMR/재마운트 안전)
     this.events.once('shutdown', () => {
@@ -265,6 +327,101 @@ export class OfficeScene extends Phaser.Scene {
   private cleanupListeners() {
     eventBus.off('office:set-employees', this.setEmployeesHandler)
     eventBus.off('agent:set-state', this.setStateHandler)
+    eventBus.off('office:night-mode', this.nightModeHandler)
+    this.timeRefreshTimer?.remove(false)
+    this.timeRefreshTimer = undefined
+  }
+
+  // ============================================================
+  // 시간대 시스템
+  // ============================================================
+
+  /** 강제 야간이 켜져있으면 night, 아니면 실제 시각 기반 */
+  private resolveTimeOfDay(): TimeOfDay {
+    if (this.forcedNight) return 'night'
+    return getTimeOfDay()
+  }
+
+  /** 시간대 색 팔레트를 모든 씬 요소에 적용 (tween으로 부드럽게) */
+  private applyTimeOfDay(t: TimeOfDay, animate: boolean) {
+    if (this.currentTimeOfDay === t) return
+    this.currentTimeOfDay = t
+    const p = TIME_PALETTES[t]
+    const dur = animate ? 1500 : 0
+
+    // 카메라 배경
+    this.cameras.main.setBackgroundColor(p.cameraBg)
+
+    // 하늘 띠 — 색은 즉시 + tween
+    if (this.skyBand) this.tweenColor(this.skyBand, 'fillColor', p.sky, dur)
+    if (this.skyDivider) this.tweenColor(this.skyDivider, 'fillColor', p.skyDivider, dur)
+
+    // 별 — alpha 부드럽게
+    for (const star of this.stars) {
+      this.tweens.add({ targets: star, alpha: p.starAlpha, duration: dur })
+    }
+
+    // 구름 — alpha
+    for (const cloud of this.clouds) {
+      this.tweens.add({ targets: cloud, alpha: p.cloudAlpha, duration: dur })
+    }
+
+    // 천체 (sun/moon) — 픽셀 컬러 변경은 어려우니 tint 활용
+    if (this.celestialBody) {
+      // Container의 자식에 적용 — drawPixelGrid이 Container를 반환하지만 setTint 직접 안 됨.
+      // 색조 효과는 alpha + Y/X 팔레트 글로벌 변경 대신, container alpha로 대신:
+      // 밤이면 살짝 더 밝게 (대비)
+      const targetAlpha = p.isCelestialMoon ? 0.9 : 1
+      this.tweens.add({ targets: this.celestialBody, alpha: targetAlpha, duration: dur })
+    }
+
+    // 라벨 갱신
+    if (this.timeLabel) {
+      this.timeLabel.setText(this.forcedNight ? `${p.label} (한도 도달)` : p.label)
+    }
+  }
+
+  /** Rectangle.fillColor 같은 숫자 색을 tween 으로 부드럽게 보간 */
+  private tweenColor(
+    obj: Phaser.GameObjects.Rectangle,
+    prop: 'fillColor',
+    targetColor: number,
+    duration: number,
+  ) {
+    if (duration <= 0) {
+      obj.setFillStyle(targetColor)
+      return
+    }
+    const startColor = Phaser.Display.Color.IntegerToColor(obj.fillColor)
+    const endColor = Phaser.Display.Color.IntegerToColor(targetColor)
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration,
+      onUpdate: tw => {
+        const t = tw.getValue() ?? 0
+        const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+          startColor,
+          endColor,
+          1,
+          t,
+        )
+        obj.setFillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b))
+      },
+    })
+    // prop은 fillColor 고정 — 다른 prop 추가 시 확장
+    void prop
+  }
+
+  /** 다음 시간대 트랜지션 시점에 자동 갱신 타이머 예약 */
+  private scheduleNextTimeRefresh() {
+    this.timeRefreshTimer?.remove(false)
+    const delay = msUntilNextTransition()
+    this.timeRefreshTimer = this.time.delayedCall(delay, () => {
+      if (this.isShutdown) return
+      this.applyTimeOfDay(this.resolveTimeOfDay(), true)
+      this.scheduleNextTimeRefresh()
+    })
   }
 
   private rebuildWorkstations(employees: Employee[]) {

@@ -209,11 +209,14 @@ export function ChatPopup() {
   }
 
   // 자리비움 진입 시 랜덤 메시지 1개 픽 → 회복하면 클리어
+  // + 사무실 시간대 시스템에 강제 야간 신호 (한 캐릭터라도 한도 도달이면 강제 밤)
   useEffect(() => {
     if (isPersonaPaused) {
       setPauseMessage(prev => prev ?? pickPauseMessage())
+      eventBus.emit('office:night-mode', { forced: true })
     } else {
       setPauseMessage(null)
+      eventBus.emit('office:night-mode', { forced: false })
     }
   }, [isPersonaPaused])
 
