@@ -31,7 +31,7 @@ function resolveModelId(model: Model): string {
 export const geminiProvider: LLMProvider = {
   name: 'google',
 
-  async chat(request: ChatRequest, apiKey: string): Promise<ChatResponse> {
+  async chat(request: ChatRequest, apiKey: string, signal?: AbortSignal): Promise<ChatResponse> {
     const client = getClient(apiKey)
     const modelId = resolveModelId(request.model)
 
@@ -57,7 +57,7 @@ export const geminiProvider: LLMProvider = {
       }
 
       const chat = model.startChat({ history })
-      const result = await chat.sendMessage(last.content)
+      const result = await chat.sendMessage(last.content, { signal })
       const response = result.response
 
       const text = response.text()
@@ -70,6 +70,10 @@ export const geminiProvider: LLMProvider = {
         },
       }
     } catch (err) {
+      // 사용자 취소 — 시그널이 abort 됐다면 ABORTED로 분류
+      if (signal?.aborted || (err as Error)?.name === 'AbortError') {
+        throw new LLMError('google', 'ABORTED', 'cancelled')
+      }
       // 원본 에러를 main process 콘솔에 출력 (개발자 디버깅용)
       console.error('[gemini] raw error:', err)
       const e = err as { status?: number; message?: string; statusText?: string; cause?: unknown }
@@ -109,7 +113,20 @@ export const geminiProvider: LLMProvider = {
         throw new LLMError('google', 'RATE_LIMIT', 'Gemini 무료 한도 초과. 1분 후 다시 시도하거나 다른 모델을 써보세요.')
       }
 
-      // 4) 모델/요청 자체가 잘못된 경우 (404 = 모델 ID 오류 등) — 메시지를 그대로 노출
+      // 4) Google 서비스 일시 과부하 (자주 발생)
+      if (
+        status === 503 ||
+        status === 500 ||
+        status === 504 ||
+        msg.includes('Service Unavailable') ||
+        msg.includes('overloaded') ||
+        msg.toLowerCase().includes('high demand') ||
+        msg.toLowerCase().includes('experiencing high')
+      ) {
+        throw new LLMError('google', 'SERVICE_BUSY', `Gemini server busy (${status ?? '5xx'})`)
+      }
+
+      // 5) 모델/요청 자체가 잘못된 경우 (404 = 모델 ID 오류 등)
       throw new LLMError('google', 'API_ERROR', `Gemini API (${status ?? 'no-status'}): ${msg}`)
     }
   },

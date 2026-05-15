@@ -28,17 +28,37 @@ export type Model =
 
 /** 모델별 메타 정보 — UI에서 활용 */
 export type ModelTier = 'paid' | 'free'
+export type ModelPricing = {
+  /** 입력 1M 토큰당 USD */
+  inputPerM: number
+  /** 출력 1M 토큰당 USD */
+  outputPerM: number
+}
 export const MODEL_INFO: Record<Model, {
   label: string
   tier: ModelTier
   provider: 'anthropic' | 'google'
   desc: string
+  /** 분당 요청 한도 (Requests Per Minute). 0이면 사실상 무제한 */
+  rpm: number
+  /** 가격 (USD per 1M tokens). 무료 모델도 표기상 0 또는 paid tier 가격. */
+  pricing: ModelPricing
 }> = {
-  'claude-opus-4-7': { label: 'Claude Opus', tier: 'paid', provider: 'anthropic', desc: '최고 성능 · 비쌈' },
-  'claude-sonnet-4-7': { label: 'Claude Sonnet', tier: 'paid', provider: 'anthropic', desc: '균형 · 권장' },
-  'claude-haiku-4-7': { label: 'Claude Haiku', tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴' },
-  'gemini-2-5-pro': { label: 'Gemini 2.5 Pro', tier: 'free', provider: 'google', desc: '⚠️ 무료 한도 빡빡 (분당 5회)' },
-  'gemini-2-5-flash': { label: 'Gemini 2.5 Flash', tier: 'free', provider: 'google', desc: '⭐ 무료 · 균형 (분당 10회)' },
+  'claude-opus-4-7':   { label: 'Claude Opus',      tier: 'paid', provider: 'anthropic', desc: '최고 성능 · 비쌈',            rpm: 50, pricing: { inputPerM: 15,    outputPerM: 75   } },
+  'claude-sonnet-4-7': { label: 'Claude Sonnet',    tier: 'paid', provider: 'anthropic', desc: '균형 · 권장',                rpm: 50, pricing: { inputPerM: 3,     outputPerM: 15   } },
+  'claude-haiku-4-7':  { label: 'Claude Haiku',     tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴',                rpm: 50, pricing: { inputPerM: 0.80,  outputPerM: 4    } },
+  'gemini-2-5-pro':    { label: 'Gemini 2.5 Pro',   tier: 'free', provider: 'google',    desc: '⚠️ 무료 한도 빡빡 (분당 5회)',  rpm: 5,  pricing: { inputPerM: 1.25,  outputPerM: 5    } },
+  'gemini-2-5-flash':  { label: 'Gemini 2.5 Flash', tier: 'free', provider: 'google',    desc: '⭐ 무료 · 균형 (분당 10회)',    rpm: 10, pricing: { inputPerM: 0.075, outputPerM: 0.30 } },
+}
+
+/** USD → KRW 환율 추정값 (1 USD ≈ ₩X). 정확치 않아도 사용자 직관용. */
+export const USD_TO_KRW = 1400
+
+/** 토큰 사용량 → 비용 ($) */
+export function estimateCostUsd(model: Model, inputTokens: number, outputTokens: number): number {
+  const p = MODEL_INFO[model]?.pricing
+  if (!p) return 0
+  return (inputTokens * p.inputPerM + outputTokens * p.outputPerM) / 1_000_000
 }
 
 /** 폐기된 모델 ID → 살아있는 모델 ID 매핑.
@@ -69,10 +89,15 @@ export type Employee = {
   totalPraises: number
 }
 
+/** 채팅창 상단 사용량 표시 모드 */
+export type UsageDisplayMode = 'chips' | 'toggle'
+
 export type Settings = {
   defaultModel: Model
   defaultMemoryModel: Model
   dailyLimitUsd: number
+  /** 'chips' = 모델명 아래 칩 + 커스텀 툴팁 / 'toggle' = 사용량 버튼 + 펼침 스트립 */
+  usageDisplayMode: UsageDisplayMode
   // API 키는 safeStorage에 따로 저장
 }
 
@@ -116,6 +141,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultModel: 'gemini-2-5-flash', // 무료 우선
   defaultMemoryModel: 'gemini-2-5-flash',
   dailyLimitUsd: 5,
+  usageDisplayMode: 'chips',
 }
 
 export const DEFAULT_MAX_EMPLOYEES = 2

@@ -14,10 +14,11 @@ import {
   deleteApiKey,
   isAvailable as isApiKeyStorageAvailable,
 } from './llm/apiKeys'
-import { chat } from './llm/dispatch'
+import { chat, getRateLimit } from './llm/dispatch'
 import { invalidateAllCaches } from './llm/registry'
+import { humanizeError } from './llm/errorMessages'
 import { LLMError, type ChatRequest, type ProviderName } from './llm/types'
-import type { Employee, Settings } from '../src/shared/types'
+import type { Employee, Settings, Model } from '../src/shared/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -76,27 +77,62 @@ function registerIpc() {
 
   ipcMain.handle('apikey:isAvailable', async () => isApiKeyStorageAvailable())
 
-  // === LLM 호출 (provider 자동 추론) ===
-  ipcMain.handle('llm:chat', async (_e, request: ChatRequest) => {
+  // === LLM 호출 (provider 자동 추론) — requestId로 중단 가능 ===
+  // 진행 중인 요청들의 AbortController 보관
+  const activeAborts = new Map<string, AbortController>()
+
+  ipcMain.handle('llm:chat', async (_e, request: ChatRequest & { requestId?: string }) => {
+    const requestId = request.requestId ?? `req-${Date.now()}`
+    const ctrl = new AbortController()
+    activeAborts.set(requestId, ctrl)
     try {
-      const response = await chat(request)
-      return { ok: true, response }
+      const response = await chat(request, ctrl.signal)
+      const rateLimit = getRateLimit(request.model)
+      return { ok: true, response, rateLimit }
     } catch (err) {
+      const rateLimit = getRateLimit(request.model)
       if (err instanceof LLMError) {
+        const friendly = humanizeError(err, {
+          model: request.model,
+          retryInMs: err.code === 'RATE_LIMIT_LOCAL' ? rateLimit.resetInMs : undefined,
+        })
         return {
           ok: false,
-          error: { code: err.code, message: err.message, provider: err.provider },
+          error: { code: err.code, message: err.message, provider: err.provider, friendly },
+          rateLimit,
         }
       }
+      // 분류 못 한 예외도 humanize 시도
+      const fallback = new LLMError('anthropic', 'UNKNOWN', (err as Error).message ?? '알 수 없는 오류')
+      const friendly = humanizeError(fallback, { model: request.model })
       return {
         ok: false,
         error: {
-          code: 'UNKNOWN' as const,
-          message: (err as Error).message ?? '알 수 없는 오류',
-          provider: 'anthropic' as ProviderName,
+          code: fallback.code,
+          message: fallback.message,
+          provider: fallback.provider as ProviderName,
+          friendly,
         },
+        rateLimit,
       }
+    } finally {
+      activeAborts.delete(requestId)
     }
+  })
+
+  // === 진행 중인 LLM 호출 중단 ===
+  ipcMain.handle('llm:abort', async (_e, requestId: string) => {
+    const ctrl = activeAborts.get(requestId)
+    if (ctrl) {
+      ctrl.abort()
+      return { ok: true }
+    }
+    return { ok: false, reason: 'not_found' }
+  })
+
+  // === Rate limit 조회 (UI에서 mount 시 + 주기적 polling) ===
+  ipcMain.handle('llm:getRateLimit', async (_e, model: Model) => {
+    return getRateLimit(model)
   })
 }
 

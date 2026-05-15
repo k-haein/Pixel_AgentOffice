@@ -26,8 +26,12 @@ export type LLMErrorCode =
   | 'NO_API_KEY'
   | 'INVALID_KEY'
   | 'NETWORK'
-  | 'RATE_LIMIT'
+  | 'RATE_LIMIT'           // 서버가 429 응답 (실제 한도 초과)
+  | 'RATE_LIMIT_LOCAL'     // 우리 sliding window 카운터 사전 차단
+  | 'INSUFFICIENT_CREDIT'  // 잔액/충전 부족 (Anthropic credit_balance_too_low 등)
+  | 'SERVICE_BUSY'         // 503 / overloaded / high demand — Google·Anthropic 일시 과부하
   | 'API_ERROR'
+  | 'ABORTED'              // 사용자가 도중에 취소
   | 'UNKNOWN'
 
 export class LLMError extends Error {
@@ -45,8 +49,8 @@ export class LLMError extends Error {
 /** Provider 공통 인터페이스 — Anthropic, Google, (추후) Groq 모두 구현 */
 export interface LLMProvider {
   readonly name: ProviderName
-  /** 대화 요청 (비-스트리밍) */
-  chat(request: ChatRequest, apiKey: string): Promise<ChatResponse>
+  /** 대화 요청 (비-스트리밍). signal로 중간 취소 가능 */
+  chat(request: ChatRequest, apiKey: string, signal?: AbortSignal): Promise<ChatResponse>
   /** 키 캐시 무효화 */
   invalidateCache(): void
 }

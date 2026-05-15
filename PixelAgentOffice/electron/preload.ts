@@ -1,16 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppData, Employee, Settings } from '../src/shared/types'
+import type { AppData, Employee, Settings, Model } from '../src/shared/types'
 import type { ChatRequest, ChatResponse, ProviderName, LLMErrorCode } from './llm/types'
+import type { FriendlyError } from './llm/errorMessages'
+import type { RateLimitStatus } from './llm/usage'
+
+export type { FriendlyError, RateLimitStatus }
 
 export type ChatError = {
   code: LLMErrorCode
   message: string
   provider: ProviderName
+  friendly: FriendlyError
 }
 
 export type ChatResult =
-  | { ok: true; response: ChatResponse }
-  | { ok: false; error: ChatError }
+  | { ok: true; response: ChatResponse; rateLimit: RateLimitStatus }
+  | { ok: false; error: ChatError; rateLimit: RateLimitStatus }
 
 const api = {
   // === Data ===
@@ -34,9 +39,17 @@ const api = {
   isApiKeyStorageAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('apikey:isAvailable'),
 
-  // === LLM 호출 ===
-  chatWithLLM: (request: ChatRequest): Promise<ChatResult> =>
+  // === LLM 호출 (requestId 동봉 시 중단 가능) ===
+  chatWithLLM: (request: ChatRequest & { requestId?: string }): Promise<ChatResult> =>
     ipcRenderer.invoke('llm:chat', request),
+
+  /** 진행 중인 chat 요청 중단 */
+  abortChat: (requestId: string): Promise<{ ok: boolean; reason?: string }> =>
+    ipcRenderer.invoke('llm:abort', requestId),
+
+  // === Rate limit 조회 ===
+  getRateLimit: (model: Model): Promise<RateLimitStatus> =>
+    ipcRenderer.invoke('llm:getRateLimit', model),
 }
 
 contextBridge.exposeInMainWorld('api', api)
