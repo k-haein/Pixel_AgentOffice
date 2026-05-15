@@ -2,8 +2,8 @@
 
 > 픽셀 아트 사무실에서 AI 에이전트를 직원처럼 채용·배치·명령할 수 있는 데스크톱 앱의 기획 아카이브.
 
-**Status**: M3 코드 완성 — 다중 LLM (Claude + Gemini) + E2E 테스트
-**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2) → 2026-05-14 (M3 + PRD/와이어프레임)
+**Status**: M4 — Rate Limit UX + 채팅 정밀화 + 페르소나 자리비움
+**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2) → 2026-05-14 (M3 + PRD/와이어프레임) → 2026-05-15 (M4)
 
 ---
 
@@ -151,9 +151,13 @@ PixelAgentOffice/
 └─ milestones/                  ← 마일스톤별 코드 스냅샷
     ├─ M1-basic-ui/             ← Electron + Phaser 기본 UI (2026-05-12)
     ├─ M2-ui-channel/           ← 채용·메모·설정 모달 + 영속화 (2026-05-13)
-    └─ M3-multi-llm/            ← Claude + Gemini + E2E 테스트 + Dead-model 마이그레이션 (2026-05-14)
+    ├─ M3-multi-llm/            ← Claude + Gemini + E2E 테스트 + Dead-model 마이그레이션 (2026-05-14)
+    │   ├─ retrospective.md
+    │   ├─ electron/  (+ llm/ 6개 파일, store.ts 마이그레이션 포함)
+    │   ├─ src/       (+ Model 5종 + MODEL_INFO + DEPRECATED_MODELS)
+    │   └─ tests/e2e/ (+ Playwright 3 시나리오)
+    └─ M4-rate-limit-ux/        ← Rate Limit UX + 친절 에러 + 페르소나 자리비움 + 우클릭 점프 (2026-05-15)
         ├─ retrospective.md
-        ├─ electron/  (+ llm/ 6개 파일, store.ts 마이그레이션 포함)
-        ├─ src/       (+ Model 5종 + MODEL_INFO + DEPRECATED_MODELS)
-        └─ tests/e2e/ (+ Playwright 3 시나리오)
+        ├─ electron/llm/ (+ usage.ts, errorMessages.ts 신규)
+        └─ src/components/ (ChatPopup 대폭 갱신, SettingsModal focusSection)
 ```
