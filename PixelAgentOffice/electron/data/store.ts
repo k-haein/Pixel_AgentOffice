@@ -6,11 +6,13 @@ import {
   type Employee,
   type Settings,
   type Model,
+  type SeatId,
   TEMPLATES,
   DEFAULT_SETTINGS,
   DEFAULT_MAX_EMPLOYEES,
   DEPRECATED_MODELS,
 } from '../../src/shared/types'
+import { findNextEmptyMemberSeat, SEAT_LOOKUP } from '../../src/shared/seats'
 
 /** 저장된 모델이 폐기된 ID면 살아있는 ID 로 교체 */
 function migrateModel(m: string | undefined | null, fallback: Model): Model {
@@ -45,7 +47,8 @@ function createDefaultData(): AppData {
       rank: '사원',
       promotionMode: 'time',
       hiredAt: now,
-      deskPosition: { x: -120 },
+      seatId: 'member:A:0',  // 팀 A 첫 자리
+      deskOrientation: 'front',
       totalMessages: 0,
       totalMemoryUpdates: 0,
       totalPraises: 0,
@@ -64,7 +67,8 @@ function createDefaultData(): AppData {
       rank: '사원',
       promotionMode: 'time',
       hiredAt: now,
-      deskPosition: { x: 120 },
+      seatId: 'member:A:1',  // 팀 A 두 번째 자리
+      deskOrientation: 'front',
       totalMessages: 0,
       totalMemoryUpdates: 0,
       totalPraises: 0,
@@ -77,8 +81,8 @@ function createDefaultData(): AppData {
   }
 }
 
-/** Employee에 새 필드 추가 시 기본값으로 채우기 */
-function migrateEmployee(emp: Partial<Employee>): Employee {
+/** Employee 단일 필드 마이그레이션 (seatId는 별도 단계에서 결정) */
+function migrateEmployeeFields(emp: Partial<Employee>): Omit<Employee, 'seatId'> {
   return {
     id: emp.id ?? `unknown-${Date.now()}`,
     template: emp.template ?? 'editor',
@@ -93,11 +97,42 @@ function migrateEmployee(emp: Partial<Employee>): Employee {
     rank: emp.rank ?? '사원',
     promotionMode: emp.promotionMode ?? 'time',
     hiredAt: emp.hiredAt ?? new Date().toISOString(),
-    deskPosition: emp.deskPosition ?? { x: 0 },
+    deskOrientation: emp.deskOrientation ?? 'front',
     totalMessages: emp.totalMessages ?? 0,
     totalMemoryUpdates: emp.totalMemoryUpdates ?? 0,
     totalPraises: emp.totalPraises ?? 0,
   }
+}
+
+/**
+ * 직원 목록 전체 마이그레이션.
+ * 1) 각 직원 필드 보강
+ * 2) seatId가 이미 있으면 유지 (단, 중복 발생 시 뒤쪽 직원은 무자리로)
+ * 3) seatId 없는 직원은 빈 자리에 순차 자동 배치 (팀 A 팀원부터)
+ */
+function migrateEmployees(raws: Partial<Employee>[]): Employee[] {
+  const occupied = new Set<SeatId>()
+  // 1차: 이미 seatId 있는 직원 처리 (중복 검출)
+  const stage1: Array<{ raw: Partial<Employee>; existingSeat: SeatId | null }> = raws.map(r => {
+    const sid = r.seatId
+    if (sid && SEAT_LOOKUP[sid] && !occupied.has(sid)) {
+      occupied.add(sid)
+      return { raw: r, existingSeat: sid }
+    }
+    return { raw: r, existingSeat: null }
+  })
+  // 2차: 자리 없는 직원에게 다음 빈 팀원 자리 할당
+  return stage1.map(({ raw, existingSeat }) => {
+    let seat: SeatId | null = existingSeat
+    if (!seat) {
+      seat = findNextEmptyMemberSeat(occupied)
+      if (seat) occupied.add(seat)
+    }
+    return {
+      ...migrateEmployeeFields(raw),
+      seatId: seat,
+    }
+  })
 }
 
 export async function loadData(): Promise<AppData> {
@@ -115,7 +150,7 @@ export async function loadData(): Promise<AppData> {
       defaultMemoryModel: migrateModel(settingsRaw.defaultMemoryModel, DEFAULT_SETTINGS.defaultMemoryModel),
     }
     const data: AppData = {
-      employees: (parsed.employees ?? []).map(migrateEmployee),
+      employees: migrateEmployees(parsed.employees ?? []),
       maxEmployees: parsed.maxEmployees ?? DEFAULT_MAX_EMPLOYEES,
       settings,
     }

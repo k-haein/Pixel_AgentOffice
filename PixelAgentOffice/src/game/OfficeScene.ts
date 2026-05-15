@@ -2,7 +2,8 @@ import Phaser from 'phaser'
 import { eventBus } from './eventBus'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, TEMPLATES } from '../shared/types'
+import { type Employee, type SeatId, TEMPLATES } from '../shared/types'
+import { ALL_SEATS, SEAT_LOOKUP, visibleTeams, type SeatMeta } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
 // ========================================================
@@ -134,19 +135,25 @@ const CLOUD_BIG = [
 
 const CLAWD_BASE_SCALE = 1.0
 
+/**
+ * 자리(seat) 시각화 단위. 비어있는 자리도 Workstation으로 그리지만
+ * employee가 null이면 캐릭터/채팅/메모를 그리지 않는다.
+ */
 type Workstation = {
-  employee: Employee
-  clawd: Phaser.GameObjects.Container
-  workingBubble: Phaser.GameObjects.Text
-  chatBubble: Phaser.GameObjects.Container
-  memo: Phaser.GameObjects.Container
-  nameplate: Phaser.GameObjects.Text
+  seatMeta: SeatMeta
+  employee: Employee | null
+  clawd?: Phaser.GameObjects.Container
+  workingBubble?: Phaser.GameObjects.Text
+  chatBubble?: Phaser.GameObjects.Container
+  memo?: Phaser.GameObjects.Container
+  nameplate?: Phaser.GameObjects.Text
   // Phaser objects that need cleanup
   allObjects: Phaser.GameObjects.GameObject[]
 }
 
 export class OfficeScene extends Phaser.Scene {
-  private workstations = new Map<string, Workstation>()
+  // 자리 단위로 키 (사장석 + 팀 × 자리). 빈 자리도 포함.
+  private workstations = new Map<SeatId, Workstation>()
   private deskY = 0
   private isShutdown = false
 
@@ -175,8 +182,12 @@ export class OfficeScene extends Phaser.Scene {
   private setStateHandler = (payload: unknown) => {
     if (this.isShutdown || !this.add) return
     const { agentId, state } = payload as { agentId: string; state: 'idle' | 'working' }
-    const ws = this.workstations.get(agentId)
-    if (ws && ws.workingBubble.active) {
+    // employee.id로 워크스테이션 찾기 (seatId 키로 저장돼 있어서 iterate)
+    let ws: Workstation | undefined
+    for (const w of this.workstations.values()) {
+      if (w.employee?.id === agentId) { ws = w; break }
+    }
+    if (ws && ws.workingBubble?.active && ws.chatBubble) {
       ws.workingBubble.setVisible(state === 'working')
       ws.chatBubble.setVisible(state !== 'working')
     }
@@ -431,26 +442,139 @@ export class OfficeScene extends Phaser.Scene {
     }
     this.workstations.clear()
 
-    // Rebuild from data
-    const width = this.scale.width
+    // employee.seatId 기반 lookup
+    const empBySeat = new Map<SeatId, Employee>()
+    const occupied = new Set<SeatId>()
     for (const emp of employees) {
-      const x = width / 2 + emp.deskPosition.x
-      this.createWorkstation(x, emp)
+      if (emp.seatId) {
+        empBySeat.set(emp.seatId, emp)
+        occupied.add(emp.seatId)
+      }
+    }
+
+    // 어떤 팀까지 그릴지 (A는 항상, B/C는 직전 팀이 다 차야 등장)
+    const teams = visibleTeams(occupied)
+    const teamsSet = new Set(teams)
+
+    const width = this.scale.width
+    const height = this.scale.height
+
+    // 모든 자리를 순회하되, 보이는 팀의 자리 + 사장석만 그림
+    for (const seat of ALL_SEATS) {
+      if (seat.role === 'boss' || (seat.team && teamsSet.has(seat.team))) {
+        const x = seat.position.xRatio * width
+        const y = seat.position.yRatio * height
+        const emp = empBySeat.get(seat.id) ?? null
+        this.createWorkstation(x, y, emp, seat)
+      }
+    }
+
+    // 팀 라벨 텍스트 표시
+    this.drawTeamLabels(teams)
+  }
+
+  /** 보이는 팀들 아래에 작은 라벨 텍스트 그리기 */
+  private teamLabels: Phaser.GameObjects.Text[] = []
+  private drawTeamLabels(teams: import('../shared/types').TeamId[]) {
+    // 기존 라벨 제거
+    for (const lbl of this.teamLabels) lbl.destroy()
+    this.teamLabels = []
+
+    const width = this.scale.width
+    const height = this.scale.height
+    const labelY = 0.85 * height
+    const teamX: Record<string, number> = { A: 0.20, B: 0.50, C: 0.80 }
+    for (const team of teams) {
+      const t = this.add
+        .text(teamX[team] * width, labelY, `— 팀 ${team} —`, {
+          fontFamily: '"Courier New", monospace',
+          fontSize: '13px',
+          color: '#5a3a0f',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(20)
+      this.teamLabels.push(t)
     }
   }
 
-  private createWorkstation(x: number, employee: Employee) {
-    const deskY = this.deskY
+  /**
+   * 자리 하나 시각화. employee가 null이면 빈 자리(책상+의자+모니터만, 캐릭터/채팅 X).
+   * seat.role이 'boss'면 사장석 (책상 + 사장 명패), 단순 시각.
+   */
+  private createWorkstation(x: number, y: number, employee: Employee | null, seat: SeatMeta) {
+    const isBoss = seat.role === 'boss'
+    const deskY = y
     const clawdY = deskY - 44
 
     const allObjects: Phaser.GameObjects.GameObject[] = []
 
-    // Chair
+    // === Chair (항상) — 빈 자리도 의자는 있음 ===
     const chair = drawPixelGrid(this, CHAIR, CHAIR_PALETTE, x, clawdY, 2)
     chair.setDepth(4)
+    if (!employee && !isBoss) chair.setAlpha(0.55) // 빈 자리는 옅게
     allObjects.push(chair)
 
-    // Character — variant from template
+    // === Desk (항상) ===
+    const desk = drawPixelGrid(this, DESK, DESK_PALETTE, x, deskY, 2)
+    desk.setDepth(8)
+    if (isBoss) desk.setScale(1.3) // 사장석 책상 살짝 큼
+    else if (!employee) desk.setAlpha(0.6)
+    allObjects.push(desk)
+
+    // === Monitor + flicker (항상, 빈 자리는 검은 화면) ===
+    const monitor = drawPixelGrid(this, MONITOR, MONITOR_PALETTE, x, deskY - 13, 2)
+    monitor.setDepth(10)
+    if (!employee) monitor.setAlpha(0.55)
+    allObjects.push(monitor)
+    if (employee) {
+      // 실제 사용 중인 모니터만 깜빡임
+      const flicker = this.add.rectangle(x, deskY - 17, 28, 14, 0xffffff, 0.08)
+      flicker.setDepth(11)
+      allObjects.push(flicker)
+      this.tweens.add({
+        targets: flicker,
+        alpha: { from: 0.04, to: 0.16 },
+        yoyo: true,
+        repeat: -1,
+        duration: 800,
+      })
+    }
+
+    // === Mouse (employee 자리에만 — 책상 우측 작은 디테일) ===
+    if (employee) {
+      const mouse = drawPixelGrid(this, MOUSE, MOUSE_PALETTE, x + 26, deskY - 6, 2)
+      mouse.setDepth(10)
+      allObjects.push(mouse)
+    }
+
+    // === 사장석은 명패 + 끝 (캐릭터/채팅/메모 없음, 아직은 빈 사장석) ===
+    if (isBoss) {
+      const bossPlate = this.add
+        .text(x, deskY + 38, '👑 사장석', {
+          fontFamily: '"Courier New", monospace',
+          fontSize: '14px',
+          color: '#5a3a0f',
+          backgroundColor: '#fff2b8',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(20)
+      bossPlate.setPadding({ left: 10, right: 10, top: 4, bottom: 4 })
+      allObjects.push(bossPlate)
+      this.workstations.set(seat.id, { seatMeta: seat, employee: null, allObjects })
+      return
+    }
+
+    // === 빈 자리는 여기까지 (이후는 employee가 있을 때만) ===
+    if (!employee) {
+      this.workstations.set(seat.id, { seatMeta: seat, employee: null, allObjects })
+      return
+    }
+
+    // ===== Character + interactive elements (occupied seat 전용) =====
+
+    // 캐릭터
     const variant: ClawdVariant = TEMPLATES[employee.template].variant
     const alpha = TEMPLATES[employee.template].alpha
     const clawd = createClawd(this, x, clawdY, variant)
@@ -458,31 +582,6 @@ export class OfficeScene extends Phaser.Scene {
     clawd.setScale(CLAWD_BASE_SCALE)
     if (alpha !== undefined) clawd.setAlpha(alpha)
     allObjects.push(clawd)
-
-    // Desk
-    const desk = drawPixelGrid(this, DESK, DESK_PALETTE, x, deskY, 2)
-    desk.setDepth(8)
-    allObjects.push(desk)
-
-    // Monitor (center)
-    const monitor = drawPixelGrid(this, MONITOR, MONITOR_PALETTE, x, deskY - 13, 2)
-    monitor.setDepth(10)
-    allObjects.push(monitor)
-    const flicker = this.add.rectangle(x, deskY - 17, 28, 14, 0xffffff, 0.08)
-    flicker.setDepth(11)
-    allObjects.push(flicker)
-    this.tweens.add({
-      targets: flicker,
-      alpha: { from: 0.04, to: 0.16 },
-      yoyo: true,
-      repeat: -1,
-      duration: 800,
-    })
-
-    // Mouse (right of monitor)
-    const mouse = drawPixelGrid(this, MOUSE, MOUSE_PALETTE, x + 26, deskY - 6, 2)
-    mouse.setDepth(10)
-    allObjects.push(mouse)
 
     // 📝 Memo (left of monitor — clickable)
     const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, x - 26, deskY - 6, 2)
@@ -505,7 +604,7 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(memo)
 
-    // 💬 Chat bubble — 클릭하면 채팅 열림 (idle 상태일 때만 표시)
+    // 💬 Chat bubble
     const chatBubble = drawPixelGrid(
       this,
       CHAT_BUBBLE,
@@ -520,7 +619,6 @@ export class OfficeScene extends Phaser.Scene {
       new Phaser.Geom.Rectangle(-10, -10, 20, 20),
       Phaser.Geom.Rectangle.Contains,
     )
-    // 호버 효과
     chatBubble.on('pointerover', () => {
       if (this.isShutdown) return
       this.tweens.add({ targets: chatBubble, scale: 1.2, duration: 100 })
@@ -531,11 +629,9 @@ export class OfficeScene extends Phaser.Scene {
       this.tweens.add({ targets: chatBubble, scale: 1, duration: 100 })
       this.input.setDefaultCursor('default')
     })
-    // 클릭 → 채팅 열기 (단일 클릭)
     chatBubble.on('pointerup', () => {
       eventBus.emit('chat:open', employee)
     })
-    // 부드럽게 떠다님
     this.tweens.add({
       targets: chatBubble,
       y: { from: clawdY - 28, to: clawdY - 32 },
@@ -546,7 +642,7 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Working bubble (작업 중일 때만, 같은 위치에 chat 대신 표시)
+    // Working bubble
     const workingBubble = this.add
       .text(x, clawdY - 28, '  ✦  ', {
         fontFamily: '"Courier New", monospace',
@@ -579,13 +675,15 @@ export class OfficeScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     })
 
-    // Nameplate
+    // Nameplate — 리더면 약간 강조
+    const isLeader = seat.role === 'leader'
+    const namePrefix = isLeader ? '⭐ ' : ''
     const nameplate = this.add
-      .text(x, deskY + 36, `${employee.emoji}  ${employee.name} · ${employee.role}`, {
+      .text(x, deskY + 36, `${namePrefix}${employee.emoji}  ${employee.name} · ${employee.role}`, {
         fontFamily: '"Courier New", monospace',
         fontSize: '12px',
-        color: '#2a2118',
-        backgroundColor: '#fff8e0',
+        color: isLeader ? '#5a3a0f' : '#2a2118',
+        backgroundColor: isLeader ? '#fff2b8' : '#fff8e0',
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -609,7 +707,8 @@ export class OfficeScene extends Phaser.Scene {
       this.tweens.add({ targets: clawd, scale: CLAWD_BASE_SCALE, duration: 120 })
     })
 
-    this.workstations.set(employee.id, {
+    this.workstations.set(seat.id, {
+      seatMeta: seat,
       employee,
       clawd,
       workingBubble,

@@ -17,6 +17,26 @@ export type Rank =
   | '회장'
   | '레전드'
 
+/** 직급 서열 — 인덱스 작을수록 낮은 직급 */
+export const RANK_ORDER: Rank[] = [
+  '알바', '사원', '대리', '과장', '부장', '이사', '사장', '회장', '레전드',
+]
+
+/** 직급 순위 비교 (a >= b 이면 a가 b 이상) */
+export function rankGte(a: Rank, b: Rank): boolean {
+  return RANK_ORDER.indexOf(a) >= RANK_ORDER.indexOf(b)
+}
+
+/** 팀 리더 자격 — 과장 이상부터 가능 (사장은 사장석 전용이므로 팀 리더 X) */
+export function canBeTeamLeader(rank: Rank): boolean {
+  return rankGte(rank, '과장') && rank !== '사장'
+}
+
+/** 사장석에 앉을 자격 — 사장/회장/레전드 (최상위 직급) */
+export function canBeBoss(rank: Rank): boolean {
+  return rankGte(rank, '사장')
+}
+
 export type Model =
   // Anthropic (유료, BYOK)
   | 'claude-opus-4-7'
@@ -68,6 +88,21 @@ export const DEPRECATED_MODELS: Record<string, Model> = {
   'gemini-2-0-flash': 'gemini-2-5-flash',
 }
 
+/** 팀 식별자 — 최대 3팀 */
+export type TeamId = 'A' | 'B' | 'C'
+
+/** 책상 회전 방향 — 좌·우·정면 (정면이 사장석 쪽을 봄) */
+export type DeskOrientation = 'front' | 'left' | 'right'
+
+/** 자리(seat) 식별자 — 사장석 1 + 팀별 5(리더 1 + 팀원 4) × 3팀 = 총 16자리
+ *  · 'boss'         — 사장석 (위 중앙)
+ *  · 'leader:A'     — 팀 A 리더 자리
+ *  · 'member:A:0~3' — 팀 A 팀원 자리 4개 */
+export type SeatId =
+  | 'boss'
+  | `leader:${TeamId}`
+  | `member:${TeamId}:${0 | 1 | 2 | 3}`
+
 export type Employee = {
   id: string
   template: Template
@@ -82,11 +117,17 @@ export type Employee = {
   rank: Rank
   promotionMode: PromotionMode
   hiredAt: string // ISO date
-  deskPosition: { x: number }
+  /** 현재 앉은 자리 (null이면 미배치 — 향후 신입 대기 등) */
+  seatId: SeatId | null
+  /** 책상 회전 — 기본 'front' */
+  deskOrientation: DeskOrientation
   // 진급 추적
   totalMessages: number
   totalMemoryUpdates: number
   totalPraises: number
+  // === 레거시 (구버전 호환) ===
+  /** @deprecated 자유 배치 모드 시절 X 좌표. seatId 도입 후 폐기. 마이그레이션 후 무시. */
+  deskPosition?: { x: number }
 }
 
 /** 채팅창 상단 사용량 표시 모드 */
