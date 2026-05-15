@@ -2,8 +2,8 @@
 
 > 픽셀 아트 사무실에서 AI 에이전트를 직원처럼 채용·배치·명령할 수 있는 데스크톱 앱의 기획 아카이브.
 
-**Status**: M4 — Rate Limit UX + 채팅 정밀화 + 페르소나 자리비움
-**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2) → 2026-05-14 (M3 + PRD/와이어프레임) → 2026-05-15 (M4)
+**Status**: M5-a/b — 시그니처 폴리시 시작 (시간대 변화 + 사무실 위계 재구조)
+**Period**: 2026-05-12 (기획+M1) → 2026-05-13 (M2) → 2026-05-14 (M3 + PRD) → 2026-05-15 (M4 + M5-a/b)
 
 ---
 
@@ -156,8 +156,13 @@ PixelAgentOffice/
     │   ├─ electron/  (+ llm/ 6개 파일, store.ts 마이그레이션 포함)
     │   ├─ src/       (+ Model 5종 + MODEL_INFO + DEPRECATED_MODELS)
     │   └─ tests/e2e/ (+ Playwright 3 시나리오)
-    └─ M4-rate-limit-ux/        ← Rate Limit UX + 친절 에러 + 페르소나 자리비움 + 우클릭 점프 (2026-05-15)
+    ├─ M4-rate-limit-ux/        ← Rate Limit UX + 친절 에러 + 페르소나 자리비움 + 우클릭 점프 (2026-05-15)
+    │   ├─ retrospective.md
+    │   ├─ electron/llm/ (+ usage.ts, errorMessages.ts 신규)
+    │   └─ src/components/ (ChatPopup 대폭 갱신, SettingsModal focusSection)
+    └─ M5-signature-polish/     ← 시간대 변화 + 사무실 위계 재구조 (사장 + 3팀 × 5) (2026-05-15)
         ├─ retrospective.md
-        ├─ electron/llm/ (+ usage.ts, errorMessages.ts 신규)
-        └─ src/components/ (ChatPopup 대폭 갱신, SettingsModal focusSection)
+        ├─ src/game/ (+ timeOfDay.ts 신규, OfficeScene 재디자인)
+        ├─ src/shared/ (+ seats.ts 신규, types에 SeatId · RANK_ORDER · canBeTeamLeader)
+        └─ electron/data/store.ts (migrateEmployees 배열 단위 + 자리 자동 할당)
 ```

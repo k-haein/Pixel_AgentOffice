@@ -1003,24 +1003,165 @@
 
 ---
 
-## 결정 진화 요약 (M4 시점)
+# ─── Day 6 (2026-05-15 후반) — M5 시그니처 폴리시 + 사무실 구조 재설계 ───
 
-| 항목 | 처음 | M1 | M2 | M3 | 최종 (M4) |
-|---|---|---|---|---|---|
-| 메인 컨셉 | A+C 하이브리드 | 이중 모드 | 유지 | 유지 | 유지 |
-| 백엔드 | Python/Node | Electron 42 + TS | 유지 | 유지 | 유지 |
-| LLM | 미정 | mock | mock | Anthropic + Google 다중 | **양쪽 모두 실사용 검증** ⭐ |
-| Provider 추상화 | 없음 | 없음 | 없음 | LLMProvider 인터페이스 | 유지 + signal 전달 (abort) |
-| 모델 선택 | 미정 | 미정 | Sonnet 기본 | 5종 | 유지 + `pricing`/`rpm` 메타 |
-| Dead model 정책 | 없음 | 없음 | 없음 | `DEPRECATED_MODELS` 매핑 | 유지 |
-| API 키 저장 | 미정 | 미정 | UI만 | safeStorage provider별 | 유지 |
-| 비즈니스 모델 | 미정 | 미정 | BYOK 가정 | BYOK 유지, Groq 고민 | 유지 |
-| 자동 테스트 | 없음 | 없음 | 없음 | Playwright E2E 3개 | 유지 |
-| Rate limit UX | 없음 | 없음 | 없음 | 없음 | **사전 차단 + 친절 에러 + 페르소나 자리비움** ⭐ |
-| 페르소나 정체성 | 없음 | 없음 | 없음 | role만 | **이름 포함 + AI 정직성 균형** |
-| 사용량 시각화 | 없음 | 없음 | 없음 | 없음 | **칩 / 토글 두 모드, 비용 추정, 우클릭 점프** ⭐ |
-| 채팅 중단 | 없음 | 없음 | 없음 | 없음 | **AbortController 체인, ABORTED 코드** |
-| 코드 베이스 | 없음 | M1 | M2 UI 채널 | M3 다중 LLM | **M4 정밀화 + UX** ⭐ |
+## 53. 🌅 M5-a 시간대 변화 시스템
+
+**사용자 선택**: "M5-a 시간대만" (Recommended)
+
+**Claude 작업**:
+- `src/game/timeOfDay.ts` 신규 — 5단계 팔레트(morning/noon/sunset/evening/night) +
+  `getTimeOfDay(now)` 시각 추론 + `msUntilNextTransition()` 다음 경계 ms
+- OfficeScene에 시간대 적용 로직:
+  · 시간 경계 자동 타이머 (`scheduleNextTimeRefresh`)
+  · `tweens.addCounter` RGB 보간 1.5초 트랜지션
+  · 별(stars) 8개 — 밤에만 alpha 1, 살짝 깜빡임
+  · 구름 alpha 시간대별 (밤엔 0.3)
+  · 우측 상단 작은 시간대 라벨 ("🌅 아침" 등)
+- ChatPopup `isPersonaPaused` → `eventBus.emit('office:night-mode', {forced})`
+  → 한 직원이라도 한도 도달이면 *강제 야간* (라벨에 "(한도 도달)" 표기)
+
+**결과**: 시간대가 부드럽게 바뀌며 사무실 분위기 살아남. 토큰 고갈을 *밤 사무실*로 시각화.
+
+---
+
+## 54. 🪴 "사무실 꾸미기" 계획 점검
+
+**사용자**: "우리 사무실 꾸미기는 계획에 없지?"
+
+**Claude 답**:
+- 본격 꾸미기 계획 없음 (책상 드래그 정도, 미구현). 사용자 디자인 선호와 정합 → 자연스러운 확장
+- **Lv 1 가구 추가/배치** (2~3일) / **Lv 2 테마 팩** (1주) / **Lv 3 가구↔캐릭터 상호작용** (1~2주) 옵션 제안
+
+---
+
+## 55. 🏢 사무실 구조 — 4 디자인 비교
+
+**사용자**: 참고 이미지 5장 제공 — 픽셀 사무실(이미지 1·2), PIXEL HQ 모바일(이미지 3), 실제 3D 사무실 도면(이미지 4·5).
+공통점: *구역별로 분리된 사무실* (작업/휴게/라운지/사장석 등).
+
+**Claude 제안 4가지**:
+- A. 스타트업 빅룸 (한 층, 바닥재로 구역 구분)
+- B. 꾸미기 그리드 (Two Point 식 드래그)
+- C. 다층 사무실 (1F Solo + 2F Team)
+- D. PIXEL HQ 스타일 (모바일 친화 컴팩트)
+
+각 디자인 트레이드오프 표 제공.
+
+---
+
+## 56. 📐 사용자 직접 그린 구조 — 사장 + 3팀 위계
+
+**사용자 발언 원문**:
+> "사무실 가운데 위쪽에는 사장 자리 하나가 있고 사장 명패가 잇어
+> 아래에 책상들이 있는데 전부 정면을 보고있고 5개씩 있고 총 3줄이야
+> 각 책상 위쪽에 리더자리가 있어"
+
+ASCII 스케치:
+```
+                    [    사장    ]
+[리더]              [리더]              [리더]
+[][]                [][]                [][]
+[][]                [][]                [][]
+```
+
+**구조 파싱**: 사장 1 + 3팀 × 5(리더 1 + 팀원 4) = 총 16자리, 위계적 한국 회사 구조.
+
+**Claude 추천**: A형(고정 layout) — 사용자 그림이 명확하므로 드래그 자유 배치(B) 불필요.
+꾸미기는 향후 *가구/소품 단위*로 분리 옵션화.
+
+---
+
+## 57. 🎯 사무실 시스템 결정 4가지
+
+| 항목 | 결정 |
+|---|---|
+| 자리 시스템 | 사장 1 + 3팀 × 5 = **최대 16자리**, 빈 자리 표시. 채용으로 점진 확장 (팀 A → B → C) |
+| 리더 자격 | **과장 이상** (기존 직급 유지, 차장 추가 X). 사장은 사장석 전용 |
+| 책상 시야 | 정면 기본 / 좌 / 우 — 사용자 회전 가능. 확장성 보장 |
+| 층 | 1F 먼저, 2F는 추후 |
+| 줌 | 마우스 휠 + 토글 — 한 화면 ↔ 줌인, **모바일 핀치 줌 대비** |
+
+**작업 단계 분해** (1주 규모):
+- B-1: 데이터 모델 (1.5일)
+- B-2: OfficeScene 재디자인 (2일)
+- B-3: 채용/자리 UI (1.5일)
+- B-4: 책상 회전 (1일)
+- B-5: 줌/카메라 (1일)
+
+---
+
+## 58. 🧱 B-1 데이터 모델 + 자리 시스템
+
+**Claude 작업**:
+- `src/shared/types.ts`:
+  · `RANK_ORDER` 배열, `rankGte(a, b)` 비교 헬퍼
+  · `canBeTeamLeader(rank)` — 과장 이상 + 사장 제외
+  · `canBeBoss(rank)` — 사장/회장/레전드
+  · `TeamId` ('A'|'B'|'C'), `DeskOrientation` ('front'|'left'|'right')
+  · `SeatId` = 'boss' | `leader:${TeamId}` | `member:${TeamId}:${0|1|2|3}`
+  · Employee에 `seatId`, `deskOrientation` 추가, `deskPosition` 레거시(optional)
+- `src/shared/seats.ts` 신규:
+  · `ALL_SEATS`: 16개 자리 메타 (xRatio, yRatio, team, role, label)
+  · `SEAT_LOOKUP`: id → meta lookup
+  · `seatsOfTeam()`, `isTeamActive()`, `visibleTeams()` (점진 확장 — A 다 차면 B 등장)
+  · `findNextEmptyMemberSeat()`, `findNextEmptyLeaderSeat()` 채용 자동 배치
+- `electron/data/store.ts`:
+  · `migrateEmployees()` 배열 단위 마이그레이션 — seatId 누락 시 빈 팀원 자리 자동 할당
+  · createDefaultData 갱신 — Mary='member:A:0', Haewol='member:A:1'
+
+---
+
+## 59. 🎨 B-2 OfficeScene 재디자인
+
+**Claude 작업** — OfficeScene 핵심 로직 재작성:
+- `workstations` Map 키 = `SeatId` (이전: employee.id) — 빈 자리도 시각화
+- `rebuildWorkstations()`: `visibleTeams()` 호출하여 보이는 팀만 그림
+- `createWorkstation(x, y, employee | null, seatMeta)`:
+  · 빈 자리: 의자/책상/모니터만 alpha 55~60% (회색조)
+  · 사장석: 책상 1.3배 크기 + "👑 사장석" 명패
+  · 리더 자리: 명패에 ⭐ + 노랑 배경 강조
+  · 팀원 자리: 기존 형식
+- `drawTeamLabels()`: 보이는 팀 아래 "— 팀 A —" 텍스트
+- `setStateHandler`: workstations 키 변경에 맞춰 employee.id로 iterate
+
+**검증**: 사용자 "잘 동작해" 확인.
+
+---
+
+## 60. 세션 종료
+
+**사용자**: "오늘은 여기까지 하자. 지금까지 나온 아이디어와 세션을 정리해줘. 그리고 지금까지 작업한걸 커밋하고 푸시해줘."
+
+**Claude 작업**:
+- 본 파일에 Day 6 섹션 53~60 추가
+- 06-decisions-to-make.md에 사무실 구조 결정 사항 등록
+- M5 마일스톤 스냅샷 + retrospective
+- 분할 커밋 + push
+
+---
+
+## 결정 진화 요약 (M5 시점)
+
+| 항목 | 처음 | M1 | M2 | M3 | M4 | 최종 (M5) |
+|---|---|---|---|---|---|---|
+| 메인 컨셉 | A+C 하이브리드 | 이중 모드 | 유지 | 유지 | 유지 | 유지 |
+| 백엔드 | Python/Node | Electron 42 + TS | 유지 | 유지 | 유지 | 유지 |
+| LLM | 미정 | mock | mock | Anthropic + Google 다중 | 양쪽 검증 | 유지 |
+| Provider 추상화 | 없음 | 없음 | 없음 | LLMProvider 인터페이스 | + signal 전달 | 유지 |
+| 모델 선택 | 미정 | 미정 | Sonnet 기본 | 5종 | + `pricing`/`rpm` | 유지 |
+| Dead model 정책 | 없음 | 없음 | 없음 | `DEPRECATED_MODELS` | 유지 | 유지 |
+| API 키 저장 | 미정 | 미정 | UI만 | safeStorage provider별 | 유지 | 유지 |
+| 비즈니스 모델 | 미정 | 미정 | BYOK 가정 | BYOK 유지, Groq 고민 | 유지 | 유지 |
+| 자동 테스트 | 없음 | 없음 | 없음 | Playwright E2E 3개 | 유지 | 유지 |
+| Rate limit UX | 없음 | 없음 | 없음 | 없음 | 사전 차단 + 친절 에러 | 유지 |
+| 페르소나 정체성 | 없음 | 없음 | 없음 | role만 | + 이름 식별 | 유지 |
+| 사용량 시각화 | 없음 | 없음 | 없음 | 없음 | 칩/토글 + 비용 + 우클릭 | 유지 |
+| 채팅 중단 | 없음 | 없음 | 없음 | 없음 | AbortController | 유지 |
+| 시간대 시스템 | 없음 | 없음 | 없음 | 없음 | 없음 | **5단계 자동 + 토큰 고갈 강제 야간** ⭐ |
+| 사무실 구조 | 미정 | 직선 책상 | 유지 | 유지 | 유지 | **사장 1 + 3팀 × 5 = 16자리, 점진 확장** ⭐ |
+| 자리/팀 시스템 | 없음 | 없음 | 없음 | 없음 | 없음 | **SeatId · 리더 자격(과장↑) · 회전 가능 책상** ⭐ |
+| 코드 베이스 | 없음 | M1 | M2 UI 채널 | M3 다중 LLM | M4 정밀화 + UX | **M5-a/b 시간대 + 사무실 재구조** ⭐ |
 
 ---
 
