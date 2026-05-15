@@ -16,6 +16,8 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 설정 모달 열 때 특정 섹션으로 스크롤 (다른 곳에서 우클릭으로 열 때) */
+  const [settingsFocusSection, setSettingsFocusSection] = useState<string | undefined>(undefined)
   const [hireOpen, setHireOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
 
@@ -85,6 +87,17 @@ function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // 다른 컴포넌트에서 우클릭으로 설정 → 특정 섹션 점프하면서 열기
+  useEffect(() => {
+    const onSettingsOpen = (payload: unknown) => {
+      const section = (payload as { section?: string } | undefined)?.section
+      setSettingsFocusSection(section)
+      setSettingsOpen(true)
+    }
+    eventBus.on('settings:open', onSettingsOpen)
+    return () => eventBus.off('settings:open', onSettingsOpen)
   }, [])
 
   // E2E 테스트 헬퍼 (Electron renderer는 신뢰 가능 환경, prod에서도 둠)
@@ -162,9 +175,13 @@ function App() {
 
       {settingsOpen && (
         <SettingsModal
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false)
+            setSettingsFocusSection(undefined)
+          }}
           initialSettings={settings}
           onSaved={handleSettingsSaved}
+          focusSection={settingsFocusSection}
         />
       )}
       {hireOpen && (

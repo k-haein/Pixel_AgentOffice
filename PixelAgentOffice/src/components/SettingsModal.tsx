@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react'
-import { type Model, type Settings, MODEL_INFO } from '../shared/types'
+import { useEffect, useRef, useState } from 'react'
+import { type Model, type Settings, type UsageDisplayMode, MODEL_INFO } from '../shared/types'
 import type { ProviderName } from '../../electron/llm/types'
+import { eventBus } from '../game/eventBus'
+
+/** 설정 섹션 식별자 — 우클릭 메뉴 등에서 직접 점프할 수 있는 위치 */
+export type SettingsSection =
+  | 'google-key'
+  | 'anthropic-key'
+  | 'default-model'
+  | 'memory-model'
+  | 'usage-display'
+  | 'daily-limit'
 
 type Props = {
   onClose: () => void
   initialSettings: Settings
   onSaved: (settings: Settings) => void
+  /** 열릴 때 자동 스크롤 + 강조할 섹션 (선택) */
+  focusSection?: SettingsSection | string
 }
 
 const ALL_MODELS: Model[] = [
@@ -18,7 +30,7 @@ const ALL_MODELS: Model[] = [
 
 type KeyState = { has: boolean; input: string }
 
-export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
+export function SettingsModal({ onClose, initialSettings, onSaved, focusSection }: Props) {
   const [keys, setKeys] = useState<Record<ProviderName, KeyState>>({
     anthropic: { has: false, input: '' },
     google: { has: false, input: '' },
@@ -27,6 +39,28 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
   const [defaultModel, setDefaultModel] = useState<Model>(initialSettings.defaultModel)
   const [memoryModel, setMemoryModel] = useState<Model>(initialSettings.defaultMemoryModel)
   const [dailyLimit, setDailyLimit] = useState<number>(initialSettings.dailyLimitUsd)
+  const [usageDisplayMode, setUsageDisplayMode] = useState<UsageDisplayMode>(
+    initialSettings.usageDisplayMode ?? 'chips',
+  )
+  /** focusSection 적용 시 일시 강조 */
+  const [highlightedSection, setHighlightedSection] = useState<string | null>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  // 외부에서 focusSection 받으면 모달 열린 직후 해당 섹션으로 스크롤 + 잠깐 하이라이트
+  useEffect(() => {
+    if (!focusSection) return
+    // DOM 그려진 다음 프레임에 스크롤 (모달 backdrop 페이드 인 후)
+    const timer = setTimeout(() => {
+      const el = bodyRef.current?.querySelector<HTMLElement>(`[data-section="${focusSection}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlightedSection(focusSection)
+        // 2초 후 하이라이트 끄기
+        setTimeout(() => setHighlightedSection(null), 2000)
+      }
+    }, 80)
+    return () => clearTimeout(timer)
+  }, [focusSection])
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
 
@@ -56,8 +90,10 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
         defaultModel,
         defaultMemoryModel: memoryModel,
         dailyLimitUsd: dailyLimit,
+        usageDisplayMode,
       })
       onSaved(updated)
+      eventBus.emit('settings:changed', updated)
 
       // Provider별 키 저장
       for (const provider of ['anthropic', 'google'] as ProviderName[]) {
@@ -128,9 +164,12 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" ref={bodyRef}>
           {/* === Google API Key (무료) === */}
-          <section className="modal-section">
+          <section
+            className={`modal-section ${highlightedSection === 'google-key' ? 'modal-section-focus' : ''}`}
+            data-section="google-key"
+          >
             <h3>🆓 Google AI API 키 <span style={{ color: '#2a8a2a', fontSize: 11 }}>(무료 권장)</span></h3>
             <p className="modal-hint">
               발급:{' '}
@@ -158,7 +197,10 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
           </section>
 
           {/* === Anthropic API Key (유료) === */}
-          <section className="modal-section">
+          <section
+            className={`modal-section ${highlightedSection === 'anthropic-key' ? 'modal-section-focus' : ''}`}
+            data-section="anthropic-key"
+          >
             <h3>💸 Anthropic API 키 <span style={{ color: '#aa6020', fontSize: 11 }}>(유료, 한국어 강함)</span></h3>
             <p className="modal-hint">
               발급:{' '}
@@ -192,7 +234,10 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
           )}
 
           {/* === Default Model === */}
-          <section className="modal-section">
+          <section
+            className={`modal-section ${highlightedSection === 'default-model' ? 'modal-section-focus' : ''}`}
+            data-section="default-model"
+          >
             <h3>🧠 기본 대화 모델</h3>
             <p className="modal-hint">새 직원 채용 시 기본값. 직원마다 메모지에서 변경 가능.</p>
             <div className="modal-subhead">🆓 무료 (Google)</div>
@@ -202,7 +247,10 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
           </section>
 
           {/* === Memory Model === */}
-          <section className="modal-section">
+          <section
+            className={`modal-section ${highlightedSection === 'memory-model' ? 'modal-section-focus' : ''}`}
+            data-section="memory-model"
+          >
             <h3>💾 메모리 갱신 모델</h3>
             <p className="modal-hint">
               메모 압축용 (M4부터 동작). 빠르고 저렴한 모델 권장.
@@ -213,8 +261,44 @@ export function SettingsModal({ onClose, initialSettings, onSaved }: Props) {
             {renderModelGroup('paid', memoryModel, setMemoryModel)}
           </section>
 
+          {/* === 사용량 표시 모드 === */}
+          <section
+            className={`modal-section ${highlightedSection === 'usage-display' ? 'modal-section-focus' : ''}`}
+            data-section="usage-display"
+          >
+            <h3>📊 채팅창 사용량 표시 방식</h3>
+            <p className="modal-hint">
+              한도/세션/비용 정보를 어떻게 보일지 선택하세요. 채팅창 열려있어도 즉시 반영됩니다.
+            </p>
+            <div className="model-options">
+              <label className={`model-option ${usageDisplayMode === 'chips' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="chips"
+                  checked={usageDisplayMode === 'chips'}
+                  onChange={() => setUsageDisplayMode('chips')}
+                />
+                <span className="model-label">칩 (Chips)</span>
+                <span className="model-desc">모델명 아래 작은 아이콘 칩 · 마우스 올리면 자세히</span>
+              </label>
+              <label className={`model-option ${usageDisplayMode === 'toggle' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="toggle"
+                  checked={usageDisplayMode === 'toggle'}
+                  onChange={() => setUsageDisplayMode('toggle')}
+                />
+                <span className="model-label">토글 (Toggle)</span>
+                <span className="model-desc">"사용량" 버튼 클릭 시 펼침 · 사용량 자주 확인하는 사람용</span>
+              </label>
+            </div>
+          </section>
+
           {/* === Daily Limit === */}
-          <section className="modal-section">
+          <section
+            className={`modal-section ${highlightedSection === 'daily-limit' ? 'modal-section-focus' : ''}`}
+            data-section="daily-limit"
+          >
             <h3>💰 일일 비용 한도 ($)</h3>
             <p className="modal-hint">
               유료 모델(Claude)에만 적용. 실제 사용량은 Anthropic 콘솔에서 확인. 자동 차단은 M3-b에서.
