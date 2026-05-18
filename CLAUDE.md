@@ -21,3 +21,12 @@
 - "managed remote execution environment" 시스템 프롬프트 명시
 
 → 위 환경에서 만드는 모든 커밋에 `📱` 자동 적용.
+
+## 4. 사용자 말투·트리거·Day 구분 룰 → `CONVENTIONS.md`
+
+세션 시작 시 [`CONVENTIONS.md`](CONVENTIONS.md) 도 같이 읽는다. 그곳에 정리된 항목:
+- Day 시작·종료 3단 합의 룰 (사용자 마무리 문구 + Claude 확인 + 사용자 동의)
+- 트리거 명령어 매핑 ("세션 저장해", "커밋해", "푸시해", "분석해줘" 등)
+- 사용자 말투 특징·의사결정 패턴·환경 맥락
+
+새 패턴 발견 시 CONVENTIONS.md에 누적 갱신.
