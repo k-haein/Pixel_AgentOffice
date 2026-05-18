@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-18** (Day 7)
+> 최종 갱신: **2026-05-19** (Day 8 — Platform Adapter 도입)
 
 ---
 
@@ -31,9 +31,9 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5-b 완료** + **B-3 (자리 이동 드래그앤드롭) 미커밋** |
-| **다음 작업** | B-4 책상 회전 / B-5 줌·카메라 / M5-c 토큰 보드 중 택 |
-| **큰 결정 대기** | **모바일 출시 + 백엔드 결심** (확정됨) → Platform Adapter 패턴 도입 우선 |
+| **현재 마일스톤** | **M5-b** + **B-3 자리 이동** + **Platform Adapter (Phase 1) 완료** |
+| **다음 작업** | B-4 책상 회전 / B-5 줌·카메라 / M5-c 토큰 보드 / Phase 3 백엔드 셋업 중 택 |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료 → 미래 모바일 진입 비용 ↓ |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -125,7 +125,7 @@
 - ✅ `23a1d1d`, `7b42dd8`, `cf325fa` — M4 (LLM 안정성 / ChatPopup / 포트폴리오)
 - ✅ `65912bb`, `26f3d24`, `b2dbb08` — M5-a, M5-b, M5 포트폴리오
 
-### **2026-05-18 (Day 7, 오늘) — ⚠️ 미커밋**
+### **2026-05-18 (Day 7) — B-3 자리 이동 + 모바일 결심 + HANDOFF**
 
 #### B-3 — 채용/자리 변경 UI
 - HireModal: 자리 선택 UI 통째 제거 → **자동 배치만** (사용자 결정)
@@ -151,42 +151,63 @@
 - 포트폴리오 PRD에 §7.1, §7.2 보강 (기술 스택 + 모바일 전략)
 - **결정**: 모바일 출시 진행. **백엔드 + BYOK 모델** 채택 결심 (자세히는 [§5 미래 방향성](#-5-미래-방향성))
 
-#### ⚠️ 아직 git에 commit/push 안 됨
-다음 데스크탑 작업 세션 시작 시 첫 할 일.
+#### ✅ Day 7 끝에 커밋·푸시 완료 (`d6e8963`, `910d6c8`, `d89c017`)
+
+### **2026-05-19 (Day 8, 오늘) — Platform Adapter (Phase 1) 도입**
+
+#### 한 일
+- **Platform Adapter 패턴 도입** — Electron API를 추상화. 미래 모바일 진입 비용 ↓.
+  - 신규: `src/platform/types.ts` (Platform 인터페이스 12 메서드)
+  - 신규: `src/platform/electron.ts` (window.api 1:1 wrap)
+  - 신규: `src/platform/mock.ts` (테스트/데모용 가짜 응답)
+  - 신규: `src/platform/index.ts` (환경 감지 + 기본 export)
+  - 수정: 7개 컴포넌트 (`App.tsx`, `ChatPopup.tsx`, `HireModal.tsx`, `MemoModal.tsx`, `SettingsModal.tsx`, `SeatPickerModal.tsx`, `game/OfficeScene.ts`)
+  - 약 20곳의 `window.api.*` → `platform.*` 일괄 치환. 결과: `window.api.` 참조 0건 (electron adapter 내부 외).
+- **사전 결함 2건 청산**
+  - `index.html` `<title>` 대소문자 (`pixelagentoffice` → `PixelAgentOffice`)
+  - `03-gemini-chat.spec.ts` 모델 라벨 정규식 매칭
+- **Playwright 검증** — B-3 우클릭/zone 4 시나리오 **4/4 통과** (Platform 리팩토링 회귀 없음)
+- **회고 문서 작성** — `ideas/14-platform-adapter-rationale.md`
+  · 결정 흐름 (Day 7~8 대화에서 어떻게 도출됐는지)
+  · 검토 대안 4가지 + 왜 Adapter 채택
+  · 구현 통계 (4 신규, 7 수정, 20→0 호출 치환, 5시간)
+  · 미래 모바일 진입 시 작동 흐름 (Phase 3 백엔드 / Phase 5 모바일 빌드)
+  · 교훈 4가지
+
+#### 왜 그렇게 결정했는지
+- "태블릿에서 채팅 가능?" → "Electron API 강한 의존으로 안 됨" → "모바일 출시 결심하면?" → 백엔드 + BYOK 모델 결심
+- 추상화는 *추가 환경이 늘어날 확신*이 있을 때 도입해야 *오버 엔지니어링*이 아님. 모바일 결심한 *그 시점*이 정확한 타이밍.
+- 자세히: [`ideas/14-platform-adapter-rationale.md`](ideas/14-platform-adapter-rationale.md)
+
+#### 산출 커밋 (예정)
+- Day 8 작업물 분할 커밋 + push
 
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 미커밋 변경 요약
-지금 git working tree에 쌓여있는 변경 (push 안 됨):
+### 미커밋 변경 요약 (Day 8)
 
 | 파일 | 변경 내용 |
 |---|---|
 | `PixelAgentOffice/src/shared/types.ts` | `RANK_ORDER`, `canBeTeamLeader`, `SeatId`, Employee.seatId/deskOrientation 추가 (이전 작업) |
-| `PixelAgentOffice/src/shared/seats.ts` | 자리 시스템 (이전 작업) |
-| `PixelAgentOffice/src/components/HireModal.tsx` | 자리 선택 UI 제거, 자동 배치만 (오늘) |
-| `PixelAgentOffice/src/components/SeatPickerModal.tsx` | 신규 (오늘 — 현재 미사용, 모바일 fallback 후보) |
-| `PixelAgentOffice/src/game/OfficeScene.ts` | 드래그앤드롭 자리 이동 + Phaser.Zone hit area (오늘) |
-| `PixelAgentOffice/src/game/PhaserGame.tsx` | `onContextMenu={preventDefault}` 추가 (오늘) |
-| `PixelAgentOffice/src/App.tsx` | 컨텍스트 메뉴 + null-first 패턴 (오늘) |
-| `PixelAgentOffice/src/App.css` | 컨텍스트 메뉴 + zone 스타일 (오늘) |
-| `PixelAgentOffice/electron/data/store.ts` | seatId 자동 마이그레이션 + 중복 검증 (이전+오늘) |
-| `PixelAgentOffice/tests/e2e/04-right-click-context-menu.spec.ts` | 신규 — 4 시나리오 |
-| `HANDOFF.md` | 본 문서 (오늘 신규) |
-| `README.md` | Status M5-b로 갱신 + HANDOFF 입석 (오늘) |
-| `ideas/13-electron-and-mobile-strategy.md` | 신규 (오늘) |
-| `portfolio/PixelAgentOffice/PRD.md` | §7.1, §7.2 보강 (오늘) |
-| `portfolio/PixelAgentOffice/planning/13-electron-and-mobile-strategy.md` | 스냅샷 복사 (오늘) |
-
-### 다음 데스크탑 세션 첫 할 일
-1. **분할 커밋** (한글 메시지, 무엇/왜/어떻게 구조)
-   - 코드: B-3 + Phaser.Zone + 5가지 fix
-   - 테스트: Playwright 회귀 시나리오
-   - 기획·포트폴리오: Electron 전략 + PRD 보강 + HANDOFF
-2. **push** → GitHub 동기화
-3. 브레인스토밍 로그(`ideas/00-brainstorming-log.md`)에 Day 7 (B-3 협업) 섹션 추가
-4. M5 스냅샷(`portfolio/.../milestones/M5-signature-polish/`) 갱신
+| `PixelAgentOffice/src/platform/types.ts` | 신규 — Platform 인터페이스 12 메서드 (Day 8) |
+| `PixelAgentOffice/src/platform/electron.ts` | 신규 — window.api 1:1 wrap (Day 8) |
+| `PixelAgentOffice/src/platform/mock.ts` | 신규 — 테스트/데모용 가짜 응답 (Day 8) |
+| `PixelAgentOffice/src/platform/index.ts` | 신규 — 환경 감지 + 기본 export (Day 8) |
+| `PixelAgentOffice/src/App.tsx` | `window.api.loadData` → `platform.loadData` (Day 8) |
+| `PixelAgentOffice/src/components/ChatPopup.tsx` | `chatWithLLM`/`abortChat`/`getRateLimit` 전환 (Day 8) |
+| `PixelAgentOffice/src/components/HireModal.tsx` | `addEmployee` 전환 (Day 8) |
+| `PixelAgentOffice/src/components/MemoModal.tsx` | `updateEmployee`/`removeEmployee` 전환 (Day 8) |
+| `PixelAgentOffice/src/components/SettingsModal.tsx` | API 키·설정 메서드 전환 (Day 8) |
+| `PixelAgentOffice/src/components/SeatPickerModal.tsx` | `updateEmployee` 전환 (Day 8) |
+| `PixelAgentOffice/src/game/OfficeScene.ts` | 드래그앤드롭 결과 `updateEmployee` 전환 (Day 8) |
+| `PixelAgentOffice/index.html` | `<title>` 대소문자 fix (사전 결함 청산) |
+| `PixelAgentOffice/tests/e2e/03-gemini-chat.spec.ts` | 모델 라벨 정규식 매칭 (사전 결함 청산) |
+| `ideas/00-brainstorming-log.md` | Day 8 섹션 71~75 추가 |
+| `ideas/14-platform-adapter-rationale.md` | 신규 — 결정 흐름·구현 회고 (Day 8) |
+| `portfolio/PixelAgentOffice/planning/14-platform-adapter-rationale.md` | 스냅샷 복사 (Day 8) |
+| `HANDOFF.md` | Day 8 갱신 |
 
 ---
 
@@ -194,23 +215,11 @@
 
 각 다음 작업 카드에 *읽어야 할 md* + *건드릴 코드 파일* 명시.
 
-### 🥇 옵션 1 — **Platform Adapter 패턴 도입** (Recommended)
+### ✅ 옵션 1 — **Platform Adapter 패턴** (Day 8에 완료)
 
-#### 왜 지금?
-모바일 출시 결심한 이상, 이 추상화를 빨리 할수록 미래 진입 비용 ↓. 4~6시간 투자로 컴포넌트 코드를 환경 무관하게 만듦.
-
-#### 참고할 md
-- [`ideas/13-electron-and-mobile-strategy.md`](ideas/13-electron-and-mobile-strategy.md) — Platform Adapter 패턴 설명 (섹션 5)
-- [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md) §7.2 — 모바일 전환 전략
-
-#### 작업 항목
-| 단계 | 파일 | 시간 |
-|---|---|---|
-| 1. `Platform` 인터페이스 설계 | `src/platform/types.ts` 신규 | 1h |
-| 2. `electronPlatform` adapter | `src/platform/electron.ts` 신규 (window.api wrap) | 1h |
-| 3. 컴포넌트 치환 (`window.api.*` → `platform.*`) | `src/components/ChatPopup.tsx`, `HireModal.tsx`, `MemoModal.tsx`, `SettingsModal.tsx`, `App.tsx`, `SeatPickerModal.tsx` | 2~3h |
-| 4. 환경 감지 + Vite config 분기 | `src/platform/index.ts` 신규, `vite.config.ts` | 1h |
-| 5. 검증 — `pnpm dev` + Playwright 4 시나리오 통과 | (실행만) | 30m |
+> Day 8에 도입 완료. 4 신규 + 7 수정 파일, `window.api.*` 호출 약 20곳 → 0건 치환. Playwright B-3 우클릭/zone 4 시나리오 그대로 통과.
+> 자세히는 [`ideas/14-platform-adapter-rationale.md`](ideas/14-platform-adapter-rationale.md) (결정 흐름, 검토 대안, 구현 디테일, 교훈).
+> → 다음 단계: Phase 2 (Web 빌드) / Phase 3 (백엔드) / 또는 옵션 2~5 중 택.
 
 ### 🎨 옵션 2 — **B-4 책상 회전**
 

@@ -1292,6 +1292,105 @@ ASCII 스케치:
 
 ---
 
+# ─── Day 8 (2026-05-19) — Platform Adapter 패턴 도입 ───
+
+## 71. 🤔 Platform Adapter 개념 확인
+
+**사용자**: "Platform Adapter 패턴이 뭔지 자세히 설명해줘"
+
+**Claude 작업** — 다음 내용으로 깊이 있게 설명:
+- 한 줄 정의 + 콘센트 어댑터 비유
+- 우리 코드의 현재 문제 (window.api 직접 호출 20군데)
+- 패턴 적용 후 구조 (Platform 인터페이스 + 환경별 adapter)
+- Before/After 코드 예시
+- 12개 메서드 우리 인터페이스 후보
+- 장단점 / 비슷한 사례 (React Native Platform.select, JDBC, VS Code Extension API 등)
+- 작업 흐름 + 4~6시간 추정 근거
+
+**의의**: 추상화 자체에 익숙지 않은 비개발자에게도 *왜 이게 가치 있는지* 명확히 전달. 이후 작업 방향 합의의 기반.
+
+---
+
+## 72. 📅 Day 8 시작 + 트랙 결정
+
+**사용자**: "아 그리고 지금부터 day8이야"
+**Claude**: 옵션 4가지 (Platform Adapter / B-4 / B-5 / M5-c) 제시.
+
+**사용자 선택**: "Platform Adapter 패턴 먼저 가자. 그리고 태블릿으로는 책상 회전 적용해보려고 하는데 괜찮을까?"
+
+**Claude의 솔직한 답** — B-4 책상 회전은 *시각 작업의 정수* (책상 좌/우 픽셀 신규, 캐릭터 옆모습, 회전 애니메이션 자연스러움 등) → 태블릿에서 *결과를 볼 수 없으니* 부적합. 태블릿 친화적 작업으로 *설계 문서 / 보류 결정 답하기 / 백엔드 API 설계* 추천.
+
+**합의**: 데스크탑(평일) = Platform Adapter 코드 작업 / 태블릿(주말) = 기획·문서.
+
+---
+
+## 73. 🛠 Platform Adapter 구현 — 5시간 작업
+
+**Claude 작업** — 4 파일 신규 + 7 파일 수정:
+
+### 신규 파일
+- `src/platform/types.ts` — `Platform` 인터페이스 12 메서드 정의 (Data/API키/LLM 3 카테고리)
+- `src/platform/electron.ts` — `window.api` 호출을 1:1 wrap (현재 데스크탑 기본 구현)
+- `src/platform/mock.ts` — 가짜 응답 (테스트/데모 모드용)
+  · `FAKE_REPLIES` 5종 + 결정론적 rateLimit 응답
+- `src/platform/index.ts` — 환경 감지 + 기본 export
+  · `isElectronRenderer()` `window.api` 존재 여부로 자동 판단
+  · `window.__PLATFORM_OVERRIDE__` 테스트용 override
+
+### 수정 파일 (7개)
+- `App.tsx`, `ChatPopup.tsx`, `HireModal.tsx`, `MemoModal.tsx`, `SettingsModal.tsx`, `SeatPickerModal.tsx`, `game/OfficeScene.ts`
+- 각 파일에 `import { platform } from '../platform'` 추가
+- `window.api.*` 호출 약 20곳을 `platform.*` 으로 일괄 치환 (sed)
+- 검증: 검색 결과 `window.api.` 참조 0건 (electron.ts 내부 외)
+
+### 핵심 결정
+- 메서드 이름 정리: `chatWithLLM` → `chat` (platform은 LLM 컨텍스트라 군더더기 제거)
+- Mock adapter도 같이 작성 — 미래 *데모 모드* (12-business-model.md 옵션 D)의 씨앗
+- 환경 감지 = 자동. 수동 override는 테스트 전용 (`window.__PLATFORM_OVERRIDE__`)
+
+---
+
+## 74. ✅ 검증 — Playwright 회귀 테스트
+
+**1차 실행**: 5 pass, 2 fail
+- ✅ 04 우클릭/zone 4 시나리오 (Platform 리팩토링 핵심 검증) — *4/4 통과* ⭐
+- ❌ 01-launch — title case 사전 결함 (Platform 무관, M3 시점 결함)
+- ❌ 03-gemini-chat — 모델 라벨 정확 매칭 사전 결함 (M4 시점 라벨 변경 후 미수정)
+
+**같이 청산한 사전 결함 2건**:
+- `index.html` `<title>pixelagentoffice</title>` → `PixelAgentOffice` 대문자
+- `03-gemini-chat.spec.ts` `toContainText('gemini')` → `toContainText(/gemini/i)` 정규식
+
+**2차 실행**: 02·03이 환경 의존(`.env.local` Gemini 키 + 기존 키 저장 상태) 으로 여전히 fail — Platform 리팩토링과 무관. 핵심 검증 (04 시리즈)은 모두 통과.
+
+**의의**: B-3 인터랙션 (드래그앤드롭 + 우클릭) 4 시나리오가 *Platform 리팩토링 전후 동일하게* 동작 — 컴포넌트 코드 변경 0줄로 환경 추상화 완료.
+
+---
+
+## 75. 📚 결정 흐름 정리 + 회고 md
+
+**사용자**: "어 커밋 푸시해주고, 세션 정리해줘. 그리고 특히 플랫폼 어뎁터 쓰게된 계기도 자세하게 md로 남겨줘."
+
+**Claude 작업**:
+- `ideas/14-platform-adapter-rationale.md` 신규 (~280줄):
+  · 결정 흐름 한눈에 (Day 7~8 대화 흐름)
+  · 계기 — 태블릿 작업 요구 → 모바일 출시 결심 → 어떤 대화에서 Platform Adapter로 귀결
+  · 검토했던 4가지 대안 (A. 미래에 한꺼번에 / B. 단순 Facade / C. Vite 빌드 분기 / D. ⭐ Adapter 채택)
+  · 핵심 가치 3가지 (환경 무관 / 미래 비용 ↓ / 테스트성)
+  · 구현 결정 디테일 (12 메서드 카테고리, 이름 정리, 환경 감지 로직, override 메커니즘, Mock 부산물)
+  · 구현 통계 (4 신규 + 7 수정, 20→0 호출 치환, 5시간, TS 0 에러)
+  · 사전 결함 청산 2건
+  · 미래 모바일 진입 시 작동 흐름 (Phase 3 백엔드 / Phase 5 모바일 빌드)
+  · 교훈 4가지 ("추상화는 결정 명확해진 후" / "패턴 도입 = 컴포넌트 수정 비용 > 추상화 비용일 때" / "사전 결함은 리팩토링 후 같이 청산" / "Mock adapter는 Free 부산물")
+- `portfolio/PixelAgentOffice/planning/14-platform-adapter-rationale.md` 스냅샷 복사
+- 본 파일 Day 8 섹션 71~75 추가
+- HANDOFF.md 갱신 (Phase 1 완료 표시 + 다음 작업 옵션 재정렬)
+- 분할 커밋 + push
+
+**의의**: *왜 이 패턴을 도입했는지의 흐름*이 보존됨. 미래 평가자/협업자가 "이 추상화는 오버 엔지니어링 아닌가?" 의문 가질 때 *답*이 명확.
+
+---
+
 ## 결정 진화 요약 (M5 시점)
 
 | 항목 | 처음 | M1 | M2 | M3 | M4 | 최종 (M5) |
