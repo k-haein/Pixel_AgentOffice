@@ -2,8 +2,10 @@
 
 > 픽셀 아트 사무실에서 AI 에이전트를 직원처럼 채용·배치·명령할 수 있는 데스크탑 앱.
 
-**Status**: M1 달성 — 동작하는 Electron 앱 완성
-**Stack**: Electron + React 19 + Phaser 4 + TypeScript
+**Status**: **M5-b** 완료 (시간대 + 사무실 위계 구조) + B-3 (자리 이동) 미커밋
+**Stack**: Electron + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM + Playwright E2E
+
+> 🧭 **이어서 작업하려면 → [HANDOFF.md](HANDOFF.md)** (30초 요약 + 진행 타임라인 + 다음 작업 + 보류 결정)
 
 ---
 

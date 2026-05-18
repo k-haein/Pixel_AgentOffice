@@ -309,6 +309,39 @@ type Settings = {
 - **API 키 분리 저장**: provider별 별도 파일, OS 키체인 암호화.
 - **렌더링**: `drawPixelGrid()` 헬퍼 — 문자열 배열을 픽셀 사각형으로. Clawd 12×12, 모든 사무실 요소 동일 시스템.
 
+### 7.1 Electron이란? (비개발자용 설명)
+
+> **Electron** = 웹 기술(React/HTML/CSS)로 데스크탑 앱(.exe)을 만드는 프레임워크.
+> VS Code, Discord, Slack, Notion 같은 익숙한 앱이 모두 Electron 기반.
+
+**왜 골랐나**: 일반 사용자가 `.exe` 더블클릭으로 즉시 설치 가능 + 익숙한 웹 기술 재사용 + OS 키체인/파일 시스템 접근 가능. 이 조건들을 동시에 만족하는 거의 유일한 답.
+
+**한계**: iOS/Android 미지원. 데스크탑 전용.
+
+### 7.2 모바일/태블릿 출시 전략
+
+모바일 출시 시 **Electron만으론 불가능** → 빌드 도구 갈아끼우기 + 백엔드 추가 필요. 하지만 **설계 전체를 다시 하지는 않음** (~85% 코드 재사용).
+
+#### 변환 필요 항목
+
+| 항목 | 현재 (Electron) | 모바일 (Tauri/Capacitor) |
+|---|---|---|
+| 빌드 도구 | Electron Builder | Tauri 2.0 또는 Capacitor (95% 코드 재사용) |
+| API 키 보관 | OS 키체인 (`safeStorage`) | 백엔드 DB (사용자별 암호화) |
+| 데이터 영속화 | 파일 시스템 (`fs`) | IndexedDB 또는 백엔드 DB |
+| LLM 호출 | main process → 직접 호출 | 백엔드 프록시 (Claude CORS 우회용) |
+| UI 인터랙션 | 마우스/키보드 | + 터치/핀치 줌 |
+
+#### 점진 도입 단계
+1. **Platform Adapter 패턴** (4~6시간) — Electron API를 환경별 adapter로 격리. 컴포넌트 코드는 환경 무관.
+2. **Web 빌드** (BYOK + localStorage) — 시각 데모용
+3. **백엔드 최소** (BYOK 프록시) — Claude도 모바일에서 작동
+4. **사용자 인증 + 키 영구 저장**
+5. **Tauri/Capacitor 빌드** (iOS/Android 배포)
+6. (선택) **SaaS 전환**
+
+→ 자세한 설명은 [`planning/13-electron-and-mobile-strategy.md`](planning/13-electron-and-mobile-strategy.md) 참고.
+
 ---
 
 ## 8. Business Model
