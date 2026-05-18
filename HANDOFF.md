@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-19** (Day 8 — Platform Adapter 도입)
+> 최종 갱신: **2026-05-18** (Day 8 종료 — M5 시그니처 폴리시 완성)
 
 ---
 
@@ -20,6 +20,8 @@
 | 폴더/파일 구조 | [§7 폴더 구조 + 어디 가야 하는지](#-7-폴더-구조--어디-가야-하는지) |
 | 태블릿에서 가능한 것 | [§8 태블릿 vs 데스크탑](#-8-태블릿-vs-데스크탑-가이드) |
 | 셋업/환경 | [§9 개발 환경 셋업](#-9-개발-환경-셋업) |
+| **PC 시각 테스트 체크리스트** | [`FEATURES.md`](FEATURES.md) (Day 8 신규) |
+| **사용자 룰·말투·트리거** | [`CONVENTIONS.md`](CONVENTIONS.md) (Day 8 신규) + [`CLAUDE.md`](CLAUDE.md) |
 
 ---
 
@@ -31,9 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5-b** + **B-3 자리 이동** + **Platform Adapter (Phase 1) 완료** |
-| **다음 작업** | B-4 책상 회전 / B-5 줌·카메라 / M5-c 토큰 보드 / Phase 3 백엔드 셋업 중 택 |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료 → 미래 모바일 진입 비용 ↓ |
+| **현재 마일스톤** | **M5 시그니처 폴리시 사실상 완성** (M5-a/b/c + B-3/B-4/B-5 + UI 폴리시 6종 + Platform Adapter Phase 1) |
+| **다음 작업** | M 보류 결정 (MBTI 페르소나) → M5-d 성격 시스템 / Phase 3 백엔드 / 사무실 꾸미기 Lv2 중 택 |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. M5 시그니처 폴리시 카테고리 마무리 — *다음은 M5-d (성격) 또는 Phase 3 (백엔드)* |
+| **검증 상태** | Day 8 모든 코드 *태블릿 작성*. PC 시각 검증 대기 — `FEATURES.md` 21단계 워크플로우 |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -179,106 +182,133 @@
 - 추상화는 *추가 환경이 늘어날 확신*이 있을 때 도입해야 *오버 엔지니어링*이 아님. 모바일 결심한 *그 시점*이 정확한 타이밍.
 - 자세히: [`ideas/14-platform-adapter-rationale.md`](ideas/14-platform-adapter-rationale.md)
 
-#### 산출 커밋 (예정)
-- Day 8 작업물 분할 커밋 + push
+#### 산출 커밋
+- ✅ `d89c017`, `6259ed9`, `3ee6e3d` — Platform Adapter (Phase 1) + 사전 결함 청산 + Day 8 회고
+
+### **Day 8 (계속) — 시그니처 폴리시 묶음 + 메타 문서 정립**
+
+#### 한 일 (코드)
+- **B-4 책상 회전** — `deskGroup` 컨테이너로 책상·의자·모니터·마우스·메모 묶고 setRotation. 캐릭터도 회전 + 위치 이동. front/right/left 순환. 우클릭 zone도 회전 따라감. `tests/e2e/05-desk-rotation.spec.ts` 3 시나리오 신규
+- **M5-c 토큰 보드** — 사장석 뒤 벽 액자 LED (200×36). 1초 polling 모든 모델 `sessionCostUsd` 합산. 🟢🟡🔴 임계 60%/85%. 빨강 + `forcedNight` 시 alpha 점멸. `dailyLimitUsd` settings 동기화
+- **B-5 줌·카메라** (옵션 B — 휠 + 토글) — 마우스 휠 0.7x~1.6x, 포인터 위치 기준 카메라 추적. 좌상단 floating 토글 버튼 (1.0x↔1.4x). 핀치는 P5 모바일 빌드 단계로 보류
+- **D 사무실 꾸미기 Lv1** — `PLANT`/`BOOKSHELF`/`VENDING`/`CLOCK` 픽셀 4종 신규. 좌하·우하 화분 / 좌측 책장 + 시계 / 우측 자판기
+- **A 직원 명함 hover 카드** — 캐릭터 hover/move 시 `employee:hover-card` emit → React 마우스 우하단 +20px popup (이름·직급 ⭐·역할·모델)
+- **B 빈자리 hover + 채용 점프** — 빈 책상 zone hover 시 "👤 [자리] 채용" Phaser text + 좌클릭 시 `hire:open` → 채용 모달
+- **C 온보딩** — 직원 0명일 때 화면 중앙 가이드 박스 + `+ 채용` 노랑 펄스 (첫 채용 후 자동 사라짐)
+- **E 사용량 상세** — SettingsModal 새 섹션. 5행 표 (모델 + tier chip · 요청 · 입출력 토큰 · 비용 · RPM 막대 🟢🟡🔴). 1초 polling. 표 아래 누적 합계
+- **F 동적 상태바** — OfficeScene이 `office:usage-summary`·`office:time-changed` emit → footer가 직원수·시간대·누적비용 라이브 표시. 비용 색 신호등 + 빨강 깜빡임. 비용 클릭 → 설정 모달 사용량 상세 자동 점프
+
+#### 한 일 (메타 문서)
+- `CLAUDE.md` 신규 — 커밋·푸시 사용자 사전 승인 룰 + 태블릿 `📱` 마커 룰 + 환경 감지 단서
+- `CONVENTIONS.md` 신규 — 사용자 말투·트리거 명령어 (세션 저장해 / 커밋해 / 푸시해 / 분석해줘 / 이게 뭐야?) · Day 구분 3단 합의 룰 · 의사결정 패턴 · 환경 맥락
+- `FEATURES.md` 신규 — PC 검증 체크리스트. M1~M5-c·B-3~B-5·UI 폴리시 6종 전 기능 무엇/사용방법/기대 동작 ☐/알려진 한계 형식. 21단계 검증 워크플로우 (빈 사무실 → 채용 후 → 채팅 → 시간대/야간 → E2E)
+
+#### 왜 그렇게 결정했는지
+- **B-4 옵션 A 채택** — 회전 변환만, 캐릭터 스프라이트 신규 없이. 빠른 동작 확인 우선, 시각 어색하면 추후 B/C 폴리시
+- **B-5 옵션 B** (휠 + 토글, 핀치 제외) — 핀치는 데스크탑에서 검증 불가. P5 모바일 빌드 환경 갖춰지면 한 번에 추가
+- **메타 문서 정립** — Claude가 사용자 룰 위반 (커밋 임의 진행 + Day 헤더 임의 변경) 발생 → 사용자 지적 → CLAUDE.md / CONVENTIONS.md 영구화
+- **FEATURES.md 분리** — 사용자 요청: "세세하게 테스트할 수 있게 한 곳에". HANDOFF는 의사결정·로드맵 중심, FEATURES는 기능 명세·검증 중심
+
+#### ⚠️ 시각 검증 상태
+- **❌ 모든 Day 8 코드는 태블릿(원격 환경, X 서버 없음)에서 작성됨**
+- PC에서 `git pull` → `pnpm dev` → FEATURES.md 21단계 워크플로우 따라 검증 필요
+- 어색하면 보고 항목: 가구 위치 / 책상 회전 시 캐릭터 어색함 / 상태바 폭 등
+
+#### 산출 커밋 (모두 푸시 완료)
+- ✅ `96634c6`, `6bf3c58` — B-4 책상 회전 + e2e
+- ✅ `37da5cd`, `fe8a344` — CLAUDE.md + brainstorming Day 헤더 정정
+- ✅ `da81469` — CONVENTIONS.md 신규
+- ✅ `238d137` — M5-c + B-5 + FEATURES.md 신규
+- ✅ `b87a4b3` — UI 폴리시 4종 (A·B·C·D)
+- ✅ `d8f3015` — E·F + 세션 정리
 
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 미커밋 변경 요약 (Day 8)
+### ✅ Day 8 모든 작업 push 완료 — 미커밋 없음
 
-| 파일 | 변경 내용 |
-|---|---|
-| `PixelAgentOffice/src/shared/types.ts` | `RANK_ORDER`, `canBeTeamLeader`, `SeatId`, Employee.seatId/deskOrientation 추가 (이전 작업) |
-| `PixelAgentOffice/src/platform/types.ts` | 신규 — Platform 인터페이스 12 메서드 (Day 8) |
-| `PixelAgentOffice/src/platform/electron.ts` | 신규 — window.api 1:1 wrap (Day 8) |
-| `PixelAgentOffice/src/platform/mock.ts` | 신규 — 테스트/데모용 가짜 응답 (Day 8) |
-| `PixelAgentOffice/src/platform/index.ts` | 신규 — 환경 감지 + 기본 export (Day 8) |
-| `PixelAgentOffice/src/App.tsx` | `window.api.loadData` → `platform.loadData` (Day 8) |
-| `PixelAgentOffice/src/components/ChatPopup.tsx` | `chatWithLLM`/`abortChat`/`getRateLimit` 전환 (Day 8) |
-| `PixelAgentOffice/src/components/HireModal.tsx` | `addEmployee` 전환 (Day 8) |
-| `PixelAgentOffice/src/components/MemoModal.tsx` | `updateEmployee`/`removeEmployee` 전환 (Day 8) |
-| `PixelAgentOffice/src/components/SettingsModal.tsx` | API 키·설정 메서드 전환 (Day 8) |
-| `PixelAgentOffice/src/components/SeatPickerModal.tsx` | `updateEmployee` 전환 (Day 8) |
-| `PixelAgentOffice/src/game/OfficeScene.ts` | 드래그앤드롭 결과 `updateEmployee` 전환 (Day 8) |
-| `PixelAgentOffice/index.html` | `<title>` 대소문자 fix (사전 결함 청산) |
-| `PixelAgentOffice/tests/e2e/03-gemini-chat.spec.ts` | 모델 라벨 정규식 매칭 (사전 결함 청산) |
-| `ideas/00-brainstorming-log.md` | Day 8 섹션 71~75 추가 |
-| `ideas/14-platform-adapter-rationale.md` | 신규 — 결정 흐름·구현 회고 (Day 8) |
-| `portfolio/PixelAgentOffice/planning/14-platform-adapter-rationale.md` | 스냅샷 복사 (Day 8) |
-| `HANDOFF.md` | Day 8 갱신 |
+워킹 트리 깨끗. 마지막 push: `d8f3015` (E·F + 세션 정리). 다음 작업 시작 가능 상태.
+
+### 🔍 PC 시각 검증 대기 항목
+- B-4 책상 회전 — 캐릭터가 회전 시 옆으로 누운 느낌 어색하면 옵션 B 폴리시 (좌·우 픽셀 스프라이트 신규)
+- M5-c 토큰 보드 위치·크기 — 사장석과 거리·subtitle 충돌
+- B-5 줌 한계 (1.6x) — UI(토큰 보드 등)가 줌인 시 화면 밖으로 잘리는지
+- D 가구 위치 — 자리·캐릭터와 겹치는지
+- F 상태바 폭 — 좁은 창에서 항목 잘리는지
+
+→ FEATURES.md 21단계 워크플로우 따라 확인. 이상 시 추후 폴리시 작업.
 
 ---
 
 ## 🚀 4. 다음 작업 가이드
 
-각 다음 작업 카드에 *읽어야 할 md* + *건드릴 코드 파일* 명시.
+### ✅ Day 8 완료한 옵션 (간단 회고)
 
-### ✅ 옵션 1 — **Platform Adapter 패턴** (Day 8에 완료)
+| 옵션 | 상태 | 산출 커밋 |
+|---|---|---|
+| Platform Adapter (Phase 1) | ✅ 완료 | `d89c017` |
+| B-4 책상 회전 | ✅ 완료 — 시각 검증 대기 | `96634c6`, `6bf3c58` |
+| B-5 줌·카메라 (휠 + 토글) | ✅ 완료 — 핀치는 P5로 보류 | `238d137` |
+| M5-c 토큰 보드 | ✅ 완료 | `238d137` |
+| D 가구 / A 명함 / B 빈자리 / C 온보딩 | ✅ 완료 | `b87a4b3` |
+| E 사용량 상세 / F 동적 상태바 | ✅ 완료 | `d8f3015` |
 
-> Day 8에 도입 완료. 4 신규 + 7 수정 파일, `window.api.*` 호출 약 20곳 → 0건 치환. Playwright B-3 우클릭/zone 4 시나리오 그대로 통과.
-> 자세히는 [`ideas/14-platform-adapter-rationale.md`](ideas/14-platform-adapter-rationale.md) (결정 흐름, 검토 대안, 구현 디테일, 교훈).
-> → 다음 단계: Phase 2 (Web 빌드) / Phase 3 (백엔드) / 또는 옵션 2~5 중 택.
+자세히는 [`FEATURES.md`](FEATURES.md) (PC 검증 21단계 워크플로우).
 
-### 🎨 옵션 2 — **B-4 책상 회전**
+### ⏰ 옵션 1 (추천) — **M 보류 결정 → M5-d 성격 + 토큰 고갈 애니메이션**
 
 #### 참고할 md
-- [`ideas/06-decisions-to-make.md`](ideas/06-decisions-to-make.md) 섹션 N — 책상 회전 결정 (54번 항목)
-- [`portfolio/.../milestones/M5-signature-polish/retrospective.md`](portfolio/PixelAgentOffice/milestones/M5-signature-polish/retrospective.md) — B 시리즈 컨텍스트
+- [`ideas/06-decisions-to-make.md`](ideas/06-decisions-to-make.md) 섹션 M — MBTI 페르소나 (45~49번)
+- [`ideas/08-token-board-and-office-life.md`](ideas/08-token-board-and-office-life.md) — 10가지 성격 반응 스펙
 
-#### 작업 항목
+#### 선결 — M 보류 결정 답하기 (1~2h, 태블릿 OK)
+- "기자"의 정체 — INTP 너드 / ENTP 개나댐 / 별개 4번째?
+- 기존 Mary(편집자) / Haewol(작가) 처리 — 대체 / 추가 / 재매핑?
+- "실용이" MBTI — ISTJ / ESTJ / ISFJ?
+- 성격 시스템 = MBTI 통합 vs 단순 10종(lazy/diligent/sleepy 등) 분리?
+
+#### M5-d 작업 항목 (M 결정 후)
 | 단계 | 파일 | 메모 |
 |---|---|---|
-| 1. `deskOrientation` 시각 반영 | `src/game/OfficeScene.ts` — `DESK` 스프라이트를 좌/우/정면 3 버전 | `deskOrientation` 필드는 `src/shared/types.ts`에 이미 있음 |
-| 2. 우클릭 컨텍스트 메뉴에 "회전" 항목 | `src/App.tsx` — 기존 메뉴에 옵션 추가 | |
-| 3. 회전 시 캐릭터 방향도 같이 변경 | `src/game/characters/Clawd.ts` — 좌/우 변형 추가 | |
-| 4. 회귀 테스트 | `tests/e2e/05-desk-rotation.spec.ts` 신규 | |
-
-예상: 1일.
-
-### 🔍 옵션 3 — **B-5 줌 + 카메라**
-
-#### 참고할 md
-- [`ideas/06-decisions-to-make.md`](ideas/06-decisions-to-make.md) 섹션 N (55번 항목) — 줌 결정
-- 모바일 핀치 줌 대비 — [`ideas/13-electron-and-mobile-strategy.md`](ideas/13-electron-and-mobile-strategy.md) §4.D (UI 반응형)
-
-#### 작업 항목
-| 단계 | 파일 | 메모 |
-|---|---|---|
-| 1. 마우스 휠 줌 | `src/game/OfficeScene.ts` — `this.input.on('wheel', ...)` + `cameras.main.setZoom` | |
-| 2. 줌 토글 버튼 (한 화면 / 줌인) | `src/components/` 어딘가 (헤더?) | |
-| 3. 모바일 핀치 줌 대비 | `src/game/OfficeScene.ts` — multi-touch handler | Touch event 추가 |
-| 4. 회귀 테스트 | `tests/e2e/` 신규 | |
-
-예상: 1일.
-
-### 🌅 옵션 4 — **M5-c 토큰 보드** (사장석 뒤 LED)
-
-#### 참고할 md
-- [`ideas/08-token-board-and-office-life.md`](ideas/08-token-board-and-office-life.md) — 토큰 보드 원래 스펙
-- [`portfolio/.../milestones/M4-rate-limit-ux/retrospective.md`](portfolio/PixelAgentOffice/milestones/M4-rate-limit-ux/retrospective.md) — M4 사용량 데이터 구조
-
-#### 작업 항목
-| 단계 | 파일 | 메모 |
-|---|---|---|
-| 1. LED 보드 스프라이트 | `src/game/OfficeScene.ts` — 사장석 뒤 벽에 추가 | 픽셀 아트 |
-| 2. 실시간 사용량 표시 | `src/game/OfficeScene.ts` + `electron/llm/usage.ts` 연동 | M4의 `getRateLimit` 활용 |
-| 3. 신호등 색 (🟢 0-60% / 🟡 60-85% / 🔴 85-100%) | `src/game/OfficeScene.ts` | |
-| 4. 클릭 시 상세 모달 (어떤 직원이 얼마나 썼는지) | `src/components/UsageDetailModal.tsx` 신규 | |
-
-예상: 1.5일.
-
-### ⏰ 옵션 5 — **M5-d 성격 + 토큰 고갈 애니메이션**
-
-#### 참고할 md
-- [`ideas/08-token-board-and-office-life.md`](ideas/08-token-board-and-office-life.md) — 10가지 성격 반응 스펙 (lazy/diligent/sleepy 등)
-- [`ideas/06-decisions-to-make.md`](ideas/06-decisions-to-make.md) 섹션 M — MBTI 페르소나와 통합 가능성
-
-#### 결정 필요 (시작 전)
-- 성격 시스템 = MBTI(섹션 M) vs 단순 10종(원래 스펙)? — 보류 결정 답해야 함
+| 1. Personality 타입 + Employee 필드 | `src/shared/types.ts` | MBTI 또는 10종 |
+| 2. 채용 모달에 성격 선택 | `src/components/HireModal.tsx` | |
+| 3. 토큰 고갈 시 캐릭터별 반응 | `src/game/OfficeScene.ts` + `characters/` | 의자 뒤 기대기, 책상 엎드림, 자판기 이동 등 |
+| 4. 회귀 테스트 | `tests/e2e/` | |
 
 예상: 2~3일.
+
+### 🚀 옵션 2 — **Phase 3 백엔드 셋업** (모바일 진입)
+
+#### 참고할 md
+- [`ideas/13-electron-and-mobile-strategy.md`](ideas/13-electron-and-mobile-strategy.md) §4-C — 백엔드 + BYOK 모델
+- [`ideas/14-platform-adapter-rationale.md`](ideas/14-platform-adapter-rationale.md) — Adapter로 통합되는 흐름
+
+#### 작업 항목
+| 단계 | 메모 |
+|---|---|
+| 1. LLM 프록시 서버 (Vercel/Railway) | Claude·Gemini 둘 다 |
+| 2. `src/platform/web.ts` 신규 | 백엔드 호출 어댑터 |
+| 3. CORS / 인증 토큰 | BYOK 우선 (사용자 키를 백엔드로) |
+| 4. 배포 + 도메인 | |
+
+예상: 1주.
+
+### 🎨 옵션 3 — **사무실 꾸미기 Lv2** (O 보류 결정 일부)
+
+#### 참고할 md
+- [`ideas/06-decisions-to-make.md`](ideas/06-decisions-to-make.md) 섹션 O (60~63번)
+
+#### 작업 항목
+- Lv2 테마 팩 (모던 / 클래식 / 우주 / 카페 등)
+- 사용자가 직접 가구 배치 (드래그앤드롭)
+- Lv3 (가구 ↔ 캐릭터 상호작용)는 후속
+
+예상: 2일 (Lv2만).
+
+### 🟡 옵션 4 — **L/N/O 나머지 보류 결정 답하기**
+
+L (사내연애), N (2층), O (꾸미기 Lv2~3 정책) — 모두 기획 100%, 태블릿 OK, 1~2h.
 
 ---
 
@@ -473,10 +503,13 @@ pnpm dev      # Vite + Electron 자동 실행
 pnpm test:e2e # Playwright E2E (4 시나리오)
 ```
 
-### 트리거 명령어 (사용자 습관)
-- **"세션 저장해"** → `ideas/00-brainstorming-log.md` 갱신 + `portfolio/.../milestones/` 스냅샷 추가
-- **"커밋해"** → 의미 단위로 분할 커밋 (한글 메시지, 무엇/왜/어떻게 구조)
-- **"푸시해"** → `git push origin main`
+### 트리거 명령어 / 룰 → `CONVENTIONS.md` 참조
+
+Day 8에 사용자 말투·트리거·Day 룰을 별도 메타 문서로 정리. 새 세션은 `CONVENTIONS.md` + `CLAUDE.md` 같이 읽기. 핵심:
+- **"세션 저장해"** → brainstorming-log Day 섹션 추가 (+ 마일스톤 닫힐 때 스냅샷)
+- **"커밋해" / "푸시해"** — 사용자 사전 승인 후 진행. 태블릿(원격) 커밋은 `📱` 마커
+- **Day 시작/종료** — 3단 합의 (사용자 마무리 문구 + Claude 확인 + 사용자 동의)
+- **"분석해줘"** — 작업 *전* 옵션 N개 제시 + 추천, 사용자 결정까지 코드 X
 
 ---
 
