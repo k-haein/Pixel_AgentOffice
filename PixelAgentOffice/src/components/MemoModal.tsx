@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { platform } from '../platform'
 import { type Employee, type MemoryMode, type Model, MODEL_INFO } from '../shared/types'
 
 type Props = {
@@ -29,7 +30,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updated = await window.api.updateEmployee(employee.id, {
+      const updated = await platform.updateEmployee(employee.id, {
         customInstructions: customInstructions.trim(),
         model,
         memoryMode,
@@ -52,7 +53,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
     if (!ok) return
     setSaving(true)
     try {
-      await window.api.removeEmployee(employee.id)
+      await platform.removeEmployee(employee.id)
       onFired(employee.id)
       onClose()
     } catch (err) {

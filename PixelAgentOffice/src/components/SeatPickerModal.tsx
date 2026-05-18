@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { platform } from '../platform'
 import {
   type Employee,
   type SeatId,
@@ -63,7 +64,7 @@ export function SeatPickerModal({ employee, allEmployees, onClose, onMoved }: Pr
     }
     setSubmitting(true)
     try {
-      const updated = await window.api.updateEmployee(employee.id, { seatId: target })
+      const updated = await platform.updateEmployee(employee.id, { seatId: target })
       if (updated) {
         onMoved(updated)
         onClose()

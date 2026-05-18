@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { platform } from '../platform'
 import {
   type Employee,
   type Model,
@@ -118,7 +119,7 @@ export function HireModal({
         totalMemoryUpdates: 0,
         totalPraises: 0,
       }
-      const saved = await window.api.addEmployee(employee)
+      const saved = await platform.addEmployee(employee)
       onHired(saved)
       onClose()
     } catch (err) {

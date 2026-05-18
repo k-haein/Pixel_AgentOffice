@@ -5,6 +5,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { HireModal } from './components/HireModal'
 import { MemoModal } from './components/MemoModal'
 import { eventBus } from './game/eventBus'
+import { platform } from './platform'
 import type { Employee, Settings } from './shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
 import './App.css'
@@ -41,7 +42,7 @@ function App() {
 
     ;(async () => {
       try {
-        const data = await window.api.loadData()
+        const data = await platform.loadData()
         if (!mounted) return
         setEmployees(data.employees)
         setMaxEmployees(data.maxEmployees)
@@ -151,7 +152,7 @@ function App() {
         if (emp) eventBus.emit('chat:open', emp)
       },
       refreshEmployees: async () => {
-        const data = await window.api.loadData()
+        const data = await platform.loadData()
         setEmployees(data.employees)
         eventBus.emit('office:set-employees', data.employees)
       },

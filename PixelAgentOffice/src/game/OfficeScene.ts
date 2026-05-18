@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { eventBus } from './eventBus'
+import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
 import { type Employee, type SeatId, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
@@ -967,7 +968,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // DB 업데이트 → App.tsx가 받아서 setEmployees 갱신 → 자동 rebuild
     try {
-      const updated = await window.api.updateEmployee(movingEmp.id, { seatId: targetSeat.id })
+      const updated = await platform.updateEmployee(movingEmp.id, { seatId: targetSeat.id })
       if (updated) {
         eventBus.emit('employee:updated', updated)
       }

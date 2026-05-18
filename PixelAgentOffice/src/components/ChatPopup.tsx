@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { eventBus } from '../game/eventBus'
+import { platform } from '../platform'
 import type { Employee, Settings, UsageDisplayMode } from '../shared/types'
 import { MODEL_INFO, USD_TO_KRW } from '../shared/types'
-import type { RateLimitStatus } from '../../electron/preload'
+import type { RateLimitStatus } from '../platform'
 
 type Message = {
   id: string
@@ -127,7 +128,7 @@ export function ChatPopup() {
 
   // 설정 — 채팅창 마운트 시 한 번 로드 + 설정 변경 이벤트 구독
   useEffect(() => {
-    window.api.loadData().then(d => {
+    platform.loadData().then(d => {
       setUsageMode(d.settings.usageDisplayMode ?? 'chips')
     })
     const onSettingsChanged = (payload: unknown) => {
@@ -147,7 +148,7 @@ export function ChatPopup() {
       return
     }
     let cancelled = false
-    window.api.getRateLimit(employee.model).then(s => {
+    platform.getRateLimit(employee.model).then(s => {
       if (!cancelled) setRateLimit(s)
     })
     return () => {
@@ -169,7 +170,7 @@ export function ChatPopup() {
         const next = prev - 1
         if (next <= 0) {
           // 시간 됐으니 서버에 다시 물어봐서 새 상태 가져오기
-          window.api.getRateLimit(employee.model).then(setRateLimit)
+          platform.getRateLimit(employee.model).then(setRateLimit)
           return 0
         }
         return next
@@ -268,7 +269,7 @@ export function ChatPopup() {
       }))
 
     try {
-      const result = await window.api.chatWithLLM({
+      const result = await platform.chat({
         model: employee.model,
         systemPrompt: buildSystemPrompt(employee),
         messages: apiMessages,
@@ -322,7 +323,7 @@ export function ChatPopup() {
   /** 진행 중인 채팅 중단 */
   const stop = async () => {
     if (!activeRequestId) return
-    await window.api.abortChat(activeRequestId)
+    await platform.abortChat(activeRequestId)
     // 실제 cleanup은 chatWithLLM 호출이 ABORTED 에러로 반환되며 finally에서 처리됨
   }
 

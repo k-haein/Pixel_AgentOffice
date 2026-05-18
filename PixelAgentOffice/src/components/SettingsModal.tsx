@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { platform } from '../platform'
 import { type Model, type Settings, type UsageDisplayMode, MODEL_INFO } from '../shared/types'
 import type { ProviderName } from '../../electron/llm/types'
 import { eventBus } from '../game/eventBus'
@@ -67,9 +68,9 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
   useEffect(() => {
     let mounted = true
     Promise.all([
-      window.api.hasApiKey('anthropic'),
-      window.api.hasApiKey('google'),
-      window.api.isApiKeyStorageAvailable(),
+      platform.hasApiKey('anthropic'),
+      platform.hasApiKey('google'),
+      platform.isApiKeyStorageAvailable(),
     ]).then(([hasA, hasG, available]) => {
       if (!mounted) return
       setKeys({
@@ -86,7 +87,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updated = await window.api.updateSettings({
+      const updated = await platform.updateSettings({
         defaultModel,
         defaultMemoryModel: memoryModel,
         dailyLimitUsd: dailyLimit,
@@ -99,14 +100,14 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
       for (const provider of ['anthropic', 'google'] as ProviderName[]) {
         const k = keys[provider].input.trim()
         if (k) {
-          await window.api.saveApiKey(provider, k)
+          await platform.saveApiKey(provider, k)
         }
       }
 
       // 키 상태 새로고침
       const [hasA, hasG] = await Promise.all([
-        window.api.hasApiKey('anthropic'),
-        window.api.hasApiKey('google'),
+        platform.hasApiKey('anthropic'),
+        platform.hasApiKey('google'),
       ])
       setKeys({
         anthropic: { has: hasA, input: '' },
@@ -128,7 +129,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
       return
     }
     try {
-      await window.api.deleteApiKey(provider)
+      await platform.deleteApiKey(provider)
       setKeys(prev => ({ ...prev, [provider]: { has: false, input: '' } }))
     } catch (err) {
       alert('삭제 실패: ' + (err as Error).message)
