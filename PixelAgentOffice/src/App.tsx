@@ -23,12 +23,19 @@ function App() {
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
+  /** 줌 토글 상태 (B-5) — true=1.4x, false=1.0x. Phaser scene과 동기화 */
+  const [zoomedIn, setZoomedIn] = useState(false)
 
   // Stable ref to current employees (for handlers that won't see state updates)
   const employeesRef = useRef<Employee[]>([])
   useEffect(() => {
     employeesRef.current = employees
   }, [employees])
+  // Stable ref to current settings (토큰 보드 등 scene-측에서 최신 settings 참조)
+  const settingsRef = useRef<Settings>(DEFAULT_SETTINGS)
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
 
   // Load data from main process
   useEffect(() => {
@@ -37,6 +44,7 @@ function App() {
     // Wait for scene ready signal — re-push current data
     const onReady = () => {
       eventBus.emit('office:set-employees', employeesRef.current)
+      eventBus.emit('office:settings', settingsRef.current)
     }
     eventBus.on('office:ready', onReady)
 
@@ -49,6 +57,7 @@ function App() {
         setSettings(data.settings)
         setLoading(false)
         eventBus.emit('office:set-employees', data.employees)
+        eventBus.emit('office:settings', data.settings)
       } catch (err) {
         console.error('Load data failed:', err)
         setLoading(false)
@@ -176,6 +185,7 @@ function App() {
 
   const handleSettingsSaved = (newSettings: Settings) => {
     setSettings(newSettings)
+    eventBus.emit('office:settings', newSettings)
   }
 
   return (
@@ -213,6 +223,17 @@ function App() {
           </div>
         )}
         <PhaserGame />
+        {/* 줌 토글 (B-5) — 캔버스 좌상단 floating */}
+        <button
+          className="zoom-toggle"
+          title={zoomedIn ? '줌 아웃 (전체)' : '줌 인 (1.4x)'}
+          onClick={() => {
+            setZoomedIn(prev => !prev)
+            eventBus.emit('camera:zoom-toggle')
+          }}
+        >
+          {zoomedIn ? '🔎−' : '🔎+'}
+        </button>
       </main>
 
       <ChatPopup />

@@ -3,7 +3,7 @@ import { eventBus } from './eventBus'
 import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, type DeskOrientation, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
 import { ALL_SEATS, type SeatMeta } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
@@ -183,6 +183,32 @@ export class OfficeScene extends Phaser.Scene {
   /** 현재 시간대 라벨 (UI 표시용) */
   private timeLabel?: Phaser.GameObjects.Text
 
+  // === 토큰 보드 (M5-c) — 사장석 뒤 벽 액자 LED ===
+  private tokenBoard?: {
+    frame: Phaser.GameObjects.Rectangle
+    bezel: Phaser.GameObjects.Rectangle
+    ledScreen: Phaser.GameObjects.Rectangle
+    costLabel: Phaser.GameObjects.Text
+    progressBg: Phaser.GameObjects.Rectangle
+    progressFill: Phaser.GameObjects.Rectangle
+    /** 빨강 점멸 트윈 (한도 도달 또는 강제 야간 시) */
+    pulseTween?: Phaser.Tweens.Tween
+    /** 진행률 바 전체 폭 (ratio 계산에 재사용) */
+    barW: number
+  }
+  private tokenBoardTimer?: Phaser.Time.TimerEvent
+  /** 사용자 설정 일일 한도 — settings 변경 시 갱신 */
+  private dailyLimitUsd = 5
+
+  // === 줌·카메라 (B-5) ===
+  /** 줌 토글 상태 — false=1.0x, true=1.4x */
+  private isZoomedIn = false
+  /** 줌 트랜지션 트윈 — 중복 토글 방지용 */
+  private zoomTween?: Phaser.Tweens.Tween
+  /** 줌 범위 클램프 */
+  private readonly ZOOM_MIN = 0.7
+  private readonly ZOOM_MAX = 1.6
+
   // 리스너 참조 (cleanup 위해 보관) — payload: unknown으로 받고 내부에서 캐스팅
   private setEmployeesHandler = (payload: unknown) => {
     // 씬 tear down 중에 listener가 호출될 수 있어 다중 가드
@@ -202,12 +228,13 @@ export class OfficeScene extends Phaser.Scene {
       ws.chatBubble.setVisible(state !== 'working')
     }
   }
-  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대 */
+  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대. 토큰 보드 LED 색도 같이 즉시 갱신. */
   private nightModeHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const { forced } = payload as { forced: boolean }
     this.forcedNight = forced
     this.applyTimeOfDay(this.resolveTimeOfDay(), true)
+    void this.refreshTokenBoard()
   }
 
   /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
@@ -215,6 +242,28 @@ export class OfficeScene extends Phaser.Scene {
     if (this.isShutdown) return
     const { employeeId } = payload as { employeeId: string }
     this.enterMoveMode(employeeId)
+  }
+
+  /** 사용자 설정 동기화 (dailyLimitUsd 등) — 토큰 보드 신호등 임계 기준 */
+  private setSettingsHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const settings = payload as Settings
+    this.dailyLimitUsd = settings.dailyLimitUsd
+    void this.refreshTokenBoard()
+  }
+
+  /** 외부에서 줌 토글 트리거 (App.tsx 좌상단 🔍 버튼) — 1.0x ↔ 1.4x 300ms 트랜지션 */
+  private zoomToggleHandler = () => {
+    if (this.isShutdown) return
+    const targetZoom = this.isZoomedIn ? 1.0 : 1.4
+    this.isZoomedIn = !this.isZoomedIn
+    this.zoomTween?.stop()
+    this.zoomTween = this.tweens.add({
+      targets: this.cameras.main,
+      zoom: targetZoom,
+      duration: 300,
+      ease: 'Sine.easeInOut',
+    })
   }
 
   constructor() {
@@ -311,8 +360,9 @@ export class OfficeScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
+    // 토큰 보드 자리 차지 (y=78 영역) — subtitle은 그 아래로
     this.add
-      .text(width / 2, 88, '💬 말풍선 클릭 → 채팅 · 📝 메모지 클릭 → 설정', {
+      .text(width / 2, 110, '💬 말풍선 클릭 → 채팅 · 📝 메모지 클릭 → 설정', {
         fontFamily: '"Courier New", monospace',
         fontSize: '12px',
         color: '#5a3a0f',
@@ -335,11 +385,45 @@ export class OfficeScene extends Phaser.Scene {
     this.applyTimeOfDay(this.resolveTimeOfDay(), false)
     this.scheduleNextTimeRefresh()
 
+    // 토큰 보드 (M5-c) — 사장석 뒤 벽 액자 LED
+    this.createTokenBoard()
+    this.scheduleTokenBoardRefresh()
+
     // Listen for data changes from React (참조 보관해서 cleanup 가능)
     eventBus.on('office:set-employees', this.setEmployeesHandler)
     eventBus.on('agent:set-state', this.setStateHandler)
     eventBus.on('office:night-mode', this.nightModeHandler)
     eventBus.on('seat:start-move', this.startSeatMoveHandler)
+    eventBus.on('office:settings', this.setSettingsHandler)
+    eventBus.on('camera:zoom-toggle', this.zoomToggleHandler)
+
+    // 마우스 휠 줌 — 포인터 위치 기준 (마우스가 가리킨 지점이 줌 후에도 같은 화면 위치에)
+    this.input.on(
+      'wheel',
+      (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {
+        if (this.isShutdown) return
+        const cam = this.cameras.main
+        const oldZoom = cam.zoom
+        const factor = dy > 0 ? 0.9 : 1.1 // 휠 아래 = 줌아웃, 휠 위 = 줌인
+        const newZoom = Phaser.Math.Clamp(oldZoom * factor, this.ZOOM_MIN, this.ZOOM_MAX)
+        if (Math.abs(newZoom - oldZoom) < 0.001) return
+
+        // 포인터의 월드 좌표 (휠 전)
+        const screenCenterX = this.scale.width / 2
+        const screenCenterY = this.scale.height / 2
+        const worldX = (pointer.x - screenCenterX) / oldZoom + cam.midPoint.x
+        const worldY = (pointer.y - screenCenterY) / oldZoom + cam.midPoint.y
+
+        cam.setZoom(newZoom)
+        // 카메라 중심을 이동시켜 포인터가 가리킨 월드 좌표가 같은 화면 위치에 머무르게
+        const camNewCenterX = worldX - (pointer.x - screenCenterX) / newZoom
+        const camNewCenterY = worldY - (pointer.y - screenCenterY) / newZoom
+        cam.centerOn(camNewCenterX, camNewCenterY)
+
+        // 토글 상태 동기화 — 휠로 1.0 근처면 zoomedIn 해제, 그 이상이면 켜짐
+        this.isZoomedIn = newZoom > 1.1
+      },
+    )
 
     // 자리 이동 — Phaser 전역 드래그 핸들러 + ESC 취소
     // 포인터 worldX/Y 직접 사용 (Container + 커스텀 hitArea 환경에서 dragX/Y 계산 이슈 회피)
@@ -373,8 +457,14 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.off('agent:set-state', this.setStateHandler)
     eventBus.off('office:night-mode', this.nightModeHandler)
     eventBus.off('seat:start-move', this.startSeatMoveHandler)
+    eventBus.off('office:settings', this.setSettingsHandler)
+    eventBus.off('camera:zoom-toggle', this.zoomToggleHandler)
     this.timeRefreshTimer?.remove(false)
     this.timeRefreshTimer = undefined
+    this.tokenBoardTimer?.remove(false)
+    this.tokenBoardTimer = undefined
+    this.tokenBoard?.pulseTween?.stop()
+    this.zoomTween?.stop()
   }
 
   // ============================================================
@@ -467,6 +557,151 @@ export class OfficeScene extends Phaser.Scene {
       this.applyTimeOfDay(this.resolveTimeOfDay(), true)
       this.scheduleNextTimeRefresh()
     })
+  }
+
+  // ============================================================
+  // 토큰 보드 (M5-c) — 사장석 뒤 벽 액자 LED
+  // ============================================================
+
+  /** 액자 + LED 스크린 + 비용 라벨 + 진행률 바를 사장석 뒤 벽 영역에 그린다.
+   *  위치: 화면 상단 중앙, title(60) 아래 + 사장석 책상 위.
+   *  표시: 신호등 색 LED, "$X.XX / $Y.YY" 비용 라벨, 진행률 바.
+   *  점멸: 비율 ≥ 85% 또는 forcedNight === true 일 때 빨강 점멸. */
+  private createTokenBoard() {
+    const width = this.scale.width
+    const boardX = width / 2
+    const boardY = 78
+    const boardW = 200
+    const boardH = 36
+
+    // 외곽 액자 — 진한 갈색 두꺼운 테두리
+    const frame = this.add.rectangle(boardX, boardY, boardW, boardH, 0x2a1a04)
+    frame.setStrokeStyle(2, 0x6a4a1a)
+    frame.setDepth(5)
+
+    // 안쪽 베젤 (LED 주변 갈색 테)
+    const bezel = this.add.rectangle(boardX, boardY, boardW - 8, boardH - 8, 0x5a3a14)
+    bezel.setDepth(6)
+
+    // LED 스크린 — 초록/노랑/빨강 톤 (신호등 색에 따라 변함)
+    const ledW = boardW - 16
+    const ledH = boardH - 14
+    const ledScreen = this.add.rectangle(boardX, boardY, ledW, ledH, 0x0a2a08)
+    ledScreen.setDepth(7)
+
+    // 비용 라벨 — 위쪽 (Courier New 픽셀풍 폰트)
+    const costLabel = this.add
+      .text(boardX, boardY - 4, '$0.00 / $5.00', {
+        fontFamily: '"Courier New", monospace',
+        fontSize: '10px',
+        color: '#60ff80',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(8)
+
+    // 진행률 바 — 아래쪽
+    const barW = ledW - 16
+    const barX = boardX
+    const barY = boardY + 8
+    const progressBg = this.add.rectangle(barX, barY, barW, 4, 0x0a1a0a)
+    progressBg.setStrokeStyle(1, 0x40a040, 0.5)
+    progressBg.setDepth(8)
+    const progressFill = this.add.rectangle(barX - barW / 2, barY, 0, 4, 0x60ff80)
+    progressFill.setOrigin(0, 0.5)
+    progressFill.setDepth(9)
+
+    this.tokenBoard = {
+      frame,
+      bezel,
+      ledScreen,
+      costLabel,
+      progressBg,
+      progressFill,
+      barW,
+    }
+  }
+
+  /** 1초 간격으로 모든 모델의 사용량 합산 → 신호등 색·라벨·바 갱신 */
+  private scheduleTokenBoardRefresh() {
+    this.tokenBoardTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => { void this.refreshTokenBoard() },
+      loop: true,
+    })
+    void this.refreshTokenBoard()
+  }
+
+  /** 토큰 보드 색·텍스트·바 갱신 — 모든 모델 sessionCostUsd 합산 / dailyLimitUsd 대비 비율 */
+  private async refreshTokenBoard() {
+    if (this.isShutdown || !this.tokenBoard) return
+
+    // 모든 모델 병렬 fetch
+    const models = Object.keys(MODEL_INFO) as Model[]
+    let totalCost = 0
+    await Promise.all(
+      models.map(async m => {
+        try {
+          const s = await platform.getRateLimit(m)
+          totalCost += s.sessionCostUsd
+        } catch {
+          // 모델 호출 실패는 무시 — 합산에서 빠짐
+        }
+      }),
+    )
+
+    // 씬이 그 사이에 종료됐으면 중단
+    if (this.isShutdown || !this.tokenBoard?.ledScreen.active) return
+
+    const limit = this.dailyLimitUsd
+    const ratio = limit > 0 ? Math.min(1, totalCost / limit) : 0
+
+    // 신호등 색 — forcedNight면 무조건 빨강 (토큰 고갈)
+    let color: 'green' | 'yellow' | 'red'
+    if (ratio >= 0.85 || this.forcedNight) color = 'red'
+    else if (ratio >= 0.6) color = 'yellow'
+    else color = 'green'
+
+    const colorMap = {
+      green: { led: 0x0a2a08, text: '#60ff80', fill: 0x60ff80 },
+      yellow: { led: 0x2a2a08, text: '#ffd040', fill: 0xffd040 },
+      red: { led: 0x2a0808, text: '#ff5060', fill: 0xff5060 },
+    } as const
+    const c = colorMap[color]
+
+    this.tokenBoard.ledScreen.setFillStyle(c.led)
+    this.tokenBoard.costLabel.setColor(c.text)
+    this.tokenBoard.costLabel.setText(`$${totalCost.toFixed(2)} / $${limit.toFixed(2)}`)
+    this.tokenBoard.progressFill.setSize(this.tokenBoard.barW * ratio, 4)
+    this.tokenBoard.progressFill.setFillStyle(c.fill)
+
+    // 빨강 점멸 토글 — red 진입 시 시작, red 이탈 시 종료
+    if (color === 'red' && !this.tokenBoard.pulseTween) {
+      this.startTokenBoardPulse()
+    } else if (color !== 'red' && this.tokenBoard.pulseTween) {
+      this.stopTokenBoardPulse()
+    }
+  }
+
+  /** 빨강 점멸 시작 — LED + 라벨 alpha 0.4↔1 yoyo */
+  private startTokenBoardPulse() {
+    if (!this.tokenBoard || this.tokenBoard.pulseTween) return
+    this.tokenBoard.pulseTween = this.tweens.add({
+      targets: [this.tokenBoard.ledScreen, this.tokenBoard.costLabel],
+      alpha: { from: 0.4, to: 1 },
+      yoyo: true,
+      repeat: -1,
+      duration: 350,
+    })
+  }
+
+  /** 빨강 점멸 종료 — tween 해제 + alpha 복원 */
+  private stopTokenBoardPulse() {
+    if (!this.tokenBoard?.pulseTween) return
+    this.tokenBoard.pulseTween.stop()
+    this.tokenBoard.pulseTween = undefined
+    this.tokenBoard.ledScreen.setAlpha(1)
+    this.tokenBoard.costLabel.setAlpha(1)
   }
 
   private rebuildWorkstations(employees: Employee[]) {
