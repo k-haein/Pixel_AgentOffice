@@ -7,7 +7,7 @@ import { MemoModal } from './components/MemoModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation } from './shared/types'
-import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
+import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, MODEL_INFO } from './shared/types'
 import './App.css'
 
 function App() {
@@ -25,6 +25,8 @@ function App() {
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
   /** 줌 토글 상태 (B-5) — true=1.4x, false=1.0x. Phaser scene과 동기화 */
   const [zoomedIn, setZoomedIn] = useState(false)
+  /** 캐릭터 hover 시 떠오르는 명함 카드 (A) */
+  const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
 
   // Stable ref to current employees (for handlers that won't see state updates)
   const employeesRef = useRef<Employee[]>([])
@@ -141,6 +143,29 @@ function App() {
     return () => eventBus.off('employee:updated', onUpdated)
   }, [])
 
+  // 빈 자리 클릭 → 채용 모달 열기 (B)
+  useEffect(() => {
+    const onHireOpen = () => setHireOpen(true)
+    eventBus.on('hire:open', onHireOpen)
+    return () => eventBus.off('hire:open', onHireOpen)
+  }, [])
+
+  // 캐릭터 hover → 명함 카드 위치·대상 갱신 (A)
+  useEffect(() => {
+    const onHover = (payload: unknown) => {
+      if (!payload) {
+        setHoverCard(null)
+        return
+      }
+      const { employeeId, x, y } = payload as { employeeId: string; x: number; y: number }
+      const emp = employeesRef.current.find(e => e.id === employeeId)
+      if (!emp) return
+      setHoverCard({ employee: emp, x, y })
+    }
+    eventBus.on('employee:hover-card', onHover)
+    return () => eventBus.off('employee:hover-card', onHover)
+  }, [])
+
   // 컨텍스트 메뉴 — 외부 클릭/ESC로 닫기
   useEffect(() => {
     if (!employeeContextMenu) return
@@ -199,7 +224,7 @@ function App() {
         </div>
         <div className="topbar-actions">
           <button
-            className="topbar-btn"
+            className={`topbar-btn ${employees.length === 0 && !loading ? 'topbar-btn-pulse' : ''}`}
             onClick={() => setHireOpen(true)}
             disabled={employees.length >= maxEmployees}
             title={employees.length >= maxEmployees ? '최대 인원 도달' : '새 직원 채용'}
@@ -234,6 +259,19 @@ function App() {
         >
           {zoomedIn ? '🔎−' : '🔎+'}
         </button>
+        {/* 온보딩 안내 (C) — 직원 0명일 때 화면 중앙 가이드 */}
+        {!loading && employees.length === 0 && (
+          <div className="onboarding-overlay">
+            <div className="onboarding-box">
+              <div className="onboarding-emoji">🏢</div>
+              <div className="onboarding-title">사무실이 비어있어요</div>
+              <div className="onboarding-sub">
+                상단 <strong>+ 채용</strong> 버튼으로 첫 직원을 만나보세요
+              </div>
+              <div className="onboarding-hint">또는 사무실의 빈 자리를 클릭</div>
+            </div>
+          </div>
+        )}
       </main>
 
       <ChatPopup />
@@ -323,6 +361,36 @@ function App() {
           >
             📝 메모지 열기
           </button>
+        </div>
+      )}
+
+      {/* 명함 hover 카드 (A) — 캐릭터 위에 마우스 떴을 때 */}
+      {hoverCard && (
+        <div
+          className="employee-hover-card"
+          style={{
+            left: hoverCard.x + 20,
+            top: hoverCard.y + 20,
+          }}
+        >
+          <div className="hover-card-name">
+            {hoverCard.employee.emoji} {hoverCard.employee.name}
+          </div>
+          <div className="hover-card-row">
+            <span className="hover-card-label">직급</span>
+            <span>
+              {hoverCard.employee.seatId?.startsWith('leader:') ? '⭐ ' : ''}
+              {hoverCard.employee.rank}
+            </span>
+          </div>
+          <div className="hover-card-row">
+            <span className="hover-card-label">역할</span>
+            <span>{hoverCard.employee.role}</span>
+          </div>
+          <div className="hover-card-row">
+            <span className="hover-card-label">모델</span>
+            <span>{MODEL_INFO[hoverCard.employee.model]?.label ?? hoverCard.employee.model}</span>
+          </div>
         </div>
       )}
 

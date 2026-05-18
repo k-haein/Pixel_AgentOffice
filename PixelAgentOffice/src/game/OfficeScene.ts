@@ -130,6 +130,69 @@ const CLOUD_BIG = [
   '.HHHHHHHHHH.',
 ]
 
+// === 가구 (꾸미기 Lv1) — 사무실 분위기 살리기 ===
+const PLANT_PALETTE = { L: 0x2a5a2a, G: 0x4a8a4a, S: 0x7ac87a, P: 0x6a4030, D: 0x4a2818 }
+const PLANT = [
+  '..LLLLL..',
+  '.LGGGGGL.',
+  'LGSGGGSGL',
+  'LGGGGGGGL',
+  '.LGGGGGL.',
+  '..LGGGL..',
+  '...PPP...',
+  '..PPPPP..',
+  '.PPPPPPP.',
+  '.PDDDDDP.',
+  '.PPPPPPP.',
+  '..PPPPP..',
+]
+
+const BOOKSHELF_PALETTE = { O: 0x3a2008, R: 0xa83838, Y: 0xc8b048, B: 0x3868a8, G: 0x488a48, W: 0xc8a070 }
+const BOOKSHELF = [
+  'OOOOOOOOOO',
+  'ORYBRYBRYO',
+  'OYRBYRBYRO',
+  'OOOOOOOOOO',
+  'OWWWWWWWWO',
+  'OBYGRBYGRO',
+  'OYRBGYBRRO',
+  'OOOOOOOOOO',
+  'OWWWWWWWWO',
+  'OGYBRRYBYO',
+  'OYBBRGYRBO',
+  'OOOOOOOOOO',
+]
+
+const VENDING_PALETTE = { O: 0x2a1a04, K: 0x101010, W: 0x484858, R: 0xc83030, B: 0x3060c8, Y: 0xc8b030, P: 0x5a4030, S: 0xa87830 }
+const VENDING = [
+  'OOOOOOOOO',
+  'OKKKKKKKO',
+  'OKWWWWWKO',
+  'OKWRBYRWKO',
+  'OKWRBYRWKO',
+  'OKWRBYRWKO',
+  'OKKKKKKKO',
+  'OPPPPPPPO',
+  'OPSPSPSPO',
+  'OPPPPPPPO',
+  'OOOOOOOOO',
+  'OOO...OOO',
+]
+
+const CLOCK_PALETTE = { O: 0x2a1a04, W: 0xf8f0d0, H: 0x101010, M: 0x4a3a08 }
+const CLOCK = [
+  '..OOOOOO..',
+  '.OWWWWWWO.',
+  'OWWWWHWWWO',
+  'OWWWHHWWWO',
+  'OWWWHHWWWO',
+  'OWWWWMMMWO',
+  'OWWWWWWWWO',
+  'OWWWWWWWWO',
+  '.OWWWWWWO.',
+  '..OOOOOO..',
+]
+
 // ========================================================
 // Scene
 // ========================================================
@@ -208,6 +271,10 @@ export class OfficeScene extends Phaser.Scene {
   /** 줌 범위 클램프 */
   private readonly ZOOM_MIN = 0.7
   private readonly ZOOM_MAX = 1.6
+
+  // === 빈 자리 채용 hint (B) ===
+  /** 빈 자리 hover 시 떠오르는 "👤 채용" 안내 텍스트 */
+  private emptySeatHint?: Phaser.GameObjects.Text
 
   // 리스너 참조 (cleanup 위해 보관) — payload: unknown으로 받고 내부에서 캐스팅
   private setEmployeesHandler = (payload: unknown) => {
@@ -385,6 +452,9 @@ export class OfficeScene extends Phaser.Scene {
     this.applyTimeOfDay(this.resolveTimeOfDay(), false)
     this.scheduleNextTimeRefresh()
 
+    // 가구 (꾸미기 Lv1) — 사무실 분위기 살리기 (화분/책장/자판기/시계)
+    this.drawFurniture()
+
     // 토큰 보드 (M5-c) — 사장석 뒤 벽 액자 LED
     this.createTokenBoard()
     this.scheduleTokenBoardRefresh()
@@ -557,6 +627,63 @@ export class OfficeScene extends Phaser.Scene {
       this.applyTimeOfDay(this.resolveTimeOfDay(), true)
       this.scheduleNextTimeRefresh()
     })
+  }
+
+  // ============================================================
+  // 가구 (꾸미기 Lv1) — 화분·책장·자판기·시계 배치
+  // ============================================================
+
+  /** 사무실 분위기 살리는 정적 가구들. 인터랙션 없음, 시각 디테일만. */
+  private drawFurniture() {
+    const width = this.scale.width
+    const height = this.scale.height
+
+    // 화분 — 좌하 + 우하 코너
+    const plant1 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.06 * width, 0.85 * height, 2)
+    plant1.setDepth(3)
+    const plant2 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.94 * width, 0.85 * height, 2)
+    plant2.setDepth(3)
+
+    // 책장 — 좌측 벽 중간
+    const bookshelf = drawPixelGrid(this, BOOKSHELF, BOOKSHELF_PALETTE, 0.04 * width, 0.55 * height, 2)
+    bookshelf.setDepth(2)
+
+    // 자판기 — 우측 벽 중간
+    const vending = drawPixelGrid(this, VENDING, VENDING_PALETTE, 0.96 * width, 0.55 * height, 2)
+    vending.setDepth(2)
+
+    // 시계 — 좌측 벽 상단 (토큰 보드와 분리)
+    const clock = drawPixelGrid(this, CLOCK, CLOCK_PALETTE, 0.20 * width, 0.10 * height, 2)
+    clock.setDepth(4)
+  }
+
+  // ============================================================
+  // 빈 자리 채용 hint (B) — hover 시 "👤 채용" 안내
+  // ============================================================
+
+  /** 빈 자리 hover 시 텍스트 표시. 같은 텍스트 객체 재사용 (없으면 생성). */
+  private showEmptySeatHint(x: number, y: number, seatLabel: string) {
+    if (!this.emptySeatHint) {
+      this.emptySeatHint = this.add
+        .text(x, y, `👤 ${seatLabel} 채용`, {
+          fontFamily: '"Courier New", monospace',
+          fontSize: '12px',
+          color: '#5a3a0f',
+          backgroundColor: '#fff2b8',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(100)
+      this.emptySeatHint.setPadding({ left: 8, right: 8, top: 4, bottom: 4 })
+    } else {
+      this.emptySeatHint.setPosition(x, y)
+      this.emptySeatHint.setText(`👤 ${seatLabel} 채용`)
+      this.emptySeatHint.setVisible(true)
+    }
+  }
+
+  private hideEmptySeatHint() {
+    this.emptySeatHint?.setVisible(false)
   }
 
   // ============================================================
@@ -838,6 +965,30 @@ export class OfficeScene extends Phaser.Scene {
 
     // === 빈 자리는 여기까지 (이후는 employee가 있을 때만) ===
     if (!employee) {
+      // 빈 자리에 채용 hint zone — hover 시 안내, 클릭 시 채용 모달 열기
+      const hireZone = this.add.zone(x, deskY - 20, 80, 100)
+      hireZone.setInteractive()
+      hireZone.setDepth(3)
+      hireZone.on('pointerover', () => {
+        if (this.isShutdown) return
+        this.showEmptySeatHint(x, deskY - 70, seat.label)
+        this.input.setDefaultCursor('pointer')
+      })
+      hireZone.on('pointerout', () => {
+        if (this.isShutdown) return
+        this.hideEmptySeatHint()
+        this.input.setDefaultCursor('default')
+      })
+      hireZone.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (this.isShutdown) return
+        // 우클릭은 무시 (브라우저 메뉴 차단만)
+        const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+        if (nativeButton === 2 || pointer.rightButtonReleased()) return
+        eventBus.emit('hire:open', { seatId: seat.id })
+        this.hideEmptySeatHint()
+      })
+      allObjects.push(hireZone)
+
       this.workstations.set(seat.id, { seatMeta: seat, employee: null, allObjects })
       return
     }
@@ -1024,11 +1175,34 @@ export class OfficeScene extends Phaser.Scene {
     }
     clawd.on('pointerup', handleClick)
     interactZone.on('pointerup', handleClick)
-    clawd.on('pointerover', () => {
+
+    // 명함 hover 카드 (A) — pointerover/move 시 위치 갱신, out 시 닫기
+    const emitHoverCard = (pointer: Phaser.Input.Pointer) => {
+      const native = pointer.event as MouseEvent | TouchEvent | undefined
+      let clientX = 0, clientY = 0
+      if (native && 'clientX' in native) {
+        clientX = native.clientX
+        clientY = native.clientY
+      } else {
+        clientX = pointer.x
+        clientY = pointer.y
+      }
+      eventBus.emit('employee:hover-card', {
+        employeeId: employee.id,
+        x: clientX,
+        y: clientY,
+      })
+    }
+    clawd.on('pointerover', (pointer: Phaser.Input.Pointer) => {
       this.tweens.add({ targets: clawd, scale: CLAWD_BASE_SCALE * 1.08, duration: 120 })
+      emitHoverCard(pointer)
+    })
+    clawd.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      emitHoverCard(pointer)
     })
     clawd.on('pointerout', () => {
       this.tweens.add({ targets: clawd, scale: CLAWD_BASE_SCALE, duration: 120 })
+      eventBus.emit('employee:hover-card', null)
     })
 
     this.workstations.set(seat.id, {
