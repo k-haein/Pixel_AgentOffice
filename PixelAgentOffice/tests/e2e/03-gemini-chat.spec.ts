@@ -34,7 +34,7 @@ test('Gemini로 직원과 대화하고 응답을 받는다', async () => {
 
   // 채팅창이 보임
   await expect(window.locator('.chat-popup')).toBeVisible()
-  await expect(window.locator('.chat-role')).toContainText('gemini')
+  await expect(window.locator('.chat-role')).toContainText(/gemini/i)
 
   // 4단계: 메시지 전송
   await window.locator('.chat-input').fill('안녕! 한국어로 한 줄만 답해줘. "테스트 통과" 라고만 적어줘.')
