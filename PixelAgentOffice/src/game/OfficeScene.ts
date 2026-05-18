@@ -3,7 +3,7 @@ import { eventBus } from './eventBus'
 import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { type Employee, type SeatId, type DeskOrientation, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
 import { ALL_SEATS, type SeatMeta } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
@@ -525,37 +525,49 @@ export class OfficeScene extends Phaser.Scene {
   /**
    * 자리 하나 시각화. employee가 null이면 빈 자리(책상+의자+모니터만, 캐릭터/채팅 X).
    * seat.role이 'boss'면 사장석 (책상 + 사장 명패), 단순 시각.
+   *
+   * 책상 회전(B-4): 책상·의자·모니터·마우스·메모를 deskGroup 컨테이너로 묶고 setRotation 적용.
+   * orientation='front'면 의자가 책상 위(캐릭터 위치), 'left'면 책상이 -90°(반시계) → 의자/캐릭터는 책상 오른쪽,
+   * 'right'면 +90°(시계) → 의자/캐릭터는 책상 왼쪽. chatBubble/nameplate는 회전 없이 항상 스크린 위/아래.
    */
   private createWorkstation(x: number, y: number, employee: Employee | null, seat: SeatMeta) {
     const isBoss = seat.role === 'boss'
     const deskY = y
-    const clawdY = deskY - 44
 
     const allObjects: Phaser.GameObjects.GameObject[] = []
 
-    // === Chair (항상) — 빈 자리도 의자는 있음 ===
-    const chair = drawPixelGrid(this, CHAIR, CHAIR_PALETTE, x, clawdY, 2)
-    chair.setDepth(4)
-    if (!employee && !isBoss) chair.setAlpha(0.55) // 빈 자리는 옅게
-    allObjects.push(chair)
+    // === 책상 회전 결정 ===
+    const orientation: DeskOrientation = employee?.deskOrientation ?? 'front'
+    const rot = orientation === 'left' ? -Math.PI / 2 : orientation === 'right' ? Math.PI / 2 : 0
 
-    // === Desk (항상) ===
-    const desk = drawPixelGrid(this, DESK, DESK_PALETTE, x, deskY, 2)
-    desk.setDepth(8)
+    // === Desk 그룹 (의자/책상/모니터/마우스/메모/깜빡임 — 회전 단위) ===
+    const deskGroup = this.add.container(x, deskY)
+    deskGroup.setDepth(8)
+    deskGroup.setRotation(rot)
+    allObjects.push(deskGroup)
+
+    // 캐릭터 위치 — orientation별 (책상 중심 기준 offset)
+    const clawdPos = this.getClawdPos(x, deskY, orientation)
+
+    // === Chair (deskGroup 자식, 책상 위쪽으로 -44 offset) — 회전 시 책상 옆으로 이동 ===
+    const chair = drawPixelGrid(this, CHAIR, CHAIR_PALETTE, 0, -44, 2)
+    if (!employee && !isBoss) chair.setAlpha(0.55) // 빈 자리는 옅게
+    deskGroup.add(chair)
+
+    // === Desk ===
+    const desk = drawPixelGrid(this, DESK, DESK_PALETTE, 0, 0, 2)
     if (isBoss) desk.setScale(1.3) // 사장석 책상 살짝 큼
     else if (!employee) desk.setAlpha(0.6)
-    allObjects.push(desk)
+    deskGroup.add(desk)
 
-    // === Monitor + flicker (항상, 빈 자리는 검은 화면) ===
-    const monitor = drawPixelGrid(this, MONITOR, MONITOR_PALETTE, x, deskY - 13, 2)
-    monitor.setDepth(10)
+    // === Monitor + flicker (빈 자리는 검은 화면) ===
+    const monitor = drawPixelGrid(this, MONITOR, MONITOR_PALETTE, 0, -13, 2)
     if (!employee) monitor.setAlpha(0.55)
-    allObjects.push(monitor)
+    deskGroup.add(monitor)
     if (employee) {
       // 실제 사용 중인 모니터만 깜빡임
-      const flicker = this.add.rectangle(x, deskY - 17, 28, 14, 0xffffff, 0.08)
-      flicker.setDepth(11)
-      allObjects.push(flicker)
+      const flicker = this.add.rectangle(0, -17, 28, 14, 0xffffff, 0.08)
+      deskGroup.add(flicker)
       this.tweens.add({
         targets: flicker,
         alpha: { from: 0.04, to: 0.16 },
@@ -567,9 +579,8 @@ export class OfficeScene extends Phaser.Scene {
 
     // === Mouse (employee 자리에만 — 책상 우측 작은 디테일) ===
     if (employee) {
-      const mouse = drawPixelGrid(this, MOUSE, MOUSE_PALETTE, x + 26, deskY - 6, 2)
-      mouse.setDepth(10)
-      allObjects.push(mouse)
+      const mouse = drawPixelGrid(this, MOUSE, MOUSE_PALETTE, 26, -6, 2)
+      deskGroup.add(mouse)
     }
 
     // === 사장석은 명패 + 끝 (캐릭터/채팅/메모 없음, 아직은 빈 사장석) ===
@@ -598,12 +609,16 @@ export class OfficeScene extends Phaser.Scene {
 
     // ===== Character + interactive elements (occupied seat 전용) =====
 
-    // 캐릭터
+    const clawdX = clawdPos.x
+    const clawdY = clawdPos.y
+
+    // 캐릭터 — orientation별 위치 + 책상과 같은 회전
     const variant: ClawdVariant = TEMPLATES[employee.template].variant
     const alpha = TEMPLATES[employee.template].alpha
-    const clawd = createClawd(this, x, clawdY, variant)
+    const clawd = createClawd(this, clawdX, clawdY, variant)
     clawd.setDepth(10)
     clawd.setScale(CLAWD_BASE_SCALE)
+    if (rot !== 0) clawd.setRotation(rot)
     if (alpha !== undefined) clawd.setAlpha(alpha)
     allObjects.push(clawd)
 
@@ -630,9 +645,8 @@ export class OfficeScene extends Phaser.Scene {
       })
     }
 
-    // 📝 Memo (left of monitor — clickable)
-    const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, x - 26, deskY - 6, 2)
-    memo.setDepth(10)
+    // 📝 Memo (책상 좌측 작은 노란 포스트잇 — 책상 회전과 같이 돌아감)
+    const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, -26, -6, 2)
     memo.setSize(14, 14)
     memo.setInteractive(
       new Phaser.Geom.Rectangle(-7, -7, 14, 14),
@@ -653,14 +667,14 @@ export class OfficeScene extends Phaser.Scene {
       }
       eventBus.emit('memo:open', { employeeId: employee.id })
     })
-    allObjects.push(memo)
+    deskGroup.add(memo)
 
-    // 💬 Chat bubble
+    // 💬 Chat bubble — 캐릭터 머리 위 (회전 안 함, 항상 스크린 기준 위쪽)
     const chatBubble = drawPixelGrid(
       this,
       CHAT_BUBBLE,
       CHAT_BUBBLE_PALETTE,
-      x,
+      clawdX,
       clawdY - 28,
       2,
     )
@@ -699,7 +713,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // Working bubble
     const workingBubble = this.add
-      .text(x, clawdY - 28, '  ✦  ', {
+      .text(clawdX, clawdY - 28, '  ✦  ', {
         fontFamily: '"Courier New", monospace',
         fontSize: '14px',
         color: '#d97500',
@@ -748,11 +762,14 @@ export class OfficeScene extends Phaser.Scene {
 
     // === 자리 인터랙티브 zone ===
     // Phaser.Zone — invisible interactive 영역 전용 객체.
-    // 빨간 박스: chatBubble(clawdY-28-10) 위 ~ desk 하단 (deskY+30) 까지 커버.
-    const zoneW = 90
-    const zoneH = 140
-    const zoneY = deskY - 30
-    const interactZone = this.add.zone(x, zoneY, zoneW, zoneH)
+    // 정면일 땐 캐릭터(위)~책상(아래) 세로 박스. 회전 시 가로 박스로 바꾸고 캐릭터 쪽으로 이동.
+    const zoneIsHorizontal = orientation !== 'front'
+    const zoneW = zoneIsHorizontal ? 140 : 90
+    const zoneH = zoneIsHorizontal ? 90 : 140
+    const zoneCenterX =
+      orientation === 'left' ? x + 30 : orientation === 'right' ? x - 30 : x
+    const zoneCenterY = orientation === 'front' ? deskY - 30 : deskY
+    const interactZone = this.add.zone(zoneCenterX, zoneCenterY, zoneW, zoneH)
     interactZone.setInteractive()
     interactZone.setDepth(3) // 캐릭터/메모/채팅버블보다 아래 — 그것들이 위에서 먼저 hit
     allObjects.push(interactZone)
@@ -795,6 +812,22 @@ export class OfficeScene extends Phaser.Scene {
   // 자리 이동 — 드래그앤드롭
   // ============================================================
 
+  /** 책상 회전(orientation)에 따른 캐릭터의 베이스 좌표.
+   *  front=책상 위(deskY-44), left=책상 오른쪽 옆(+44, deskY), right=책상 왼쪽 옆(-44, deskY) */
+  private getClawdPos(deskX: number, deskY: number, orientation: DeskOrientation): { x: number; y: number } {
+    if (orientation === 'left') return { x: deskX + 44, y: deskY }
+    if (orientation === 'right') return { x: deskX - 44, y: deskY }
+    return { x: deskX, y: deskY - 44 }
+  }
+
+  /** workstation의 seatMeta + employee.deskOrientation으로 캐릭터 베이스 좌표 계산 */
+  private getClawdBaseForWorkstation(ws: Workstation): { x: number; y: number } {
+    const deskX = ws.seatMeta.position.xRatio * this.scale.width
+    const deskY = ws.seatMeta.position.yRatio * this.scale.height
+    const orientation: DeskOrientation = ws.employee?.deskOrientation ?? 'front'
+    return this.getClawdPos(deskX, deskY, orientation)
+  }
+
   /** 자리 이동 모드 진입 — 캐릭터 draggable + 빈 자리 펄스 + 안내 텍스트 */
   private enterMoveMode(employeeId: string) {
     // 기존 모드 정리
@@ -808,15 +841,14 @@ export class OfficeScene extends Phaser.Scene {
     if (!target || !target.clawd) return
 
     this.movingEmployeeId = employeeId
-    // y는 idle bob 영향을 안 받은 베이스 좌표가 필요 → seatMeta 기반으로 재계산
-    const baseX = target.seatMeta.position.xRatio * this.scale.width
-    const baseY = target.seatMeta.position.yRatio * this.scale.height - 44
-    this.dragOriginPos = { x: baseX, y: baseY }
+    // y는 idle bob 영향을 안 받은 베이스 좌표가 필요 → seatMeta + orientation 기반 재계산
+    const base = this.getClawdBaseForWorkstation(target)
+    this.dragOriginPos = base
 
     // ★ 핵심: idle bob 등 기존 트윈을 끄기. 안 그러면 드래그 중에도 y를 계속 덮어씀
     this.tweens.killTweensOf(target.clawd)
-    target.clawd.x = baseX
-    target.clawd.y = baseY
+    target.clawd.x = base.x
+    target.clawd.y = base.y
 
     // 캐릭터 살짝 들뜨기 + draggable 활성화
     target.clawd.setAlpha(0.85)
@@ -894,11 +926,11 @@ export class OfficeScene extends Phaser.Scene {
     ws.clawd.setAlpha(alpha)
     ws.clawd.setDepth(10)
     this.tweens.add({ targets: ws.clawd, scale: CLAWD_BASE_SCALE, duration: 150 })
-    // idle bob 재시작
-    const baseY = ws.seatMeta.position.yRatio * this.scale.height - 44
+    // idle bob 재시작 — orientation 기반 베이스 y
+    const base = this.getClawdBaseForWorkstation(ws)
     this.tweens.add({
       targets: ws.clawd,
-      y: { from: baseY, to: baseY - 2 },
+      y: { from: base.y, to: base.y - 2 },
       yoyo: true,
       repeat: -1,
       duration: 1400,
@@ -955,13 +987,14 @@ export class OfficeScene extends Phaser.Scene {
       return
     }
 
-    // 좌표를 자리 중앙으로 스냅 (애니메이션)
-    const targetX = targetSeat.position.xRatio * this.scale.width
-    const targetY = targetSeat.position.yRatio * this.scale.height - 44 // clawdY 보정
+    // 좌표를 자리 중앙으로 스냅 (애니메이션). orientation 유지 — 캐릭터 위치도 그에 맞게.
+    const deskX = targetSeat.position.xRatio * this.scale.width
+    const deskY = targetSeat.position.yRatio * this.scale.height
+    const snap = this.getClawdPos(deskX, deskY, movingEmp.deskOrientation)
     this.tweens.add({
       targets: obj,
-      x: targetX,
-      y: targetY,
+      x: snap.x,
+      y: snap.y,
       duration: 350,
       ease: 'Sine.easeOut',
     })

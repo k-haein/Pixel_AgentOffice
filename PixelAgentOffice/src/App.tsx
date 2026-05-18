@@ -6,7 +6,7 @@ import { HireModal } from './components/HireModal'
 import { MemoModal } from './components/MemoModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
-import type { Employee, Settings } from './shared/types'
+import type { Employee, Settings, DeskOrientation } from './shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
 import './App.css'
 
@@ -266,6 +266,23 @@ function App() {
             }}
           >
             🪑 자리 이동 (드래그)
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={async () => {
+              // 책상 회전 (B-4) — front → right → left → front 순환
+              const current = employeeContextMenu.employee.deskOrientation
+              const next: DeskOrientation =
+                current === 'front' ? 'right' : current === 'right' ? 'left' : 'front'
+              setEmployeeContextMenu(null)
+              const updated = await platform.updateEmployee(
+                employeeContextMenu.employee.id,
+                { deskOrientation: next },
+              )
+              if (updated) eventBus.emit('employee:updated', updated)
+            }}
+          >
+            🔄 책상 회전
           </button>
           <button
             className="context-menu-item"
