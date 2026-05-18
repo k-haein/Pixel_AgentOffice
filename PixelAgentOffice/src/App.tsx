@@ -20,6 +20,8 @@ function App() {
   const [settingsFocusSection, setSettingsFocusSection] = useState<string | undefined>(undefined)
   const [hireOpen, setHireOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
+  /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
+  const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
 
   // Stable ref to current employees (for handlers that won't see state updates)
   const employeesRef = useRef<Employee[]>([])
@@ -99,6 +101,47 @@ function App() {
     eventBus.on('settings:open', onSettingsOpen)
     return () => eventBus.off('settings:open', onSettingsOpen)
   }, [])
+
+  // 캐릭터 우클릭 → 컨텍스트 메뉴 (자리 변경 등)
+  useEffect(() => {
+    const onContextMenu = (payload: unknown) => {
+      const { employeeId, x, y } = payload as { employeeId: string; x: number; y: number }
+      const emp = employeesRef.current.find(e => e.id === employeeId)
+      if (!emp) return
+      // 이미 메뉴가 떠 있을 때 다른 캐릭터 우클릭 — null 거쳐서 mount 애니메이션 재시작 + 새 위치/대상으로
+      setEmployeeContextMenu(null)
+      setTimeout(() => setEmployeeContextMenu({ x, y, employee: emp }), 0)
+    }
+    eventBus.on('employee:context-menu', onContextMenu)
+    return () => eventBus.off('employee:context-menu', onContextMenu)
+  }, [])
+
+  // 드래그앤드롭으로 자리 이동 완료 → 직원 상태 갱신 + scene 재구성
+  useEffect(() => {
+    const onUpdated = (payload: unknown) => {
+      const updated = payload as Employee
+      setEmployees(prev => {
+        const next = prev.map(e => (e.id === updated.id ? updated : e))
+        // scene에 반영
+        eventBus.emit('office:set-employees', next)
+        return next
+      })
+    }
+    eventBus.on('employee:updated', onUpdated)
+    return () => eventBus.off('employee:updated', onUpdated)
+  }, [])
+
+  // 컨텍스트 메뉴 — 외부 클릭/ESC로 닫기
+  useEffect(() => {
+    if (!employeeContextMenu) return
+    const onClose = () => setEmployeeContextMenu(null)
+    window.addEventListener('click', onClose)
+    window.addEventListener('keydown', onClose)
+    return () => {
+      window.removeEventListener('click', onClose)
+      window.removeEventListener('keydown', onClose)
+    }
+  }, [employeeContextMenu])
 
   // E2E 테스트 헬퍼 (Electron renderer는 신뢰 가능 환경, prod에서도 둠)
   useEffect(() => {
@@ -202,6 +245,46 @@ function App() {
           onUpdated={handleUpdated}
           onFired={handleFired}
         />
+      )}
+      {/* 캐릭터 우클릭 컨텍스트 메뉴 */}
+      {employeeContextMenu && (
+        <div
+          className="employee-context-menu"
+          style={{ position: 'fixed', left: employeeContextMenu.x, top: employeeContextMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="context-menu-title">
+            {employeeContextMenu.employee.emoji} {employeeContextMenu.employee.name}
+          </div>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              // 자리 이동 모드 시작 — Phaser에서 드래그앤드롭 시작
+              eventBus.emit('seat:start-move', { employeeId: employeeContextMenu.employee.id })
+              setEmployeeContextMenu(null)
+            }}
+          >
+            🪑 자리 이동 (드래그)
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              eventBus.emit('chat:open', employeeContextMenu.employee)
+              setEmployeeContextMenu(null)
+            }}
+          >
+            💬 채팅 열기
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              eventBus.emit('memo:open', { employeeId: employeeContextMenu.employee.id })
+              setEmployeeContextMenu(null)
+            }}
+          >
+            📝 메모지 열기
+          </button>
+        </div>
       )}
 
       <footer className="statusbar">

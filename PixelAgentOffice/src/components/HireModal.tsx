@@ -1,13 +1,19 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   type Employee,
   type Model,
   type Rank,
   type Template,
   type PromotionMode,
+  type SeatId,
   TEMPLATES,
   MODEL_INFO,
+  canBeTeamLeader,
 } from '../shared/types'
+import {
+  findNextEmptyMemberSeat,
+  findNextEmptyLeaderSeat,
+} from '../shared/seats'
 
 type Props = {
   onClose: () => void
@@ -17,9 +23,6 @@ type Props = {
   defaultMemoryModel: Model
   onHired: (employee: Employee) => void
 }
-
-// 책상 가능 위치 (좌·우). 최대 2명 가정.
-const DESK_POSITIONS = [-120, 120]
 
 const RANK_OPTIONS: Rank[] = ['알바', '사원', '대리', '과장', '부장']
 
@@ -59,21 +62,38 @@ export function HireModal({
   const existingCount = existingEmployees.length
   const isAtMax = existingCount >= maxCount
 
+  // 점유 자리 — 자동 배치용 lookup
+  const occupied = useMemo(() => {
+    const s = new Set<SeatId>()
+    for (const e of existingEmployees) if (e.seatId) s.add(e.seatId)
+    return s
+  }, [existingEmployees])
+
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
     setName(TEMPLATES[t].defaultName)
     setRole(TEMPLATES[t].defaultRole)
   }
 
-  // 빈 자리 찾기 (기존 직원들이 차지하지 않은 위치)
-  const findAvailablePosition = (): number => {
-    const used = new Set(existingEmployees.map(e => e.deskPosition.x))
-    return DESK_POSITIONS.find(x => !used.has(x)) ?? 0
+  /** 자리 자동 결정 — 과장 이상이면 빈 리더 자리 먼저, 아니면 빈 팀원 자리.
+   *  사용자는 채용 후 우클릭 → 자리 이동 (드래그앤드롭)으로 자유 배치 가능 */
+  const resolveSeatId = (): { ok: true; seatId: SeatId } | { ok: false; reason: string } => {
+    const leaderOk = canBeTeamLeader(rank)
+    const seat = leaderOk
+      ? (findNextEmptyLeaderSeat(occupied) ?? findNextEmptyMemberSeat(occupied))
+      : findNextEmptyMemberSeat(occupied)
+    if (!seat) return { ok: false, reason: '빈 자리가 없어요. 최대 채용 도달.' }
+    return { ok: true, seatId: seat }
   }
 
   const handleHire = async () => {
     if (!name.trim() || !role.trim()) {
       alert('이름과 역할을 입력해주세요')
+      return
+    }
+    const seatRes = resolveSeatId()
+    if (!seatRes.ok) {
+      alert(seatRes.reason)
       return
     }
     setSubmitting(true)
@@ -92,7 +112,8 @@ export function HireModal({
         rank,
         promotionMode,
         hiredAt: new Date().toISOString(),
-        deskPosition: { x: findAvailablePosition() },
+        seatId: seatRes.seatId,
+        deskOrientation: 'front',
         totalMessages: 0,
         totalMemoryUpdates: 0,
         totalPraises: 0,
@@ -196,6 +217,11 @@ export function HireModal({
                 </button>
               ))}
             </div>
+            <p className="modal-hint" style={{ marginTop: 6 }}>
+              💡 자리는 자동 배치돼요. 채용 후 <b>캐릭터 우클릭 → 자리 이동</b>으로 드래그해서 옮길 수 있어요.
+              <br />
+              과장 이상은 리더 자리에 앉을 수 있습니다.
+            </p>
           </section>
 
           {/* Promotion Mode */}

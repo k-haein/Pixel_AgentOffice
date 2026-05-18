@@ -319,6 +319,68 @@ html, body, #root {
   font-family: inherit;
 }
 .context-menu-item:hover { background: rgba(139, 115, 85, 0.18); }
+
+/* === 캐릭터 우클릭 컨텍스트 메뉴 (App 레벨) === */
+.employee-context-menu {
+  background: linear-gradient(180deg, #fdf6e7, #f4e4bc);
+  border: 1.5px solid #8b7355;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.15), 0 2px 12px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  font-family: 'Galmuri11', 'Pretendard', sans-serif;
+  animation: contextMenuPop 0.12s ease-out;
+}
+.context-menu-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #5a3a0f;
+  padding: 6px 10px 4px;
+  border-bottom: 1px dashed rgba(139, 115, 85, 0.35);
+  margin-bottom: 2px;
+}
+
+/* === 자리 선택 모달 리스트 === */
+.seat-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.seat-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1.5px solid rgba(139, 115, 85, 0.35);
+  border-radius: 5px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.12s;
+  font-size: 12px;
+}
+.seat-option:hover:not(.blocked) {
+  background: rgba(255, 240, 200, 0.7);
+  border-color: #8b7355;
+}
+.seat-option.selected {
+  background: rgba(255, 220, 130, 0.7);
+  border-color: #5a3a0f;
+  font-weight: bold;
+}
+.seat-option.blocked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.seat-option input[type="radio"] { margin: 0; }
+.seat-option-icon { font-size: 14px; line-height: 1; }
+.seat-option-label { flex: 1; color: #2a1f10; }
+.seat-option-hint {
+  font-size: 10px;
+  color: #8a221c;
+  font-style: italic;
+}
 .context-menu-hint {
   font-size: 10px;
   color: #8a6a3a;

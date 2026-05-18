@@ -185,4 +185,5 @@ export const DEFAULT_SETTINGS: Settings = {
   usageDisplayMode: 'chips',
 }
 
-export const DEFAULT_MAX_EMPLOYEES = 2
+/** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */
+export const DEFAULT_MAX_EMPLOYEES = 15

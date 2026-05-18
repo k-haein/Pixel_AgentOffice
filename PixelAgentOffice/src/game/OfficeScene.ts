@@ -2,8 +2,8 @@ import Phaser from 'phaser'
 import { eventBus } from './eventBus'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, TEMPLATES } from '../shared/types'
-import { ALL_SEATS, SEAT_LOOKUP, visibleTeams, type SeatMeta } from '../shared/seats'
+import { type Employee, type SeatId, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { ALL_SEATS, type SeatMeta } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
 // ========================================================
@@ -154,8 +154,17 @@ type Workstation = {
 export class OfficeScene extends Phaser.Scene {
   // 자리 단위로 키 (사장석 + 팀 × 자리). 빈 자리도 포함.
   private workstations = new Map<SeatId, Workstation>()
-  private deskY = 0
   private isShutdown = false
+
+  // === 자리 이동 모드 ===
+  /** 현재 드래그 중인 직원 ID (null이면 비활성) */
+  private movingEmployeeId: string | null = null
+  /** 이동 모드 안내 텍스트 */
+  private moveModeHint?: Phaser.GameObjects.Text
+  /** 빈 자리 강조 펄스 효과 객체들 */
+  private dropTargetHighlights: Phaser.GameObjects.Rectangle[] = []
+  /** 드래그 중인 캐릭터의 원래 좌표 (취소 시 복귀용) */
+  private dragOriginPos: { x: number; y: number } | null = null
 
   // === 시간대 시스템 ===
   /** 강제 야간 모드 (토큰 고갈 시 외부에서 true로 설정) */
@@ -200,15 +209,24 @@ export class OfficeScene extends Phaser.Scene {
     this.applyTimeOfDay(this.resolveTimeOfDay(), true)
   }
 
+  /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
+  private startSeatMoveHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const { employeeId } = payload as { employeeId: string }
+    this.enterMoveMode(employeeId)
+  }
+
   constructor() {
     super({ key: 'OfficeScene' })
   }
 
   create() {
     this.isShutdown = false
+    // 우클릭 시 브라우저 기본 컨텍스트 메뉴 차단 (캐릭터 자리 변경 메뉴를 우리가 띄움)
+    this.input.mouse?.disableContextMenu()
     const width = this.scale.width
     const height = this.scale.height
-    this.deskY = height / 2 + 70
+    // (이전 직선 배치 시절의 deskY 멤버는 자리 시스템 도입으로 미사용 — seat.position 사용)
 
     // Background
     this.cameras.main.setBackgroundColor('#e8dfd0')
@@ -320,6 +338,20 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.on('office:set-employees', this.setEmployeesHandler)
     eventBus.on('agent:set-state', this.setStateHandler)
     eventBus.on('office:night-mode', this.nightModeHandler)
+    eventBus.on('seat:start-move', this.startSeatMoveHandler)
+
+    // 자리 이동 — Phaser 전역 드래그 핸들러 + ESC 취소
+    // 포인터 worldX/Y 직접 사용 (Container + 커스텀 hitArea 환경에서 dragX/Y 계산 이슈 회피)
+    this.input.on('drag', (pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.Container) => {
+      obj.x = pointer.worldX
+      obj.y = pointer.worldY
+    })
+    this.input.on('dragend', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.Container) => {
+      this.handleSeatDrop(obj)
+    })
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.movingEmployeeId) this.exitMoveMode(false)
+    })
 
     // Scene shutdown 시 listener 자동 제거 (HMR/재마운트 안전)
     this.events.once('shutdown', () => {
@@ -339,6 +371,7 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.off('office:set-employees', this.setEmployeesHandler)
     eventBus.off('agent:set-state', this.setStateHandler)
     eventBus.off('office:night-mode', this.nightModeHandler)
+    eventBus.off('seat:start-move', this.startSeatMoveHandler)
     this.timeRefreshTimer?.remove(false)
     this.timeRefreshTimer = undefined
   }
@@ -444,38 +477,28 @@ export class OfficeScene extends Phaser.Scene {
 
     // employee.seatId 기반 lookup
     const empBySeat = new Map<SeatId, Employee>()
-    const occupied = new Set<SeatId>()
     for (const emp of employees) {
-      if (emp.seatId) {
-        empBySeat.set(emp.seatId, emp)
-        occupied.add(emp.seatId)
-      }
+      if (emp.seatId) empBySeat.set(emp.seatId, emp)
     }
-
-    // 어떤 팀까지 그릴지 (A는 항상, B/C는 직전 팀이 다 차야 등장)
-    const teams = visibleTeams(occupied)
-    const teamsSet = new Set(teams)
 
     const width = this.scale.width
     const height = this.scale.height
 
-    // 모든 자리를 순회하되, 보이는 팀의 자리 + 사장석만 그림
+    // 모든 16자리 항상 표시 (사장석 + 3팀 × 5). 자유롭게 팀 간 이동 가능
     for (const seat of ALL_SEATS) {
-      if (seat.role === 'boss' || (seat.team && teamsSet.has(seat.team))) {
-        const x = seat.position.xRatio * width
-        const y = seat.position.yRatio * height
-        const emp = empBySeat.get(seat.id) ?? null
-        this.createWorkstation(x, y, emp, seat)
-      }
+      const x = seat.position.xRatio * width
+      const y = seat.position.yRatio * height
+      const emp = empBySeat.get(seat.id) ?? null
+      this.createWorkstation(x, y, emp, seat)
     }
 
-    // 팀 라벨 텍스트 표시
-    this.drawTeamLabels(teams)
+    // 3팀 라벨 항상 표시
+    this.drawTeamLabels()
   }
 
-  /** 보이는 팀들 아래에 작은 라벨 텍스트 그리기 */
+  /** 3팀 라벨 항상 그리기 */
   private teamLabels: Phaser.GameObjects.Text[] = []
-  private drawTeamLabels(teams: import('../shared/types').TeamId[]) {
+  private drawTeamLabels() {
     // 기존 라벨 제거
     for (const lbl of this.teamLabels) lbl.destroy()
     this.teamLabels = []
@@ -484,7 +507,7 @@ export class OfficeScene extends Phaser.Scene {
     const height = this.scale.height
     const labelY = 0.85 * height
     const teamX: Record<string, number> = { A: 0.20, B: 0.50, C: 0.80 }
-    for (const team of teams) {
+    for (const team of ['A', 'B', 'C'] as const) {
       const t = this.add
         .text(teamX[team] * width, labelY, `— 팀 ${team} —`, {
           fontFamily: '"Courier New", monospace',
@@ -583,6 +606,29 @@ export class OfficeScene extends Phaser.Scene {
     if (alpha !== undefined) clawd.setAlpha(alpha)
     allObjects.push(clawd)
 
+    // 자리 내부 우클릭 공통 처리 — 어느 요소 위에서든 우클릭 = 컨텍스트 메뉴
+    const isRightClick = (pointer: Phaser.Input.Pointer): boolean => {
+      const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+      return nativeButton === 2 || pointer.rightButtonReleased()
+    }
+    const emitContextMenu = (pointer: Phaser.Input.Pointer) => {
+      const native = pointer.event as MouseEvent | TouchEvent | undefined
+      let clientX = 0, clientY = 0
+      if (native && 'clientX' in native) {
+        clientX = native.clientX
+        clientY = native.clientY
+      } else {
+        // 폴백 — Phaser pointer x/y (스크린 좌표와 같음, 카메라 변환 없으므로)
+        clientX = pointer.x
+        clientY = pointer.y
+      }
+      eventBus.emit('employee:context-menu', {
+        employeeId: employee.id,
+        x: clientX,
+        y: clientY,
+      })
+    }
+
     // 📝 Memo (left of monitor — clickable)
     const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, x - 26, deskY - 6, 2)
     memo.setDepth(10)
@@ -599,7 +645,11 @@ export class OfficeScene extends Phaser.Scene {
       this.tweens.add({ targets: memo, scale: 1, duration: 100 })
       this.input.setDefaultCursor('default')
     })
-    memo.on('pointerup', () => {
+    memo.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (isRightClick(pointer)) {
+        emitContextMenu(pointer)
+        return
+      }
       eventBus.emit('memo:open', { employeeId: employee.id })
     })
     allObjects.push(memo)
@@ -629,7 +679,11 @@ export class OfficeScene extends Phaser.Scene {
       this.tweens.add({ targets: chatBubble, scale: 1, duration: 100 })
       this.input.setDefaultCursor('default')
     })
-    chatBubble.on('pointerup', () => {
+    chatBubble.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (isRightClick(pointer)) {
+        emitContextMenu(pointer)
+        return
+      }
       eventBus.emit('chat:open', employee)
     })
     this.tweens.add({
@@ -691,15 +745,32 @@ export class OfficeScene extends Phaser.Scene {
     nameplate.setPadding({ left: 8, right: 8, top: 3, bottom: 3 })
     allObjects.push(nameplate)
 
-    // Double-click → open chat
+    // === 자리 인터랙티브 zone ===
+    // Phaser.Zone — invisible interactive 영역 전용 객체.
+    // 빨간 박스: chatBubble(clawdY-28-10) 위 ~ desk 하단 (deskY+30) 까지 커버.
+    const zoneW = 90
+    const zoneH = 140
+    const zoneY = deskY - 30
+    const interactZone = this.add.zone(x, zoneY, zoneW, zoneH)
+    interactZone.setInteractive()
+    interactZone.setDepth(3) // 캐릭터/메모/채팅버블보다 아래 — 그것들이 위에서 먼저 hit
+    allObjects.push(interactZone)
+
+    // 캐릭터와 zone의 클릭 처리 — 우클릭=컨텍스트 메뉴 / 좌클릭 더블=채팅
     let lastClick = 0
-    clawd.on('pointerup', () => {
+    const handleClick = (pointer: Phaser.Input.Pointer) => {
+      if (isRightClick(pointer)) {
+        emitContextMenu(pointer)
+        return
+      }
       const now = Date.now()
       if (now - lastClick < 350) {
         eventBus.emit('chat:open', employee)
       }
       lastClick = now
-    })
+    }
+    clawd.on('pointerup', handleClick)
+    interactZone.on('pointerup', handleClick)
     clawd.on('pointerover', () => {
       this.tweens.add({ targets: clawd, scale: CLAWD_BASE_SCALE * 1.08, duration: 120 })
     })
@@ -717,5 +788,238 @@ export class OfficeScene extends Phaser.Scene {
       nameplate,
       allObjects,
     })
+  }
+
+  // ============================================================
+  // 자리 이동 — 드래그앤드롭
+  // ============================================================
+
+  /** 자리 이동 모드 진입 — 캐릭터 draggable + 빈 자리 펄스 + 안내 텍스트 */
+  private enterMoveMode(employeeId: string) {
+    // 기존 모드 정리
+    if (this.movingEmployeeId) this.exitMoveMode(false)
+
+    // 대상 워크스테이션 찾기
+    let target: Workstation | undefined
+    for (const w of this.workstations.values()) {
+      if (w.employee?.id === employeeId) { target = w; break }
+    }
+    if (!target || !target.clawd) return
+
+    this.movingEmployeeId = employeeId
+    // y는 idle bob 영향을 안 받은 베이스 좌표가 필요 → seatMeta 기반으로 재계산
+    const baseX = target.seatMeta.position.xRatio * this.scale.width
+    const baseY = target.seatMeta.position.yRatio * this.scale.height - 44
+    this.dragOriginPos = { x: baseX, y: baseY }
+
+    // ★ 핵심: idle bob 등 기존 트윈을 끄기. 안 그러면 드래그 중에도 y를 계속 덮어씀
+    this.tweens.killTweensOf(target.clawd)
+    target.clawd.x = baseX
+    target.clawd.y = baseY
+
+    // 캐릭터 살짝 들뜨기 + draggable 활성화
+    target.clawd.setAlpha(0.85)
+    target.clawd.setDepth(50) // 다른 자리 위로
+    this.tweens.add({ targets: target.clawd, scale: CLAWD_BASE_SCALE * 1.15, duration: 150 })
+    target.clawd.setInteractive({ draggable: true })
+    this.input.setDraggable(target.clawd, true)
+
+    // 따라다니는 부속물(채팅/메모/명패) 일시 숨김 — 드래그 깔끔하게
+    target.chatBubble?.setVisible(false)
+    target.workingBubble?.setVisible(false)
+    target.memo?.setVisible(false)
+    target.nameplate?.setVisible(false)
+
+    // 빈 자리 펄스 강조 + 자격 검증
+    this.dropTargetHighlights = []
+    for (const [seatId, ws] of this.workstations) {
+      if (ws.employee) continue            // 비어있지 않으면 skip
+      if (seatId === target.seatMeta.id) continue  // 본인 현재 자리는 skip
+      // 자격 검증 — 부적합한 자리는 빨강 톤
+      const emp = target.employee!
+      const blocked =
+        (ws.seatMeta.role === 'leader' && !canBeTeamLeader(emp.rank)) ||
+        (ws.seatMeta.role === 'boss' && !canBeBoss(emp.rank))
+      const color = blocked ? 0xff6060 : 0x60ff80
+      const x = ws.seatMeta.position.xRatio * this.scale.width
+      const y = ws.seatMeta.position.yRatio * this.scale.height
+      const hi = this.add.rectangle(x, y, 70, 70, color, 0.18)
+      hi.setStrokeStyle(2, color, 0.9)
+      hi.setDepth(2)
+      this.dropTargetHighlights.push(hi)
+      this.tweens.add({
+        targets: hi,
+        alpha: { from: 0.12, to: 0.35 },
+        scale: { from: 0.92, to: 1.08 },
+        yoyo: true,
+        repeat: -1,
+        duration: 700,
+      })
+    }
+
+    // 화면 상단 안내 텍스트
+    this.moveModeHint = this.add
+      .text(this.scale.width / 2, 110, '🪑 빈 자리로 드래그하세요  · ESC: 취소', {
+        fontFamily: '"Courier New", monospace',
+        fontSize: '13px',
+        color: '#5a3a0f',
+        backgroundColor: '#fff2b8',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(100)
+    this.moveModeHint.setPadding({ left: 12, right: 12, top: 5, bottom: 5 })
+  }
+
+  /** 자리 이동 모드 종료 — UI 정리. 실패 시 캐릭터 시각/idle bob 복원 (성공 시는 rebuild가 처리) */
+  private exitMoveMode(success: boolean) {
+    const movingId = this.movingEmployeeId
+    this.movingEmployeeId = null
+    this.dragOriginPos = null
+    this.moveModeHint?.destroy()
+    this.moveModeHint = undefined
+    for (const hi of this.dropTargetHighlights) hi.destroy()
+    this.dropTargetHighlights = []
+
+    if (success || !movingId) return
+
+    // 실패: 해당 캐릭터의 외형/트윈 복원
+    let ws: Workstation | undefined
+    for (const w of this.workstations.values()) {
+      if (w.employee?.id === movingId) { ws = w; break }
+    }
+    if (!ws || !ws.clawd || !ws.employee) return
+    const alpha = TEMPLATES[ws.employee.template].alpha ?? 1
+    ws.clawd.setAlpha(alpha)
+    ws.clawd.setDepth(10)
+    this.tweens.add({ targets: ws.clawd, scale: CLAWD_BASE_SCALE, duration: 150 })
+    // idle bob 재시작
+    const baseY = ws.seatMeta.position.yRatio * this.scale.height - 44
+    this.tweens.add({
+      targets: ws.clawd,
+      y: { from: baseY, to: baseY - 2 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1400,
+      ease: 'Sine.easeInOut',
+    })
+    // 부속물 다시 보이게
+    ws.chatBubble?.setVisible(true)
+    ws.memo?.setVisible(true)
+    ws.nameplate?.setVisible(true)
+  }
+
+  /** 드롭 처리 — hit-test로 가장 가까운 빈 자리 찾고 자격 검증, 성공 시 IPC update */
+  private async handleSeatDrop(obj: Phaser.GameObjects.Container) {
+    if (!this.movingEmployeeId) return
+
+    // 가장 가까운 빈 자리 찾기 (50px 이내)
+    let nearest: { ws: Workstation; dist: number } | null = null
+    for (const ws of this.workstations.values()) {
+      if (ws.employee) continue
+      if (ws.seatMeta.id === this.findEmployeeSeatId(this.movingEmployeeId)) continue
+      const sx = ws.seatMeta.position.xRatio * this.scale.width
+      const sy = ws.seatMeta.position.yRatio * this.scale.height
+      const dx = obj.x - sx
+      const dy = obj.y - sy
+      const d = Math.hypot(dx, dy)
+      if (d < 60 && (!nearest || d < nearest.dist)) nearest = { ws, dist: d }
+    }
+
+    if (!nearest) {
+      // 빈 자리 아님 → 원위치로 tween 복귀
+      this.tweenBackToOrigin(obj)
+      this.exitMoveMode(false)
+      return
+    }
+
+    // 자격 검증
+    const movingEmp = this.findMovingEmployee()
+    if (!movingEmp) {
+      this.tweenBackToOrigin(obj)
+      this.exitMoveMode(false)
+      return
+    }
+    const targetSeat = nearest.ws.seatMeta
+    if (targetSeat.role === 'leader' && !canBeTeamLeader(movingEmp.rank)) {
+      this.flashBlockedSeat(nearest.ws, '리더는 과장 이상')
+      this.tweenBackToOrigin(obj)
+      this.exitMoveMode(false)
+      return
+    }
+    if (targetSeat.role === 'boss' && !canBeBoss(movingEmp.rank)) {
+      this.flashBlockedSeat(nearest.ws, '사장석은 사장 이상')
+      this.tweenBackToOrigin(obj)
+      this.exitMoveMode(false)
+      return
+    }
+
+    // 좌표를 자리 중앙으로 스냅 (애니메이션)
+    const targetX = targetSeat.position.xRatio * this.scale.width
+    const targetY = targetSeat.position.yRatio * this.scale.height - 44 // clawdY 보정
+    this.tweens.add({
+      targets: obj,
+      x: targetX,
+      y: targetY,
+      duration: 350,
+      ease: 'Sine.easeOut',
+    })
+
+    // DB 업데이트 → App.tsx가 받아서 setEmployees 갱신 → 자동 rebuild
+    try {
+      const updated = await window.api.updateEmployee(movingEmp.id, { seatId: targetSeat.id })
+      if (updated) {
+        eventBus.emit('employee:updated', updated)
+      }
+    } catch (err) {
+      console.error('자리 이동 실패:', err)
+      this.tweenBackToOrigin(obj)
+    } finally {
+      this.exitMoveMode(true)
+    }
+  }
+
+  /** 드래그 취소 시 원위치로 부드럽게 복귀 */
+  private tweenBackToOrigin(obj: Phaser.GameObjects.Container) {
+    if (!this.dragOriginPos) return
+    this.tweens.add({
+      targets: obj,
+      x: this.dragOriginPos.x,
+      y: this.dragOriginPos.y,
+      duration: 250,
+      ease: 'Sine.easeOut',
+    })
+  }
+
+  /** 부적합 자리에 잠깐 빨간 깜빡임 */
+  private flashBlockedSeat(ws: Workstation, _reason: string) {
+    const x = ws.seatMeta.position.xRatio * this.scale.width
+    const y = ws.seatMeta.position.yRatio * this.scale.height
+    const flash = this.add.rectangle(x, y, 80, 80, 0xff4040, 0.5)
+    flash.setDepth(101)
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scale: 1.3,
+      duration: 600,
+      onComplete: () => flash.destroy(),
+    })
+  }
+
+  /** moving employee 찾기 (workstations에서 ID 매칭) */
+  private findMovingEmployee(): Employee | null {
+    if (!this.movingEmployeeId) return null
+    for (const ws of this.workstations.values()) {
+      if (ws.employee?.id === this.movingEmployeeId) return ws.employee
+    }
+    return null
+  }
+
+  /** 특정 employee가 앉아있는 seatId 반환 */
+  private findEmployeeSeatId(employeeId: string): SeatId | null {
+    for (const [seatId, ws] of this.workstations) {
+      if (ws.employee?.id === employeeId) return seatId
+    }
+    return null
   }
 }

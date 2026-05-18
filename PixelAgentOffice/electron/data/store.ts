@@ -142,7 +142,7 @@ export async function loadData(): Promise<AppData> {
     const raw = await fs.readFile(filePath, 'utf-8')
     const parsed = JSON.parse(raw) as Partial<AppData>
     // 필드 누락 시 default 채우기 + 폐기된 모델 마이그레이션
-    const settingsRaw = parsed.settings ?? {}
+    const settingsRaw = (parsed.settings ?? {}) as Partial<Settings>
     const settings: Settings = {
       ...DEFAULT_SETTINGS,
       ...settingsRaw,
@@ -183,6 +183,13 @@ export async function updateEmployee(
   const data = await loadData()
   const idx = data.employees.findIndex(e => e.id === id)
   if (idx === -1) return null
+  // seatId 변경 시 중복 검증 — 다른 직원이 그 자리에 있으면 거부
+  if (patch.seatId && patch.seatId !== data.employees[idx].seatId) {
+    const conflict = data.employees.find(e => e.id !== id && e.seatId === patch.seatId)
+    if (conflict) {
+      throw new Error(`자리 충돌: '${patch.seatId}'는 이미 ${conflict.name}가 사용 중입니다.`)
+    }
+  }
   data.employees[idx] = { ...data.employees[idx], ...patch }
   await saveData(data)
   return data.employees[idx]
@@ -192,6 +199,13 @@ export async function addEmployee(employee: Employee): Promise<Employee> {
   const data = await loadData()
   if (data.employees.length >= data.maxEmployees) {
     throw new Error(`최대 직원 수(${data.maxEmployees}명)에 도달했습니다`)
+  }
+  // seatId 중복 검증
+  if (employee.seatId) {
+    const conflict = data.employees.find(e => e.seatId === employee.seatId)
+    if (conflict) {
+      throw new Error(`자리 충돌: '${employee.seatId}'는 이미 ${conflict.name}가 사용 중입니다.`)
+    }
   }
   data.employees.push(employee)
   await saveData(data)

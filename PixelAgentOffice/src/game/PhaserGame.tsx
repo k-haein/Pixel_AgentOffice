@@ -35,6 +35,8 @@ export function PhaserGame() {
   return (
     <div
       ref={containerRef}
+      // 캔버스 영역 전체에서 브라우저 기본 우클릭 메뉴 차단 (Phaser disableContextMenu와 이중 안전)
+      onContextMenu={e => e.preventDefault()}
       style={{
         width: '100%',
         height: '100%',
