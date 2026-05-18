@@ -83,6 +83,27 @@ html, body, #root {
   height: 28px;
 }
 .status-spacer { flex: 1; }
+.status-build { color: #6ad06a; font-weight: bold; }
+.status-sep { opacity: 0.4; margin: 0 6px; }
+.status-cost {
+  font-family: "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.status-cost:hover { background: rgba(255, 215, 0, 0.1); }
+.status-cost.green { color: #6ad06a; }
+.status-cost.yellow { color: #d8b040; }
+.status-cost.red {
+  color: #ff6060;
+  animation: statusCostPulse 0.7s ease-in-out infinite;
+}
+@keyframes statusCostPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
 
 /* ===== Chat popup ===== */
 .chat-popup {
@@ -1105,6 +1126,80 @@ textarea.modal-input {
   font-weight: bold;
   letter-spacing: 0.5px;
 }
+
+/* 사용량 상세 표 (E) — SettingsModal */
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+.usage-table th {
+  text-align: left;
+  font-size: 10px;
+  color: #6a5a3a;
+  font-weight: bold;
+  padding: 6px 8px 4px 8px;
+  border-bottom: 2px solid #c8a070;
+  letter-spacing: 0.5px;
+}
+.usage-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e8dcb6;
+  color: #2a2118;
+  vertical-align: middle;
+}
+.usage-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.usage-model-label {
+  font-weight: bold;
+  color: #5a3a0f;
+  margin-right: 6px;
+}
+.usage-tier-chip {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.usage-tier-chip.tier-paid { background: #fff2b8; color: #8a6a18; }
+.usage-tier-chip.tier-free { background: #d8f0c8; color: #2a6a2a; }
+.rpm-bar-bg {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  background: #e8dcb6;
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.rpm-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.rpm-bar-fill.rpm-green { background: #60c068; }
+.rpm-bar-fill.rpm-yellow { background: #d8b040; }
+.rpm-bar-fill.rpm-red { background: #d04040; }
+.rpm-text {
+  font-size: 10px;
+  color: #6a5a3a;
+  vertical-align: middle;
+}
+.usage-total {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fff8e0;
+  border-left: 3px solid #c89030;
+  font-size: 12px;
+  color: #5a3a0f;
+}
+.usage-total strong { color: #c89030; font-size: 14px; }
 
 /* + 채용 버튼 펄스 (C 온보딩) — 직원 0명일 때 강조 */
 @keyframes topbarPulse {

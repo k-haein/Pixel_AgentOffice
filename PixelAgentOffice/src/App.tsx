@@ -27,6 +27,9 @@ function App() {
   const [zoomedIn, setZoomedIn] = useState(false)
   /** 캐릭터 hover 시 떠오르는 명함 카드 (A) */
   const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
+  /** 상태바(F) — 사용량·시간대 라이브 정보 (OfficeScene이 emit) */
+  const [usageSummary, setUsageSummary] = useState<{ totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' } | null>(null)
+  const [timeOfDay, setTimeOfDay] = useState<{ label: string; forcedNight: boolean } | null>(null)
 
   // Stable ref to current employees (for handlers that won't see state updates)
   const employeesRef = useRef<Employee[]>([])
@@ -164,6 +167,23 @@ function App() {
     }
     eventBus.on('employee:hover-card', onHover)
     return () => eventBus.off('employee:hover-card', onHover)
+  }, [])
+
+  // 상태바(F) — OfficeScene이 emit하는 사용량·시간대 받기
+  useEffect(() => {
+    const onUsage = (payload: unknown) => {
+      setUsageSummary(payload as { totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' })
+    }
+    const onTime = (payload: unknown) => {
+      const { label, forcedNight } = payload as { label: string; forcedNight: boolean }
+      setTimeOfDay({ label, forcedNight })
+    }
+    eventBus.on('office:usage-summary', onUsage)
+    eventBus.on('office:time-changed', onTime)
+    return () => {
+      eventBus.off('office:usage-summary', onUsage)
+      eventBus.off('office:time-changed', onTime)
+    }
   }, [])
 
   // 컨텍스트 메뉴 — 외부 클릭/ESC로 닫기
@@ -395,9 +415,27 @@ function App() {
       )}
 
       <footer className="statusbar">
-        <span>● M2 Build · UI 채널 완성</span>
+        <span className="status-build">● M5 Build</span>
+        <span className="status-sep">·</span>
+        <span title="현재 직원 수 / 최대 인원">
+          👥 {employees.length} / {maxEmployees}
+        </span>
+        <span className="status-sep">·</span>
+        <span title="현재 사무실 시간대">
+          🕐 {timeOfDay?.label ?? '...'}
+          {timeOfDay?.forcedNight && ' (한도 도달)'}
+        </span>
         <span className="status-spacer"></span>
-        <span>다음: M3-a (Claude API 연결)</span>
+        <span
+          className={`status-cost ${usageSummary?.color ?? 'green'}`}
+          title="이번 세션 누적 비용 / 일일 한도"
+          onClick={() => {
+            setSettingsFocusSection('usage-detail')
+            setSettingsOpen(true)
+          }}
+        >
+          💰 ${(usageSummary?.totalCost ?? 0).toFixed(4)} / ${(usageSummary?.limit ?? settings.dailyLimitUsd).toFixed(2)}
+        </span>
       </footer>
     </div>
   )

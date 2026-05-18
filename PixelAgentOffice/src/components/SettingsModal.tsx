@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { platform } from '../platform'
+import { platform, type RateLimitStatus } from '../platform'
 import { type Model, type Settings, type UsageDisplayMode, MODEL_INFO } from '../shared/types'
 import type { ProviderName } from '../../electron/llm/types'
 import { eventBus } from '../game/eventBus'
@@ -12,6 +12,7 @@ export type SettingsSection =
   | 'memory-model'
   | 'usage-display'
   | 'daily-limit'
+  | 'usage-detail'
 
 type Props = {
   onClose: () => void
@@ -64,6 +65,28 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
   }, [focusSection])
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
+  /** 모델별 사용량 — 1초 polling (모달 열려있는 동안만) */
+  const [usageRows, setUsageRows] = useState<RateLimitStatus[]>([])
+
+  useEffect(() => {
+    let mounted = true
+    const fetchUsage = async () => {
+      const rows = await Promise.all(
+        ALL_MODELS.map(m =>
+          platform.getRateLimit(m).catch(() => null),
+        ),
+      )
+      if (mounted) {
+        setUsageRows(rows.filter((r): r is RateLimitStatus => r !== null))
+      }
+    }
+    void fetchUsage()
+    const id = setInterval(fetchUsage, 1000)
+    return () => {
+      mounted = false
+      clearInterval(id)
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -312,6 +335,63 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
               value={dailyLimit}
               onChange={e => setDailyLimit(Number(e.target.value))}
             />
+          </section>
+
+          {/* === 사용량 상세 (E) — 모델별 분포 + RPM 막대 === */}
+          <section
+            className={`modal-section ${highlightedSection === 'usage-detail' ? 'modal-section-focus' : ''}`}
+            data-section="usage-detail"
+          >
+            <h3>📈 모델별 사용량 (이번 세션)</h3>
+            <p className="modal-hint">
+              앱 시작 후 누적 (앱 재시작 시 초기화). RPM은 최근 60초 윈도우 기준.
+            </p>
+            <table className="usage-table">
+              <thead>
+                <tr>
+                  <th>모델</th>
+                  <th>요청</th>
+                  <th>입력 토큰</th>
+                  <th>출력 토큰</th>
+                  <th>비용 ($)</th>
+                  <th>RPM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usageRows.map(row => {
+                  const info = MODEL_INFO[row.model]
+                  const rpmRatio = row.limit > 0 ? Math.min(1, row.used / row.limit) : 0
+                  const rpmClass = rpmRatio >= 0.85 ? 'rpm-red' : rpmRatio >= 0.6 ? 'rpm-yellow' : 'rpm-green'
+                  return (
+                    <tr key={row.model}>
+                      <td>
+                        <span className="usage-model-label">{info?.label ?? row.model}</span>
+                        <span className={`usage-tier-chip tier-${info?.tier ?? 'free'}`}>
+                          {info?.tier === 'paid' ? '유료' : '무료'}
+                        </span>
+                      </td>
+                      <td className="usage-num">{row.sessionRequests}</td>
+                      <td className="usage-num">{row.sessionInputTokens.toLocaleString()}</td>
+                      <td className="usage-num">{row.sessionOutputTokens.toLocaleString()}</td>
+                      <td className="usage-num">${row.sessionCostUsd.toFixed(4)}</td>
+                      <td>
+                        <div className="rpm-bar-bg">
+                          <div className={`rpm-bar-fill ${rpmClass}`} style={{ width: `${rpmRatio * 100}%` }} />
+                        </div>
+                        <span className="rpm-text">{row.used}/{row.limit}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <div className="usage-total">
+              💰 세션 누적 총 비용:{' '}
+              <strong>
+                ${usageRows.reduce((s, r) => s + r.sessionCostUsd, 0).toFixed(4)}
+              </strong>{' '}
+              / 한도 ${dailyLimit.toFixed(2)}
+            </div>
           </section>
         </div>
 

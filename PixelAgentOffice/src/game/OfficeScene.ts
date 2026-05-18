@@ -584,6 +584,13 @@ export class OfficeScene extends Phaser.Scene {
     if (this.timeLabel) {
       this.timeLabel.setText(this.forcedNight ? `${p.label} (한도 도달)` : p.label)
     }
+
+    // 상태바(F)에도 시간대 전달
+    eventBus.emit('office:time-changed', {
+      timeOfDay: t,
+      label: p.label,
+      forcedNight: this.forcedNight,
+    })
   }
 
   /** Rectangle.fillColor 같은 숫자 색을 tween 으로 부드럽게 보간 */
@@ -801,6 +808,13 @@ export class OfficeScene extends Phaser.Scene {
     this.tokenBoard.costLabel.setText(`$${totalCost.toFixed(2)} / $${limit.toFixed(2)}`)
     this.tokenBoard.progressFill.setSize(this.tokenBoard.barW * ratio, 4)
     this.tokenBoard.progressFill.setFillStyle(c.fill)
+
+    // 상태바(F)에도 동일 데이터 전달 — App.tsx footer가 받음
+    eventBus.emit('office:usage-summary', {
+      totalCost,
+      limit,
+      color,
+    })
 
     // 빨강 점멸 토글 — red 진입 시 시작, red 이탈 시 종료
     if (color === 'red' && !this.tokenBoard.pulseTween) {
