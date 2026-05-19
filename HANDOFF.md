@@ -228,16 +228,67 @@
 
 ### ✅ Day 8 모든 작업 push 완료 — 미커밋 없음
 
-워킹 트리 깨끗. 마지막 push: `d8f3015` (E·F + 세션 정리). 다음 작업 시작 가능 상태.
+워킹 트리 깨끗. 마지막 push: `d02a5a1` (Day 8 종료 정리).
 
-### 🔍 PC 시각 검증 대기 항목
-- B-4 책상 회전 — 캐릭터가 회전 시 옆으로 누운 느낌 어색하면 옵션 B 폴리시 (좌·우 픽셀 스프라이트 신규)
-- M5-c 토큰 보드 위치·크기 — 사장석과 거리·subtitle 충돌
-- B-5 줌 한계 (1.6x) — UI(토큰 보드 등)가 줌인 시 화면 밖으로 잘리는지
-- D 가구 위치 — 자리·캐릭터와 겹치는지
-- F 상태바 폭 — 좁은 창에서 항목 잘리는지
+### 🐛 PC 시각 검증 피드백 — 할일목록 (Day 8 종료 후, 2026-05-18)
 
-→ FEATURES.md 21단계 워크플로우 따라 확인. 이상 시 추후 폴리시 작업.
+사용자가 PC에서 `pnpm dev`로 직접 확인 후 보고한 결함·요청. 자세히는 [`ideas/15-pc-validation-feedback.md`](ideas/15-pc-validation-feedback.md).
+
+#### P0 — 즉시 수정 (오류·핵심 UX)
+
+| # | 영역 | 해야 할 일 | 만질 파일 |
+|---|---|---|---|
+| 1 | 토큰 보드 위치 | 사장석 위 가림 해결 — 벽쪽 액자로 이동 (또는 사장석 yRatio 내림) | `src/game/OfficeScene.ts` (`createTokenBoard`, `BOSS_Y`) |
+| 2 | 빈자리 hint | Phaser text → DOM tooltip (작게, 마우스 옆) | `OfficeScene.ts` (`showEmptySeatHint` 제거) + `App.tsx` + `App.css` |
+| 3 | 회전 + 자리이동 충돌 | 회전된 자리에서 드래그 시 채용 모달 떠버림 — hire zone 비활성화 (이동 모드 중) | `OfficeScene.ts` (`enterMoveMode`에서 빈 자리 hireZone disable) |
+| 4 | 회전 시 말풍선 | chatBubble 좌표 보정 (회전된 캐릭터 머리 위 스크린 좌표) | `OfficeScene.ts` (chatBubble 위치) |
+| 5 | 회전 시 메모 + 책상 디테일 | 책상 너비 축소(40→28), 모니터 캐릭터 정면, 마우스 제거, 메모만 책상 위 | `OfficeScene.ts` (`DESK` 픽셀, `createWorkstation`) |
+| 6 | + 채용 hover 펄스 제거 | 호버 시 노란 펄스 제거 | `App.tsx` (`topbar-btn-pulse` 조건) + `App.css` |
+| 7 | 팀 시스템 변경 | 팀 A만 표시 (B/C 숨김), 빈 팀 자동 숨김, 팀 추가 버튼, 빈 자리는 채용 모드일 때만 보임 | `OfficeScene.ts` (`rebuildWorkstations`, `drawTeamLabels`) + `App.tsx` (팀 추가 버튼) + `seats.ts` (visibleTeams 활용) |
+
+#### P1 — 우선순위 높음
+
+| # | 영역 | 해야 할 일 | 만질 파일 |
+|---|---|---|---|
+| 8 | UI 카메라 분리 | sky/title/구름/태양/시계/토큰보드는 별도 UI 카메라 — 줌 영향 X | `OfficeScene.ts` (`this.cameras.add` + `ignore`) |
+| 9 | 줌 후 panning | 빈 영역 좌클릭 드래그 = 카메라 pan | `OfficeScene.ts` (pointer drag handler) |
+| 10 | 실시간 시계 + 크기 키움 | 시침·분침 시간 반영 (1분 polling), 픽셀 grid 확대 | `OfficeScene.ts` (`CLOCK`, `drawFurniture`) |
+| 11 | 팀 라벨 우클릭 → 이름 수정 | inline edit 또는 prompt | `OfficeScene.ts` (`drawTeamLabels` interactive) + `App.tsx` |
+| 12 | 사무실 박스/벽 구조 | 사무실·창문·벽 영역 박스 구분. 시계·토큰 보드를 벽 액자에 부착 | `OfficeScene.ts` (사무실 외곽 + 벽 영역) |
+| 13 | 채팅 영구화 | 채팅 끄면 messages 보존 (employee별) | `electron/data/store.ts` + `ChatPopup.tsx` |
+| 14 | 채팅 진행 중 상태 영구화 | working 상태 store에 보관, 채팅 닫혀도 캐릭터 표시 유지 | `electron/llm/usage.ts` 또는 별도 + `OfficeScene.ts` |
+| 15 | 말풍선 통일 | `CHAT_BUBBLE` 빈 + 채팅 중 점선 점점점(…) 안에. `✦` 텍스트 폐기 | `OfficeScene.ts` (`CHAT_BUBBLE` 픽셀 + 상태별 표시) |
+
+#### P1 — 새 마일스톤 (캐릭터 v2)
+
+자세히 → [`ideas/16-character-customization-v2.md`](ideas/16-character-customization-v2.md)
+
+| # | 영역 | 해야 할 일 |
+|---|---|---|
+| 16 | 커스텀 캐릭터 추가 | `Template = 'custom'` 그림자 진 문어 + 12색 팔레트 + 실시간 미리보기 |
+| 17 | 무늬 시스템 | solid/speckled/gradient/stripes 4종 |
+| 18 | 모든 캐릭터 자유 편집 | MemoModal에 이름·직업·baseInstructions·이모지 수정 |
+| 19 | 지침 placeholder | "직업 : 이름" 포맷 예시 4종 |
+| 20 | 부적절 표현 가드 | system prompt에 "혐오·성적 표현은 '...' 으로 답변" 추가 |
+
+#### P2 — 새 마일스톤 (상점 + 사무실 확장)
+
+자세히 → [`ideas/17-shop-and-furniture.md`](ideas/17-shop-and-furniture.md)
+
+| # | 영역 | 해야 할 일 |
+|---|---|---|
+| 21 | 창문 키우기 + 풍경 | sky band 확대, 건물/산/도로/차 + 날씨 |
+| 22 | 야간 일하는 직원 탁상 전등 | 야간 + working 상태 시 책상에 작은 전등 + 노란 불빛 |
+| 23 | 상점 모달 | 가구 카탈로그 10종, 잠금 해제 또는 무료 |
+| 24 | 가구 배치 드래그앤드롭 | 충돌 검증, 그리드 스냅 |
+| 25 | 기존 가구 크기 확대 | 화분/책장/자판기/시계 픽셀 키움 |
+
+#### P3+ — 미래
+
+- 캐릭터 커스텀 아이템 (선글라스·노트북·밀짚모자·안경·셔츠·뿔·화려한 의자)
+- 사무실 테마 팩 (모던/클래식/우주/카페/공장)
+- M5-d 성격 시스템 (MBTI 보류 결정 답한 후)
+- Phase 3 백엔드 셋업 (BYOK 모바일 진입)
 
 ---
 
