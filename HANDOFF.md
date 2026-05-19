@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 사실상 완성** (M5-a/b/c + B-3/B-4/B-5 + UI 폴리시 6종 + Platform Adapter Phase 1) |
-| **다음 작업** | M 보류 결정 (MBTI 페르소나) → M5-d 성격 시스템 / Phase 3 백엔드 / 사무실 꾸미기 Lv2 중 택 |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. M5 시그니처 폴리시 카테고리 마무리 — *다음은 M5-d (성격) 또는 Phase 3 (백엔드)* |
-| **검증 상태** | Day 8 모든 코드 *태블릿 작성*. PC 시각 검증 대기 — `FEATURES.md` 21단계 워크플로우 |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + **PC 검증 1차 사이클 반영** (P0 7 + P1 #8~16 + 캐릭터 v2 #17~21 + P2 #22~24·26) |
+| **다음 작업** | P2 #25 가구 배치 드래그앤드롭 / 남은 P1 (채팅 풀 영속화·빈자리 숨김) / M5-d 성격 / Phase 3 백엔드 중 택 |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. UI 카메라 분리·파티션·실시간 시계·캐릭터 v2·상점 카탈로그 다 들어옴 |
+| **검증 상태** | 모든 코드 *태블릿 작성*. PC 시각 재검증 대기 — `FEATURES.md` 21단계 + 새 항목 (풍경·탁상전등·파티션·커스텀 캐릭터·상점 등) |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
