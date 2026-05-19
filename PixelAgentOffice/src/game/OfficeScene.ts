@@ -95,14 +95,14 @@ const MEMO = [
   'OOOOOOO',
 ]
 
-// 💬 채팅 말풍선 — 캐릭터 머리 위, 클릭하면 채팅
-const CHAT_BUBBLE_PALETTE = { O: 0x2a1408, W: 0xfafafa, D: 0x5a5a5a }
+// 💬 채팅 말풍선 — 캐릭터 머리 위, 클릭하면 채팅 (P1 #15: 안쪽 비움, 채팅 중엔 위에 점선 텍스트 오버레이)
+const CHAT_BUBBLE_PALETTE = { O: 0x2a1408, W: 0xfafafa }
 const CHAT_BUBBLE = [
   '.OOOOOOO.',
   'OWWWWWWWO',
-  'OWDOWODWO',
   'OWWWWWWWO',
-  'OWDOWODWO',
+  'OWWWWWWWO',
+  'OWWWWWWWO',
   'OWWWWWWWO',
   '.OOOOOO..',
   '...OO....',
@@ -173,14 +173,15 @@ const VENDING = [
   'OOO...OOO',
 ]
 
-const CLOCK_PALETTE = { O: 0x2a1a04, W: 0xf8f0d0, H: 0x101010, M: 0x4a3a08 }
+// 시계 face (P1 #10) — 시침·분침 픽셀 제거. 시침·분침은 graphics로 동적 그리기 (실시간 시간 반영)
+const CLOCK_PALETTE = { O: 0x2a1a04, W: 0xf8f0d0 }
 const CLOCK = [
   '..OOOOOO..',
   '.OWWWWWWO.',
-  'OWWWWHWWWO',
-  'OWWWHHWWWO',
-  'OWWWHHWWWO',
-  'OWWWWMMMWO',
+  'OWWWWWWWWO',
+  'OWWWWWWWWO',
+  'OWWWWWWWWO',
+  'OWWWWWWWWO',
   'OWWWWWWWWO',
   'OWWWWWWWWO',
   '.OWWWWWWO.',
@@ -257,6 +258,14 @@ export class OfficeScene extends Phaser.Scene {
   /** 사용자 설정 일일 한도 — settings 변경 시 갱신 */
   private dailyLimitUsd = 5
 
+  /** 가구 (drawFurniture에서 만든 정적 월드 객체) — UI camera ignore 대상 */
+  private worldFurniture: Phaser.GameObjects.GameObject[] = []
+
+  /** 사무실 벽 + 사장실 파티션 (P1 #12 옵션 C, 정적). UI 카메라용 (sky·시계와 같이) */
+  private walls: Phaser.GameObjects.GameObject[] = []
+  /** 팀 사이/자리 사이 파티션 (P1 #12 옵션 C, 동적 — rebuild 시 갱신) */
+  private partitions: Phaser.GameObjects.GameObject[] = []
+
   // === 줌·카메라 (B-5) ===
   /** 줌 토글 상태 — false=1.0x, true=1.4x */
   private isZoomedIn = false
@@ -265,6 +274,31 @@ export class OfficeScene extends Phaser.Scene {
   /** 줌 범위 클램프 */
   private readonly ZOOM_MIN = 0.7
   private readonly ZOOM_MAX = 1.6
+
+  // === UI 카메라 분리 (P1 #8) — 줌 시 sky/title/시계/토큰보드는 영향 X ===
+  /** UI 전용 카메라 — zoom 1 고정, main 카메라와 분리 */
+  private uiCamera?: Phaser.Cameras.Scene2D.Camera
+  /** UI 정적 객체 보관 — title/subtitle/시계 등 (rebuildWorkstations와 독립) */
+  private titleText?: Phaser.GameObjects.Text
+  private subtitleText?: Phaser.GameObjects.Text
+  private clockFace?: Phaser.GameObjects.Container
+  /** 시계 시침·분침 (실시간) — P1 #10 */
+  private clockHourHand?: Phaser.GameObjects.Graphics
+  private clockMinuteHand?: Phaser.GameObjects.Graphics
+  private clockTimer?: Phaser.Time.TimerEvent
+  /** 사무실 바닥 grid (월드 객체) — UI camera에서 ignore */
+  private floorGrid?: Phaser.GameObjects.Graphics
+
+  // === 카메라 panning (P1 #9) ===
+  private isPanning = false
+  private panStartScreen = { x: 0, y: 0 }
+  private panStartScroll = { x: 0, y: 0 }
+
+  // === 팀 라벨 우클릭 → 이름 수정 (P1 #11) ===
+  /** 현재 활성 팀 — drawTeamLabels 외부 호출 가능하게 멤버로 보관 */
+  private activeTeams = new Set<'A' | 'B' | 'C'>(['A'])
+  /** 설정에서 받은 팀 표시 이름 — 기본 "팀 A/B/C" */
+  private teamDisplayNames: { A: string; B: string; C: string } = { A: '팀 A', B: '팀 B', C: '팀 C' }
 
   // === 빈 자리 채용 hint (B → P0 #2 DOM tooltip) ===
   /** 빈 자리 zone 모음 — 이동 모드 진입 시 비활성화 (P0 #3 충돌 회피) */
@@ -305,11 +339,18 @@ export class OfficeScene extends Phaser.Scene {
     this.enterMoveMode(employeeId)
   }
 
-  /** 사용자 설정 동기화 (dailyLimitUsd 등) — 토큰 보드 신호등 임계 기준 */
+  /** 사용자 설정 동기화 (dailyLimitUsd, teamNames 등) — 토큰 보드 임계 + 팀 라벨 갱신 */
   private setSettingsHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const settings = payload as Settings
     this.dailyLimitUsd = settings.dailyLimitUsd
+    if (settings.teamNames) {
+      this.teamDisplayNames = settings.teamNames
+      // 활성 팀 라벨 즉시 다시 그리기 (P1 #11)
+      this.drawTeamLabels()
+      // 새 라벨도 uiCamera에서 ignore
+      this.ignoreWorldOnUiCamera(this.teamLabels)
+    }
     void this.refreshTokenBoard()
   }
 
@@ -342,7 +383,12 @@ export class OfficeScene extends Phaser.Scene {
     // Background
     this.cameras.main.setBackgroundColor('#e8dfd0')
 
-    // Floor grid
+    // UI 카메라 (P1 #8) — 줌 영향 X. main 카메라와 동일 viewport, zoom 1 고정.
+    this.uiCamera = this.cameras.add(0, 0, width, height)
+    this.uiCamera.setZoom(1)
+    this.uiCamera.setScroll(0, 0)
+
+    // Floor grid (월드 객체 — uiCamera에서 ignore)
     const grid = this.add.graphics()
     grid.lineStyle(1, 0x6e5a3c, 0.08)
     for (let x = 0; x < width; x += 28) {
@@ -354,6 +400,7 @@ export class OfficeScene extends Phaser.Scene {
       grid.lineTo(width, y)
     }
     grid.strokePath()
+    this.floorGrid = grid
 
     // Sky band — 색은 시간대 시스템이 결정 (applyTimeOfDay)
     this.skyBand = this.add.rectangle(width / 2, 16, width, 32, 0x87ceeb)
@@ -412,8 +459,8 @@ export class OfficeScene extends Phaser.Scene {
       duration: 1500,
     })
 
-    // Title
-    this.add
+    // Title (UI camera용 — 멤버 보관)
+    this.titleText = this.add
       .text(width / 2, 60, 'PixelAgentOffice', {
         fontFamily: '"Courier New", monospace',
         fontSize: '20px',
@@ -422,7 +469,7 @@ export class OfficeScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     // 토큰 보드 자리 차지 (y=78 영역) — subtitle은 그 아래로
-    this.add
+    this.subtitleText = this.add
       .text(width / 2, 110, '💬 말풍선 클릭 → 채팅 · 📝 메모지 클릭 → 설정', {
         fontFamily: '"Courier New", monospace',
         fontSize: '12px',
@@ -445,6 +492,9 @@ export class OfficeScene extends Phaser.Scene {
     // 시간대 초기 적용 (현재 시각 기반)
     this.applyTimeOfDay(this.resolveTimeOfDay(), false)
     this.scheduleNextTimeRefresh()
+
+    // 사무실 벽 + 사장실 파티션 (P1 #12 옵션 C, 정적)
+    this.drawWallsAndPartitions()
 
     // 가구 (꾸미기 Lv1) — 사무실 분위기 살리기 (화분/책장/자판기/시계)
     this.drawFurniture()
@@ -502,6 +552,36 @@ export class OfficeScene extends Phaser.Scene {
       if (this.movingEmployeeId) this.exitMoveMode(false)
     })
 
+    // 카메라 panning (P1 #9) — 빈 영역 좌클릭 드래그 시 main camera scroll 이동
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver: unknown[]) => {
+      if (this.isShutdown) return
+      // 좌클릭만, hit object 없을 때만 (객체 위면 자리이동 드래그 등에 양보)
+      const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+      if (nativeButton !== 0) return
+      if (currentlyOver.length > 0) return
+      if (this.movingEmployeeId) return
+      this.isPanning = true
+      this.panStartScreen = { x: pointer.x, y: pointer.y }
+      this.panStartScroll = { x: this.cameras.main.scrollX, y: this.cameras.main.scrollY }
+      this.input.setDefaultCursor('grabbing')
+    })
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this.isPanning || this.isShutdown) return
+      const zoom = this.cameras.main.zoom
+      const dx = (pointer.x - this.panStartScreen.x) / zoom
+      const dy = (pointer.y - this.panStartScreen.y) / zoom
+      this.cameras.main.setScroll(this.panStartScroll.x - dx, this.panStartScroll.y - dy)
+    })
+    this.input.on('pointerup', () => {
+      if (this.isPanning) {
+        this.isPanning = false
+        this.input.setDefaultCursor('default')
+      }
+    })
+
+    // UI 객체들을 main 카메라에서 제외 (P1 #8) — 줌 영향 X
+    this.applyUiCameraSeparation()
+
     // Scene shutdown 시 listener 자동 제거 (HMR/재마운트 안전)
     this.events.once('shutdown', () => {
       this.isShutdown = true
@@ -514,6 +594,50 @@ export class OfficeScene extends Phaser.Scene {
 
     // Signal ready
     eventBus.emit('office:ready')
+  }
+
+  /** UI 객체는 uiCamera에서만 보이게, 월드 객체는 main에서만 보이게 (P1 #8).
+   *  create() 끝에 1회 호출. rebuildWorkstations / drawFurniture는 동적이라 그쪽에서 별도 ignore. */
+  private applyUiCameraSeparation() {
+    if (!this.uiCamera) return
+    // UI 객체 — main 카메라에서 제외 (zoom 영향 X)
+    const uiObjects: Phaser.GameObjects.GameObject[] = []
+    if (this.skyBand) uiObjects.push(this.skyBand)
+    if (this.skyDivider) uiObjects.push(this.skyDivider)
+    uiObjects.push(...this.stars, ...this.clouds)
+    if (this.celestialBody) uiObjects.push(this.celestialBody)
+    if (this.titleText) uiObjects.push(this.titleText)
+    if (this.subtitleText) uiObjects.push(this.subtitleText)
+    if (this.timeLabel) uiObjects.push(this.timeLabel)
+    if (this.clockFace) uiObjects.push(this.clockFace)
+    if (this.clockHourHand) uiObjects.push(this.clockHourHand)
+    if (this.clockMinuteHand) uiObjects.push(this.clockMinuteHand)
+    if (this.tokenBoard) {
+      uiObjects.push(
+        this.tokenBoard.frame,
+        this.tokenBoard.bezel,
+        this.tokenBoard.ledScreen,
+        this.tokenBoard.costLabel,
+        this.tokenBoard.progressBg,
+        this.tokenBoard.progressFill,
+      )
+    }
+    uiObjects.push(...this.walls)
+    this.cameras.main.ignore(uiObjects)
+
+    // 월드 객체 — uiCamera에서 제외
+    const worldObjects: Phaser.GameObjects.GameObject[] = []
+    if (this.floorGrid) worldObjects.push(this.floorGrid)
+    worldObjects.push(...this.worldFurniture)
+    worldObjects.push(...this.teamLabels)
+    for (const ws of this.workstations.values()) worldObjects.push(...ws.allObjects)
+    this.uiCamera.ignore(worldObjects)
+  }
+
+  /** 동적으로 추가된 월드 객체를 uiCamera에서 추가로 ignore — rebuildWorkstations 끝에 호출 */
+  private ignoreWorldOnUiCamera(objects: Phaser.GameObjects.GameObject[]) {
+    if (!this.uiCamera || objects.length === 0) return
+    this.uiCamera.ignore(objects)
   }
 
   private cleanupListeners() {
@@ -529,6 +653,8 @@ export class OfficeScene extends Phaser.Scene {
     this.tokenBoardTimer = undefined
     this.tokenBoard?.pulseTween?.stop()
     this.zoomTween?.stop()
+    this.clockTimer?.remove(false)
+    this.clockTimer = undefined
   }
 
   // ============================================================
@@ -631,31 +757,155 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   // ============================================================
+  // 사무실 벽 + 파티션 (P1 #12 옵션 C — 풀 파티션)
+  // ============================================================
+
+  /** 위쪽 벽 영역 + 사장실 격리 파티션 — 정적, create 시 1회. */
+  private drawWallsAndPartitions() {
+    const width = this.scale.width
+    const height = this.scale.height
+
+    // 위쪽 벽 영역 (y=60~120) — 베이지 배경 + 아래 갈색 경계
+    const wallBg = this.add.rectangle(width / 2, 90, width, 60, 0xd8c890)
+    wallBg.setDepth(0.5) // sky(0) 위, 자리(다양) 아래
+    const wallBorder = this.add.rectangle(width / 2, 120, width, 2, 0x8a6a30)
+    wallBorder.setDepth(0.6)
+    this.walls.push(wallBg, wallBorder)
+
+    // 사장실 격리 — 사장석 좌우 큰 파티션 (사장석 yRatio 0.30)
+    const bossDeskY = 0.30 * height
+    const partCenterY = bossDeskY + 10
+    const partHeight = 100
+    const bossLeftX = 0.5 * width - 56
+    const bossRightX = 0.5 * width + 56
+    const bossLeftPart = this.add.rectangle(bossLeftX, partCenterY, 6, partHeight, 0xc8b878)
+    bossLeftPart.setStrokeStyle(1, 0x6a5a30)
+    bossLeftPart.setDepth(7)
+    const bossRightPart = this.add.rectangle(bossRightX, partCenterY, 6, partHeight, 0xc8b878)
+    bossRightPart.setStrokeStyle(1, 0x6a5a30)
+    bossRightPart.setDepth(7)
+    // 사장실 윗쪽 가로 파티션 (벽 아래·사장석 위)
+    const bossTopY = bossDeskY - 50
+    const bossTopPart = this.add.rectangle(0.5 * width, bossTopY, 120, 5, 0xc8b878)
+    bossTopPart.setStrokeStyle(1, 0x6a5a30)
+    bossTopPart.setDepth(7)
+    this.walls.push(bossLeftPart, bossRightPart, bossTopPart)
+  }
+
+  /** 활성 팀 사이 + 같은 팀 내 자리 사이 파티션 (rebuild 시 호출, P1 #12). */
+  private drawTeamPartitions() {
+    // 기존 파티션 정리
+    for (const p of this.partitions) p.destroy()
+    this.partitions = []
+
+    const width = this.scale.width
+    const height = this.scale.height
+
+    // 팀 사이 파티션 — 활성 팀 인접 사이만
+    const teamXs: Record<'A' | 'B' | 'C', number> = { A: 0.20, B: 0.50, C: 0.80 }
+    const teamsOrdered: ('A' | 'B' | 'C')[] = ['A', 'B', 'C']
+    const activeOrdered = teamsOrdered.filter(t => this.activeTeams.has(t))
+    for (let i = 0; i < activeOrdered.length - 1; i++) {
+      const t1 = activeOrdered[i]
+      const t2 = activeOrdered[i + 1]
+      const x = ((teamXs[t1] + teamXs[t2]) / 2) * width
+      const y = 0.65 * height
+      const part = this.add.rectangle(x, y, 8, 220, 0xb8a868)
+      part.setStrokeStyle(1, 0x6a5a30)
+      part.setDepth(6)
+      this.partitions.push(part)
+    }
+
+    // 같은 팀 내 자리 사이 파티션 — member 좌·우 분리 (leader 아래쪽 세로 파티션)
+    for (const team of activeOrdered) {
+      const x = teamXs[team] * width
+      // leader y=0.45, member y=0.60·0.75. leader 책상 아래(deskY+30)부터 member 책상 아래(0.75deskY+30)까지
+      const yTop = 0.55 * height
+      const yBot = 0.80 * height
+      const partHeight = yBot - yTop
+      const partCenterY = (yTop + yBot) / 2
+      const part = this.add.rectangle(x, partCenterY, 4, partHeight, 0xc8b878)
+      part.setStrokeStyle(1, 0x6a5a30)
+      part.setDepth(5) // 책상·캐릭터보다 아래 (depth 8·10)
+      this.partitions.push(part)
+    }
+  }
+
+  // ============================================================
   // 가구 (꾸미기 Lv1) — 화분·책장·자판기·시계 배치
   // ============================================================
 
-  /** 사무실 분위기 살리는 정적 가구들. 인터랙션 없음, 시각 디테일만. */
+  /** 사무실 분위기 살리는 정적 가구들. 인터랙션 없음, 시각 디테일만.
+   *  화분/책장/자판기 = 월드 객체. 시계 = UI 객체 (벽에 액자처럼 — P1 #8 UI 카메라). */
   private drawFurniture() {
     const width = this.scale.width
     const height = this.scale.height
 
-    // 화분 — 좌하 + 우하 코너
+    // 화분 — 좌하 + 우하 코너 (월드)
     const plant1 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.06 * width, 0.85 * height, 2)
     plant1.setDepth(3)
     const plant2 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.94 * width, 0.85 * height, 2)
     plant2.setDepth(3)
 
-    // 책장 — 좌측 벽 중간
+    // 책장 — 좌측 벽 중간 (월드)
     const bookshelf = drawPixelGrid(this, BOOKSHELF, BOOKSHELF_PALETTE, 0.04 * width, 0.55 * height, 2)
     bookshelf.setDepth(2)
 
-    // 자판기 — 우측 벽 중간
+    // 자판기 — 우측 벽 중간 (월드)
     const vending = drawPixelGrid(this, VENDING, VENDING_PALETTE, 0.96 * width, 0.55 * height, 2)
     vending.setDepth(2)
 
-    // 시계 — 좌측 벽 상단 (토큰 보드와 분리)
-    const clock = drawPixelGrid(this, CLOCK, CLOCK_PALETTE, 0.20 * width, 0.10 * height, 2)
-    clock.setDepth(4)
+    this.worldFurniture = [plant1, plant2, bookshelf, vending]
+
+    // 시계 — 좌측 벽 상단 (UI). 크기 키움 (pixelSize 2→3, P1 #10) + 시침·분침 graphics
+    const clockX = 0.18 * width
+    const clockY = 0.13 * height
+    this.clockFace = drawPixelGrid(this, CLOCK, CLOCK_PALETTE, clockX, clockY, 3)
+    this.clockFace.setDepth(4)
+
+    // 시침·분침 — 실시간 (P1 #10)
+    this.clockHourHand = this.add.graphics()
+    this.clockHourHand.setPosition(clockX, clockY)
+    this.clockHourHand.setDepth(5)
+    this.clockMinuteHand = this.add.graphics()
+    this.clockMinuteHand.setPosition(clockX, clockY)
+    this.clockMinuteHand.setDepth(5)
+    this.updateClockHands()
+    this.clockTimer = this.time.addEvent({
+      delay: 60_000,
+      callback: () => this.updateClockHands(),
+      loop: true,
+    })
+  }
+
+  /** 시침·분침 위치 갱신 — PC 시간 기준 (P1 #10) */
+  private updateClockHands() {
+    if (!this.clockHourHand || !this.clockMinuteHand) return
+    const now = new Date()
+    const hours = now.getHours() % 12
+    const minutes = now.getMinutes()
+    // 분침: 360° = 60분 → 6°/분. -90° offset (12시 방향 = 위)
+    const minuteAngle = ((minutes * 6) - 90) * Math.PI / 180
+    // 시침: 360° = 12시간 → 30°/시간 + 분 보정 (0.5°/분)
+    const hourAngle = ((hours * 30) + (minutes * 0.5) - 90) * Math.PI / 180
+
+    // pixelSize 3 + grid 10x10 → 반지름 약 12
+    const minuteLen = 11
+    const hourLen = 7
+
+    this.clockHourHand.clear()
+    this.clockHourHand.lineStyle(2, 0x101010, 1)
+    this.clockHourHand.beginPath()
+    this.clockHourHand.moveTo(0, 0)
+    this.clockHourHand.lineTo(Math.cos(hourAngle) * hourLen, Math.sin(hourAngle) * hourLen)
+    this.clockHourHand.strokePath()
+
+    this.clockMinuteHand.clear()
+    this.clockMinuteHand.lineStyle(1, 0x4a3a08, 1)
+    this.clockMinuteHand.beginPath()
+    this.clockMinuteHand.moveTo(0, 0)
+    this.clockMinuteHand.lineTo(Math.cos(minuteAngle) * minuteLen, Math.sin(minuteAngle) * minuteLen)
+    this.clockMinuteHand.strokePath()
   }
 
   // 빈 자리 hover hint는 DOM tooltip으로 전환됨 (P0 #2). Phaser side는 hireZone에서 직접 emit.
@@ -830,14 +1080,14 @@ export class OfficeScene extends Phaser.Scene {
     const height = this.scale.height
 
     // 활성 팀만 표시 (P0 #7) — 팀원 1명 이상 있는 팀만. 초기엔 팀 A만 보임
-    const activeTeams = new Set<'A' | 'B' | 'C'>(['A']) // 팀 A는 기본 항상 활성
+    this.activeTeams = new Set<'A' | 'B' | 'C'>(['A']) // 팀 A는 기본 항상 활성
     for (const emp of employees) {
       if (!emp.seatId) continue
       const meta = ALL_SEATS.find(s => s.id === emp.seatId)
-      if (meta?.team) activeTeams.add(meta.team)
+      if (meta?.team) this.activeTeams.add(meta.team)
     }
 
-    const visibleSeats = ALL_SEATS.filter(s => s.id === 'boss' || (s.team && activeTeams.has(s.team)))
+    const visibleSeats = ALL_SEATS.filter(s => s.id === 'boss' || (s.team && this.activeTeams.has(s.team)))
     for (const seat of visibleSeats) {
       const x = seat.position.xRatio * width
       const y = seat.position.yRatio * height
@@ -846,12 +1096,22 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     // 활성 팀 라벨만 표시
-    this.drawTeamLabels(activeTeams)
+    this.drawTeamLabels()
+
+    // 팀 사이 + 같은 팀 내 자리 사이 파티션 (P1 #12 옵션 C)
+    this.drawTeamPartitions()
+
+    // 새 월드 객체들을 uiCamera에서 ignore (P1 #8)
+    const newWorld: Phaser.GameObjects.GameObject[] = []
+    for (const ws of this.workstations.values()) newWorld.push(...ws.allObjects)
+    newWorld.push(...this.teamLabels)
+    newWorld.push(...this.partitions)
+    this.ignoreWorldOnUiCamera(newWorld)
   }
 
-  /** 활성 팀 라벨만 그리기 (P0 #7) */
+  /** 활성 팀 라벨만 그리기 (P0 #7). 우클릭 시 이름 수정 (P1 #11) */
   private teamLabels: Phaser.GameObjects.Text[] = []
-  private drawTeamLabels(activeTeams: Set<'A' | 'B' | 'C'>) {
+  private drawTeamLabels() {
     // 기존 라벨 제거
     for (const lbl of this.teamLabels) lbl.destroy()
     this.teamLabels = []
@@ -861,9 +1121,10 @@ export class OfficeScene extends Phaser.Scene {
     const labelY = 0.85 * height
     const teamX: Record<string, number> = { A: 0.20, B: 0.50, C: 0.80 }
     for (const team of ['A', 'B', 'C'] as const) {
-      if (!activeTeams.has(team)) continue
+      if (!this.activeTeams.has(team)) continue
+      const displayName = this.teamDisplayNames[team]
       const t = this.add
-        .text(teamX[team] * width, labelY, `— 팀 ${team} —`, {
+        .text(teamX[team] * width, labelY, `— ${displayName} —`, {
           fontFamily: '"Courier New", monospace',
           fontSize: '13px',
           color: '#5a3a0f',
@@ -871,6 +1132,15 @@ export class OfficeScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(20)
+      // 우클릭 → React에 이름 수정 요청 (P1 #11)
+      t.setInteractive()
+      t.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (this.isShutdown) return
+        const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+        const isRightClick = nativeButton === 2 || pointer.rightButtonReleased()
+        if (!isRightClick) return
+        eventBus.emit('team:rename-request', { team, currentName: displayName })
+      })
       this.teamLabels.push(t)
     }
   }
@@ -1092,26 +1362,25 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Working bubble — chatBubble과 같은 위치 (P0 #4)
+    // Working bubble (P1 #15) — 점선 점점점(…)을 말풍선 안에 오버레이.
+    //   평소엔 chatBubble(빈 말풍선) / 채팅 중엔 chatBubble 위에 thinkingDots 표시 → 시각 일관성
     const workingBubble = this.add
-      .text(chatBubbleX, chatBubbleY, '  ✦  ', {
+      .text(chatBubbleX, chatBubbleY - 4, '…', {
         fontFamily: '"Courier New", monospace',
         fontSize: '14px',
-        color: '#d97500',
-        backgroundColor: '#ffffff',
+        color: '#5a3a0f',
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
       .setDepth(20)
       .setVisible(false)
-    workingBubble.setPadding({ left: 4, right: 4, top: 2, bottom: 2 })
+    // 점선 깜빡임 — 생각하는 느낌
     this.tweens.add({
       targets: workingBubble,
-      alpha: { from: 0.35, to: 1 },
-      scale: { from: 0.9, to: 1.08 },
+      alpha: { from: 0.4, to: 1 },
       yoyo: true,
       repeat: -1,
-      duration: 700,
+      duration: 600,
     })
     allObjects.push(workingBubble)
 

@@ -7,6 +7,7 @@ import {
   type Template,
   type PromotionMode,
   type SeatId,
+  type TeamId,
   TEMPLATES,
   MODEL_INFO,
   canBeTeamLeader,
@@ -70,19 +71,62 @@ export function HireModal({
     return s
   }, [existingEmployees])
 
+  // 활성 팀 계산 (P1 #16) — 직원 있는 팀 + 기본 A
+  const activeTeams = useMemo(() => {
+    const teams = new Set<TeamId>(['A'])
+    for (const e of existingEmployees) {
+      if (!e.seatId || e.seatId === 'boss') continue
+      const parts = e.seatId.split(':')
+      const team = parts[1] as TeamId | undefined
+      if (team) teams.add(team)
+    }
+    return teams
+  }, [existingEmployees])
+
+  // 사용자가 선택 가능한 팀 = 활성 팀 + 다음 새 팀 1개 (최대 3)
+  const teamOptions = useMemo(() => {
+    const opts: { team: TeamId; isNew: boolean }[] = []
+    for (const t of ['A', 'B', 'C'] as const) {
+      if (activeTeams.has(t)) opts.push({ team: t, isNew: false })
+      else {
+        opts.push({ team: t, isNew: true })
+        break // 새 팀은 한 번에 하나만 시작 가능
+      }
+    }
+    return opts
+  }, [activeTeams])
+
+  const [selectedTeam, setSelectedTeam] = useState<TeamId>('A')
+
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
     setName(TEMPLATES[t].defaultName)
     setRole(TEMPLATES[t].defaultRole)
   }
 
-  /** 자리 자동 결정 — 과장 이상이면 빈 리더 자리 먼저, 아니면 빈 팀원 자리.
-   *  사용자는 채용 후 우클릭 → 자리 이동 (드래그앤드롭)으로 자유 배치 가능 */
+  /** 자리 자동 결정 — 선택한 팀 안에서 과장 이상이면 빈 리더 자리 먼저, 아니면 빈 팀원 자리.
+   *  사용자는 채용 후 우클릭 → 자리 이동 (드래그앤드롭)으로 자유 배치 가능. (P1 #16 — 팀 선택 반영) */
   const resolveSeatId = (): { ok: true; seatId: SeatId } | { ok: false; reason: string } => {
     const leaderOk = canBeTeamLeader(rank)
-    const seat = leaderOk
-      ? (findNextEmptyLeaderSeat(occupied) ?? findNextEmptyMemberSeat(occupied))
-      : findNextEmptyMemberSeat(occupied)
+    const findInTeam = (team: TeamId): SeatId | null => {
+      if (leaderOk) {
+        const leaderId = `leader:${team}` as SeatId
+        if (!occupied.has(leaderId)) return leaderId
+      }
+      for (let i = 0; i < 4; i++) {
+        const memberId = `member:${team}:${i}` as SeatId
+        if (!occupied.has(memberId)) return memberId
+      }
+      return null
+    }
+    // 1차: 선택한 팀에서 찾기
+    let seat = findInTeam(selectedTeam)
+    // 2차 fallback: 다른 팀
+    if (!seat) {
+      seat = leaderOk
+        ? (findNextEmptyLeaderSeat(occupied) ?? findNextEmptyMemberSeat(occupied))
+        : findNextEmptyMemberSeat(occupied)
+    }
     if (!seat) return { ok: false, reason: '빈 자리가 없어요. 최대 채용 도달.' }
     return { ok: true, seatId: seat }
   }
@@ -169,6 +213,33 @@ export function HireModal({
                   </label>
                 )
               })}
+            </div>
+          </section>
+
+          {/* 팀 배정 (P1 #16) */}
+          <section className="modal-section">
+            <h3>👥 팀 배정</h3>
+            <p className="modal-hint">
+              팀에 첫 직원이 배정되면 사무실에 그 팀 영역이 표시됩니다. 최대 3팀.
+            </p>
+            <div className="model-options">
+              {teamOptions.map(({ team, isNew }) => (
+                <label
+                  key={team}
+                  className={`model-option ${selectedTeam === team ? 'selected' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="team"
+                    checked={selectedTeam === team}
+                    onChange={() => setSelectedTeam(team)}
+                  />
+                  <span className="model-label">팀 {team}</span>
+                  <span className="model-desc">
+                    {isNew ? '🆕 새 팀 시작' : `현재 활성 팀`}
+                  </span>
+                </label>
+              ))}
             </div>
           </section>
 

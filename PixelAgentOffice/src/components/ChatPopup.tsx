@@ -98,25 +98,37 @@ export function ChatPopup() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const msgsEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  /** 채팅 영구화 (P1 #13) — employee별 메시지 보관. 같은 직원 채팅 다시 열면 복원. */
+  const messagesByEmployeeRef = useRef<Record<string, Message[]>>({})
 
   // 채팅 열기 이벤트
   useEffect(() => {
     const onOpen = (payload: unknown) => {
       const e = payload as Employee
       setEmployee(e)
-      setMessages([
-        {
-          id: 'sys-1',
-          role: 'system',
-          text: `${e.emoji}  ${e.name} (${e.role})와의 대화가 시작되었습니다.`,
-          severity: 'info',
-        },
-      ])
+      // 같은 직원 채팅 이력 복원 (P1 #13)
+      const existing = messagesByEmployeeRef.current[e.id]
+      if (existing && existing.length > 0) {
+        setMessages(existing)
+      } else {
+        const initial: Message[] = [
+          {
+            id: 'sys-1',
+            role: 'system',
+            text: `${e.emoji}  ${e.name} (${e.role})와의 대화가 시작되었습니다.`,
+            severity: 'info',
+          },
+        ]
+        setMessages(initial)
+        messagesByEmployeeRef.current[e.id] = initial
+      }
       setInput('')
     }
     const onForceClose = (payload: unknown) => {
       const { agentId } = payload as { agentId: string }
       setEmployee(prev => (prev?.id === agentId ? null : prev))
+      // 해고 시 그 직원의 이력도 삭제
+      delete messagesByEmployeeRef.current[agentId]
     }
     eventBus.on('chat:open', onOpen)
     eventBus.on('chat:force-close', onForceClose)
@@ -125,6 +137,13 @@ export function ChatPopup() {
       eventBus.off('chat:force-close', onForceClose)
     }
   }, [])
+
+  // messages가 변경될 때마다 ref에도 반영 (P1 #13)
+  useEffect(() => {
+    if (employee) {
+      messagesByEmployeeRef.current[employee.id] = messages
+    }
+  }, [messages, employee])
 
   // 설정 — 채팅창 마운트 시 한 번 로드 + 설정 변경 이벤트 구독
   useEffect(() => {
@@ -286,6 +305,10 @@ export function ChatPopup() {
           text: result.response.text,
         }
         setMessages(prev => [...prev, reply])
+        // 채팅창 닫혀도 응답 보존 (P1 #13·#14) — closure empId로 ref 직접 갱신
+        const empId = employee.id
+        const prevPersisted = messagesByEmployeeRef.current[empId] ?? []
+        messagesByEmployeeRef.current[empId] = [...prevPersisted, reply]
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly

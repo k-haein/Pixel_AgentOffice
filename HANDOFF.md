@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-18** (Day 8 종료 + PC 검증 P0 7개 수정 적용)
+> 최종 갱신: **2026-05-18** (Day 8 종료 + P0 7개 + P1 #8~16 적용)
 
 ---
 
@@ -248,19 +248,25 @@
 
 → PC에서 `git pull` → `pnpm dev` → FEATURES.md 워크플로우로 1차 검증. 어색하면 P1 폴리시.
 
-#### P1 — 우선순위 높음 (다음 단계)
+#### P1 #8~16 — 완료 / PC 시각 재검증 대기 (커밋 진행 중)
 
-| # | 영역 | 해야 할 일 | 만질 파일 |
+| # | 영역 | 변경 내용 | 상태 |
 |---|---|---|---|
-| 8 | UI 카메라 분리 | sky/title/구름/태양/시계/토큰보드는 별도 UI 카메라 — 줌 영향 X | `OfficeScene.ts` (`this.cameras.add` + `ignore`) |
-| 9 | 줌 후 panning | 빈 영역 좌클릭 드래그 = 카메라 pan | `OfficeScene.ts` (pointer drag handler) |
-| 10 | 실시간 시계 + 크기 키움 | 시침·분침 시간 반영 (1분 polling), 픽셀 grid 확대 | `OfficeScene.ts` (`CLOCK`, `drawFurniture`) |
-| 11 | 팀 라벨 우클릭 → 이름 수정 | inline edit 또는 prompt | `OfficeScene.ts` (`drawTeamLabels` interactive) + `App.tsx` |
-| 12 | 사무실 박스/벽 구조 | 사무실·창문·벽 영역 박스 구분. 시계·토큰 보드를 벽 액자에 부착 | `OfficeScene.ts` (사무실 외곽 + 벽 영역) |
-| 13 | 채팅 영구화 | 채팅 끄면 messages 보존 (employee별) | `electron/data/store.ts` + `ChatPopup.tsx` |
-| 14 | 채팅 진행 중 상태 영구화 | working 상태 store에 보관, 채팅 닫혀도 캐릭터 표시 유지 | `electron/llm/usage.ts` 또는 별도 + `OfficeScene.ts` |
-| 15 | 말풍선 통일 | `CHAT_BUBBLE` 빈 + 채팅 중 점선 점점점(…) 안에. `✦` 텍스트 폐기 | `OfficeScene.ts` (`CHAT_BUBBLE` 픽셀 + 상태별 표시) |
-| 16 | 팀 추가 버튼 (팀 시스템 2차) | 사용자가 팀 B/C 추가 가능 (최대 3). 빈 자리는 채용 모드일 때만 표시 | `App.tsx` (topbar 또는 floating 버튼) + `OfficeScene.ts` |
+| 8 | UI 카메라 분리 | `uiCamera` 추가 + main/ui ignore. 줌해도 UI 영향 X | ✅ 코드 / ⏳ 시각 |
+| 9 | 줌 후 panning | 빈 영역 좌클릭 드래그 = main 카메라 scroll. 객체 위 충돌 회피 | ✅ 코드 / ⏳ 시각 |
+| 10 | 실시간 시계 + 크기 | CLOCK_FACE + pixelSize 3 + Graphics 시침·분침 + 60초 polling | ✅ 코드 / ⏳ 시각 |
+| 11 | 팀 라벨 우클릭 이름 수정 | `team:rename-request` emit → React prompt → `platform.updateSettings({teamNames})` → scene 자동 | ✅ 코드 / ⏳ 시각 |
+| 12 | 사무실 파티션 (옵션 C 풀) | 위쪽 벽 영역 + 사장석 좌우·위 파티션 + 팀 사이 파티션 + 같은 팀 내 자리 사이 세로 파티션 | ✅ 코드 / ⏳ 시각 |
+| 13 | 채팅 영구화 (1차) | ChatPopup에 `messagesByEmployeeRef` — employee별 messages 메모리 보관. 채팅창 닫고 다시 열면 이력 복원 | ✅ 코드 / ⏳ 시각 |
+| 14 | 채팅 진행 중 상태 영구화 | LLM 응답 도착 시 closure empId로 ref 직접 갱신 (unmount 후 도착해도 보존). working 표시는 OfficeScene이 자체 메모리 유지 | ✅ 코드 / ⏳ 시각 |
+| 15 | 말풍선 통일 | workingBubble `✦` → `…` + 배경 제거. CHAT_BUBBLE 내부 점 제거 (빈 말풍선) | ✅ 코드 / ⏳ 시각 |
+| 16 | 팀 선택 채용 | HireModal에 "👥 팀 배정" 섹션. 활성 팀 + 새 팀 1개 옵션. `resolveSeatId` selectedTeam 우선 | ✅ 코드 / ⏳ 시각 |
+
+→ PC에서 `git pull` → `pnpm dev` → FEATURES.md 워크플로우로 2차 검증. 어색하면 폴리시.
+
+#### 남은 P1 (#16 후) — 미반영
+- 채팅 영구화 풀 스펙 (앱 재시작 후도 유지 — `store.ts` 영속화)
+- 빈 자리 평소 숨김 (채용 모달 열려있을 때만 표시)
 
 #### P1 — 새 마일스톤 (캐릭터 v2)
 

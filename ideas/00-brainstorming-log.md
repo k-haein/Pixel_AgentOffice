@@ -1674,6 +1674,53 @@ Claude가 "한 번에 커밋하게" 같은 사용자 의도를 받은 후, *Stop
 
 **의의**: 사용자 피드백 → 정확한 코드 위치 매핑 → 일괄 수정. 시각 결함은 PC에서 검증 후 추가 폴리시.
 
+## 89. 🛠 P1 #8~16 일괄 수정 — UI 카메라·시계·파티션·채팅 영구화
+
+**사용자**: "P1에서 8~16까지 차례대로 진행하고 12는 어떻게할지 보고해"
+
+**Claude 진행** — #8~11 작성 → #12 옵션 보고 → 사용자 "C로 하자" (풀 파티션) → #12~16 작성.
+
+### #8~11 (UI 카메라·panning·실시간 시계·팀 라벨 이름 수정)
+- `uiCamera` 신규 추가 (`this.cameras.add`). main 카메라에서 sky/구름/태양/title/시계/토큰보드 ignore. uiCamera에서 월드 객체 ignore. 줌해도 UI 영향 X
+- 빈 영역 좌클릭 드래그 = main 카메라 scroll 이동 (panning). currentlyOver.length === 0 체크로 객체 위 충돌 회피. 커서 grabbing
+- CLOCK 픽셀에서 H/M 제거 → CLOCK_FACE만. pixelSize 2→3. Graphics로 시침·분침 그리기 + 60초 polling 실시간 (`new Date()`)
+- 팀 라벨 setInteractive() + 우클릭 → `team:rename-request` emit. React가 `window.prompt` → `platform.updateSettings({teamNames})` → scene 자동 갱신. `Settings.teamNames` 신규 + DEFAULT_SETTINGS 마이그레이션 자동
+
+### #12 옵션 C 풀 파티션
+- 사용자 선호: "박스가 아니고 파티션같은거는?" — 외곽선 박스 X, 실제 사무실 가구로
+- 위쪽 벽 영역 (y=60~120) 베이지 배경 + 갈색 경계
+- 사장석 좌·우·위 큰 파티션 (사장실 격리 느낌)
+- 활성 팀 인접 사이 큰 파티션 (drawTeamPartitions, rebuild 시 갱신)
+- 같은 팀 내 자리 사이 작은 세로 파티션 (member 영역만)
+
+### #13~14 채팅 영구화 (1차 — 단순 ref 패턴)
+- ChatPopup에 `messagesByEmployeeRef` 추가 — employee별 messages 보관
+- chat:open 시 같은 employee면 ref에서 복원 (다시 열어도 대화 이력 유지)
+- 응답 도착 시 setMessages + ref 직접 갱신 (closure empId)
+- chat:force-close (해고) 시 ref 삭제
+- 한계: 앱 재시작 후엔 사라짐 (메모리만). 일일 영구화는 별도 (#13 풀 스펙)
+
+### #15 말풍선 통일
+- workingBubble 텍스트 `✦` → `…` + 배경 제거 (말풍선 안 점선 오버레이)
+- CHAT_BUBBLE 픽셀 내부 점(D) 제거 → 비어있게
+- 평소 = 빈 말풍선 / 채팅 중 = 빈 말풍선 + 점점점 깜빡임
+
+### #16 팀 선택 채용
+- HireModal에 "👥 팀 배정" 섹션 추가
+- 활성 팀 + 새 팀 1개(B 또는 C) 라디오 선택
+- `resolveSeatId`가 selectedTeam 우선, fallback으로 다른 팀
+- "🆕 새 팀 시작" 라벨 (활성 X 인 팀에)
+
+### 검증
+- ✅ `tsc -b` 통과
+- ✅ `vite build` 통과
+- ❌ PC 시각 검증 대기 (파티션 크기·위치, 시계 시침 방향, 채팅 영구화 등)
+
+### 미반영 / 후속
+- 채팅 영구화 풀 스펙 (앱 재시작 후 유지 — store 영속화) → P1 추가 또는 P2
+- 캐릭터 v2 (#17~21), 상점 (#22~26) → 다음 단계
+- 사무실 영역 외곽 (옵션 D border) 없음 — 사용자가 옵션 C 선택 (파티션만)
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

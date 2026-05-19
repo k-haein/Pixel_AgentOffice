@@ -139,6 +139,8 @@ export type Settings = {
   dailyLimitUsd: number
   /** 'chips' = 모델명 아래 칩 + 커스텀 툴팁 / 'toggle' = 사용량 버튼 + 펼침 스트립 */
   usageDisplayMode: UsageDisplayMode
+  /** 팀 표시 이름 — 우클릭으로 사용자 편집 가능 (P1 #11) */
+  teamNames: { A: string; B: string; C: string }
   // API 키는 safeStorage에 따로 저장
 }
 
@@ -183,6 +185,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultMemoryModel: 'gemini-2-5-flash',
   dailyLimitUsd: 5,
   usageDisplayMode: 'chips',
+  teamNames: { A: '팀 A', B: '팀 B', C: '팀 C' },
 }
 
 /** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */

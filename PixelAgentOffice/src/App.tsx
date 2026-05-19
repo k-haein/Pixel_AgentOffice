@@ -161,6 +161,25 @@ function App() {
     return () => eventBus.off('seat:hover-empty', onSeatHover)
   }, [])
 
+  // 팀 라벨 우클릭 → 이름 수정 (P1 #11)
+  useEffect(() => {
+    const onRename = async (payload: unknown) => {
+      const { team, currentName } = payload as { team: 'A' | 'B' | 'C'; currentName: string }
+      const newName = window.prompt(`팀 ${team} 이름을 수정하세요:`, currentName)
+      if (!newName || newName.trim() === '' || newName === currentName) return
+      const updatedTeamNames = { ...settingsRef.current.teamNames, [team]: newName.trim() }
+      try {
+        const next = await platform.updateSettings({ teamNames: updatedTeamNames })
+        setSettings(next)
+        eventBus.emit('office:settings', next)
+      } catch (err) {
+        console.error('팀 이름 변경 실패:', err)
+      }
+    }
+    eventBus.on('team:rename-request', onRename)
+    return () => eventBus.off('team:rename-request', onRename)
+  }, [])
+
   // 캐릭터 hover → 명함 카드 위치·대상 갱신 (A)
   useEffect(() => {
     const onHover = (payload: unknown) => {
