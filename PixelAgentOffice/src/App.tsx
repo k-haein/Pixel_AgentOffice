@@ -4,6 +4,7 @@ import { ChatPopup } from './components/ChatPopup'
 import { SettingsModal } from './components/SettingsModal'
 import { HireModal } from './components/HireModal'
 import { MemoModal } from './components/MemoModal'
+import { ShopModal } from './components/ShopModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation } from './shared/types'
@@ -20,6 +21,7 @@ function App() {
   /** 설정 모달 열 때 특정 섹션으로 스크롤 (다른 곳에서 우클릭으로 열 때) */
   const [settingsFocusSection, setSettingsFocusSection] = useState<string | undefined>(undefined)
   const [hireOpen, setHireOpen] = useState(false)
+  const [shopOpen, setShopOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
@@ -280,6 +282,13 @@ function App() {
           </button>
           <button
             className="topbar-btn"
+            onClick={() => setShopOpen(true)}
+            title="상점 (가구·꾸미기)"
+          >
+            🛍 상점
+          </button>
+          <button
+            className="topbar-btn"
             onClick={() => setSettingsOpen(true)}
             title="설정"
           >
@@ -353,6 +362,7 @@ function App() {
           onFired={handleFired}
         />
       )}
+      {shopOpen && <ShopModal onClose={() => setShopOpen(false)} />}
       {/* 캐릭터 우클릭 컨텍스트 메뉴 */}
       {employeeContextMenu && (
         <div

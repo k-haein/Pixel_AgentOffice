@@ -83,6 +83,18 @@ const MONITOR = [
 
 // MOUSE 픽셀 제거 (P0 #5 — 마우스 빼고 메모만 책상 위)
 
+// 탁상 전등 (P2 #23) — 야간 + 일하는 직원 책상에 표시. 노란 불빛 = 야근 분위기
+const LAMP_PALETTE = { O: 0x2a1a04, B: 0x6a4030, Y: 0xfff5a0, W: 0xfff8c0 }
+const LAMP = [
+  '.YYY.',
+  'YWWWY',
+  'YYYYY',
+  '..B..',
+  '..B..',
+  '.OBO.',
+  'OOOOO',
+]
+
 // 메모지 — 책상 위 노란 포스트잇
 const MEMO_PALETTE = { O: 0x8a6a20, Y: 0xfff4a6, L: 0x3a2a08 }
 const MEMO = [
@@ -122,6 +134,38 @@ const CLOUD_BIG = [
   '.WWWWWWWWWWW',
   'WWWWWWWWWWWW',
   '.HHHHHHHHHH.',
+]
+
+// 창밖 풍경 (P2 #22) — 건물 실루엣. 시간대에 따라 색 변동 (밤엔 노란 창문 불 켜짐)
+const BUILDING_PALETTE = { O: 0x4a4a5a, Y: 0xfff5a0, K: 0x2a2a3a }
+const BUILDING_TALL = [
+  '..OOOOOO..',
+  '..OOOOOO..',
+  '.OOOOOOOO.',
+  'OOYOYOOOOO',
+  'OOOOOOOYOO',
+  'OOYOOYOOOO',
+  'OOOOOOOOOO',
+  'OOYOOOYOOO',
+  'OOOOOOOOOO',
+  'KKKKKKKKKK',
+]
+const BUILDING_SHORT = [
+  '...OOOO...',
+  '..OOOOOO..',
+  '.OOYOOYOO.',
+  'OOOOOOOOOO',
+  'OOYOOOOYOO',
+  'KKKKKKKKKK',
+]
+// 멀리 산 (간단한 삼각형)
+const MOUNTAIN_PALETTE = { M: 0x6a7a8a, S: 0xa8b8c8 }
+const MOUNTAIN = [
+  '....SM....',
+  '...SMMM...',
+  '..SMMMMS..',
+  '.SMMMMMMS.',
+  'SMMMMMMMMS',
 ]
 
 // === 가구 (꾸미기 Lv1) — 사무실 분위기 살리기 ===
@@ -206,6 +250,9 @@ type Workstation = {
   chatBubble?: Phaser.GameObjects.Container
   memo?: Phaser.GameObjects.Container
   nameplate?: Phaser.GameObjects.Text
+  /** 탁상 전등 (P2 #23) — 야간 + working 시 표시 */
+  deskLamp?: Phaser.GameObjects.Container
+  deskLampGlow?: Phaser.GameObjects.Rectangle
   // Phaser objects that need cleanup
   allObjects: Phaser.GameObjects.GameObject[]
 }
@@ -265,6 +312,8 @@ export class OfficeScene extends Phaser.Scene {
   private walls: Phaser.GameObjects.GameObject[] = []
   /** 팀 사이/자리 사이 파티션 (P1 #12 옵션 C, 동적 — rebuild 시 갱신) */
   private partitions: Phaser.GameObjects.GameObject[] = []
+  /** 창밖 풍경 (P2 #22) — 건물·산. UI 카메라용 (sky와 함께 줌 영향 X) */
+  private scenery: Phaser.GameObjects.GameObject[] = []
 
   // === 줌·카메라 (B-5) ===
   /** 줌 토글 상태 — false=1.0x, true=1.4x */
@@ -322,14 +371,17 @@ export class OfficeScene extends Phaser.Scene {
       ws.workingBubble.setVisible(state === 'working')
       ws.chatBubble.setVisible(state !== 'working')
     }
+    // 탁상 전등 — 야간 + working 시 표시 (P2 #23)
+    this.updateAllDeskLamps()
   }
-  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대. 토큰 보드 LED 색도 같이 즉시 갱신. */
+  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대. 토큰 보드 LED 색·탁상 전등 같이 즉시 갱신. */
   private nightModeHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const { forced } = payload as { forced: boolean }
     this.forcedNight = forced
     this.applyTimeOfDay(this.resolveTimeOfDay(), true)
     void this.refreshTokenBoard()
+    this.updateAllDeskLamps()
   }
 
   /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
@@ -493,6 +545,9 @@ export class OfficeScene extends Phaser.Scene {
     this.applyTimeOfDay(this.resolveTimeOfDay(), false)
     this.scheduleNextTimeRefresh()
 
+    // 창밖 풍경 (P2 #22) — 건물·산. sky band 영역 안
+    this.drawWindowScenery()
+
     // 사무실 벽 + 사장실 파티션 (P1 #12 옵션 C, 정적)
     this.drawWallsAndPartitions()
 
@@ -623,6 +678,7 @@ export class OfficeScene extends Phaser.Scene {
       )
     }
     uiObjects.push(...this.walls)
+    uiObjects.push(...this.scenery)
     this.cameras.main.ignore(uiObjects)
 
     // 월드 객체 — uiCamera에서 제외
@@ -757,6 +813,28 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   // ============================================================
+  // 창밖 풍경 (P2 #22) — 건물·산. sky band 안쪽에 그림
+  // ============================================================
+
+  /** sky 영역에 건물 + 산 픽셀 배치. 정적, create 시 1회. */
+  private drawWindowScenery() {
+    const width = this.scale.width
+    // 멀리 산 — sky band 아래쪽
+    const mountain1 = drawPixelGrid(this, MOUNTAIN, MOUNTAIN_PALETTE, 0.18 * width, 30, 2)
+    mountain1.setDepth(1.5)
+    const mountain2 = drawPixelGrid(this, MOUNTAIN, MOUNTAIN_PALETTE, 0.62 * width, 32, 2)
+    mountain2.setDepth(1.5)
+    // 건물 (도시 실루엣) — 노란 창문 점이 시간대와 무관하게 항상 살짝 보임 (밤엔 더 또렷)
+    const buildingTall = drawPixelGrid(this, BUILDING_TALL, BUILDING_PALETTE, 0.38 * width, 24, 2)
+    buildingTall.setDepth(1.6)
+    const buildingShort = drawPixelGrid(this, BUILDING_SHORT, BUILDING_PALETTE, 0.48 * width, 30, 2)
+    buildingShort.setDepth(1.6)
+    const buildingTall2 = drawPixelGrid(this, BUILDING_TALL, BUILDING_PALETTE, 0.78 * width, 24, 2)
+    buildingTall2.setDepth(1.6)
+    this.scenery = [mountain1, mountain2, buildingTall, buildingShort, buildingTall2]
+  }
+
+  // ============================================================
   // 사무실 벽 + 파티션 (P1 #12 옵션 C — 풀 파티션)
   // ============================================================
 
@@ -841,18 +919,19 @@ export class OfficeScene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
 
+    // P2 #26 가구 크기 키움 (pixelSize 2 → 3)
     // 화분 — 좌하 + 우하 코너 (월드)
-    const plant1 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.06 * width, 0.85 * height, 2)
+    const plant1 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.06 * width, 0.85 * height, 3)
     plant1.setDepth(3)
-    const plant2 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.94 * width, 0.85 * height, 2)
+    const plant2 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.94 * width, 0.85 * height, 3)
     plant2.setDepth(3)
 
     // 책장 — 좌측 벽 중간 (월드)
-    const bookshelf = drawPixelGrid(this, BOOKSHELF, BOOKSHELF_PALETTE, 0.04 * width, 0.55 * height, 2)
+    const bookshelf = drawPixelGrid(this, BOOKSHELF, BOOKSHELF_PALETTE, 0.05 * width, 0.55 * height, 3)
     bookshelf.setDepth(2)
 
     // 자판기 — 우측 벽 중간 (월드)
-    const vending = drawPixelGrid(this, VENDING, VENDING_PALETTE, 0.96 * width, 0.55 * height, 2)
+    const vending = drawPixelGrid(this, VENDING, VENDING_PALETTE, 0.95 * width, 0.55 * height, 3)
     vending.setDepth(2)
 
     this.worldFurniture = [plant1, plant2, bookshelf, vending]
@@ -1296,6 +1375,22 @@ export class OfficeScene extends Phaser.Scene {
       })
     }
 
+    // 💡 탁상 전등 (P2 #23) — 책상 좌측 상단. 평소 숨김, 야간+working 시 표시
+    const deskLamp = drawPixelGrid(this, LAMP, LAMP_PALETTE, -14, -8, 2)
+    deskLamp.setVisible(false)
+    deskGroup.add(deskLamp)
+    const deskLampGlow = this.add.rectangle(-14, -4, 28, 28, 0xfff5a0, 0)
+    deskLampGlow.setBlendMode(Phaser.BlendModes.ADD)
+    deskLampGlow.setVisible(false)
+    deskGroup.add(deskLampGlow)
+    this.tweens.add({
+      targets: deskLampGlow,
+      alpha: { from: 0.25, to: 0.55 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1200,
+    })
+
     // 📝 Memo (책상 우측 상단 — 폭 축소 후 책상 위 표면에 작게, P0 #5)
     const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, 12, -4, 2)
     memo.setSize(14, 14)
@@ -1480,8 +1575,21 @@ export class OfficeScene extends Phaser.Scene {
       chatBubble,
       memo,
       nameplate,
+      deskLamp,
+      deskLampGlow,
       allObjects,
     })
+  }
+
+  /** 야간 + 일하는 직원 책상 = 탁상 전등 켜짐 (P2 #23). setStateHandler·nightModeHandler에서 호출 */
+  private updateAllDeskLamps() {
+    for (const ws of this.workstations.values()) {
+      if (!ws.deskLamp || !ws.workingBubble) continue
+      const isWorking = ws.workingBubble.visible
+      const show = isWorking && this.forcedNight
+      ws.deskLamp.setVisible(show)
+      ws.deskLampGlow?.setVisible(show)
+    }
   }
 
   // ============================================================
