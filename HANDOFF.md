@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-18** (Day 8 종료 — M5 시그니처 폴리시 완성)
+> 최종 갱신: **2026-05-18** (Day 8 종료 + PC 검증 P0 7개 수정 적용)
 
 ---
 
@@ -226,27 +226,29 @@
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### ✅ Day 8 모든 작업 push 완료 — 미커밋 없음
+### ✅ Day 8 모든 작업 + P0 7개 push 완료 — 미커밋 없음
 
-워킹 트리 깨끗. 마지막 push: `d02a5a1` (Day 8 종료 정리).
+워킹 트리 깨끗. 마지막 push: `488cbe3` (P0 7개 일괄 수정).
 
-### 🐛 PC 시각 검증 피드백 — 할일목록 (Day 8 종료 후, 2026-05-18)
+### ✅ PC 시각 검증 1차 피드백 — P0 7개 처리 완료 (2026-05-18)
 
-사용자가 PC에서 `pnpm dev`로 직접 확인 후 보고한 결함·요청. 자세히는 [`ideas/15-pc-validation-feedback.md`](ideas/15-pc-validation-feedback.md).
+사용자 PC 캡처 2장 + 텍스트 피드백 → 25 항목 분류 → P0 7개 일괄 수정. 자세히는 [`ideas/15-pc-validation-feedback.md`](ideas/15-pc-validation-feedback.md).
 
-#### P0 — 즉시 수정 (오류·핵심 UX)
+#### P0 완료 — 코드 통과 / PC 시각 재검증 대기
 
-| # | 영역 | 해야 할 일 | 만질 파일 |
-|---|---|---|---|
-| 1 | 토큰 보드 위치 | 사장석 위 가림 해결 — 벽쪽 액자로 이동 (또는 사장석 yRatio 내림) | `src/game/OfficeScene.ts` (`createTokenBoard`, `BOSS_Y`) |
-| 2 | 빈자리 hint | Phaser text → DOM tooltip (작게, 마우스 옆) | `OfficeScene.ts` (`showEmptySeatHint` 제거) + `App.tsx` + `App.css` |
-| 3 | 회전 + 자리이동 충돌 | 회전된 자리에서 드래그 시 채용 모달 떠버림 — hire zone 비활성화 (이동 모드 중) | `OfficeScene.ts` (`enterMoveMode`에서 빈 자리 hireZone disable) |
-| 4 | 회전 시 말풍선 | chatBubble 좌표 보정 (회전된 캐릭터 머리 위 스크린 좌표) | `OfficeScene.ts` (chatBubble 위치) |
-| 5 | 회전 시 메모 + 책상 디테일 | 책상 너비 축소(40→28), 모니터 캐릭터 정면, 마우스 제거, 메모만 책상 위 | `OfficeScene.ts` (`DESK` 픽셀, `createWorkstation`) |
-| 6 | + 채용 hover 펄스 제거 | 호버 시 노란 펄스 제거 | `App.tsx` (`topbar-btn-pulse` 조건) + `App.css` |
-| 7 | 팀 시스템 변경 | 팀 A만 표시 (B/C 숨김), 빈 팀 자동 숨김, 팀 추가 버튼, 빈 자리는 채용 모드일 때만 보임 | `OfficeScene.ts` (`rebuildWorkstations`, `drawTeamLabels`) + `App.tsx` (팀 추가 버튼) + `seats.ts` (visibleTeams 활용) |
+| # | 영역 | 변경 내용 | 만진 파일 | 상태 |
+|---|---|---|---|---|
+| 1 | 토큰 보드 위치 | 사장석 yRatio 0.22 → 0.30 (보드는 그대로, 사장석 내림) | `src/shared/seats.ts` | ✅ 코드 / ⏳ 시각 |
+| 2 | 빈자리 hint | Phaser text → React DOM tooltip (마우스 옆 작게, `seat:hover-empty` emit) | `OfficeScene.ts` + `App.tsx` + `App.css` | ✅ 코드 / ⏳ 시각 |
+| 3 | 회전 + 자리이동 충돌 | `enterMoveMode` 시 `hireZones.disableInteractive()`, `exitMoveMode` 재활성화 | `OfficeScene.ts` | ✅ 코드 / ⏳ 시각 |
+| 4 | 회전 시 말풍선 | orientation별 chatBubbleX/Y 계산 (회전 시 책상 위 `deskY-60`) | `OfficeScene.ts` | ✅ 코드 / ⏳ 시각 |
+| 5 | 책상 디테일 | 책상 폭 40→24, MOUSE 제거, memo 책상 우측 상단 (12, -4) | `OfficeScene.ts` | ✅ 코드 / ⏳ 시각 |
+| 6 | + 채용 hover 펄스 | `topbar-btn-pulse` 조건 제거, 빈자리 클릭 무동작 | `App.tsx` | ✅ 코드 / ⏳ 시각 |
+| 7 | 팀 시스템 (1차) | 팀 A만 표시 (활성 팀 = 직원 있는 팀 + 기본 A), `drawTeamLabels(activeTeams)` | `OfficeScene.ts` | ✅ 코드 / ⏳ 시각 |
 
-#### P1 — 우선순위 높음
+→ PC에서 `git pull` → `pnpm dev` → FEATURES.md 워크플로우로 1차 검증. 어색하면 P1 폴리시.
+
+#### P1 — 우선순위 높음 (다음 단계)
 
 | # | 영역 | 해야 할 일 | 만질 파일 |
 |---|---|---|---|
@@ -258,6 +260,7 @@
 | 13 | 채팅 영구화 | 채팅 끄면 messages 보존 (employee별) | `electron/data/store.ts` + `ChatPopup.tsx` |
 | 14 | 채팅 진행 중 상태 영구화 | working 상태 store에 보관, 채팅 닫혀도 캐릭터 표시 유지 | `electron/llm/usage.ts` 또는 별도 + `OfficeScene.ts` |
 | 15 | 말풍선 통일 | `CHAT_BUBBLE` 빈 + 채팅 중 점선 점점점(…) 안에. `✦` 텍스트 폐기 | `OfficeScene.ts` (`CHAT_BUBBLE` 픽셀 + 상태별 표시) |
+| 16 | 팀 추가 버튼 (팀 시스템 2차) | 사용자가 팀 B/C 추가 가능 (최대 3). 빈 자리는 채용 모드일 때만 표시 | `App.tsx` (topbar 또는 floating 버튼) + `OfficeScene.ts` |
 
 #### P1 — 새 마일스톤 (캐릭터 v2)
 
@@ -265,11 +268,11 @@
 
 | # | 영역 | 해야 할 일 |
 |---|---|---|
-| 16 | 커스텀 캐릭터 추가 | `Template = 'custom'` 그림자 진 문어 + 12색 팔레트 + 실시간 미리보기 |
-| 17 | 무늬 시스템 | solid/speckled/gradient/stripes 4종 |
-| 18 | 모든 캐릭터 자유 편집 | MemoModal에 이름·직업·baseInstructions·이모지 수정 |
-| 19 | 지침 placeholder | "직업 : 이름" 포맷 예시 4종 |
-| 20 | 부적절 표현 가드 | system prompt에 "혐오·성적 표현은 '...' 으로 답변" 추가 |
+| 17 | 커스텀 캐릭터 추가 | `Template = 'custom'` 그림자 진 문어 + 12색 팔레트 + 실시간 미리보기 |
+| 18 | 무늬 시스템 | solid/speckled/gradient/stripes 4종 |
+| 19 | 모든 캐릭터 자유 편집 | MemoModal에 이름·직업·baseInstructions·이모지 수정 |
+| 20 | 지침 placeholder | "직업 : 이름" 포맷 예시 4종 |
+| 21 | 부적절 표현 가드 | system prompt에 "혐오·성적 표현은 '...' 으로 답변" 추가 |
 
 #### P2 — 새 마일스톤 (상점 + 사무실 확장)
 
@@ -277,11 +280,11 @@
 
 | # | 영역 | 해야 할 일 |
 |---|---|---|
-| 21 | 창문 키우기 + 풍경 | sky band 확대, 건물/산/도로/차 + 날씨 |
-| 22 | 야간 일하는 직원 탁상 전등 | 야간 + working 상태 시 책상에 작은 전등 + 노란 불빛 |
-| 23 | 상점 모달 | 가구 카탈로그 10종, 잠금 해제 또는 무료 |
-| 24 | 가구 배치 드래그앤드롭 | 충돌 검증, 그리드 스냅 |
-| 25 | 기존 가구 크기 확대 | 화분/책장/자판기/시계 픽셀 키움 |
+| 22 | 창문 키우기 + 풍경 | sky band 확대, 건물/산/도로/차 + 날씨 |
+| 23 | 야간 일하는 직원 탁상 전등 | 야간 + working 상태 시 책상에 작은 전등 + 노란 불빛 |
+| 24 | 상점 모달 | 가구 카탈로그 10종, 잠금 해제 또는 무료 |
+| 25 | 가구 배치 드래그앤드롭 | 충돌 검증, 그리드 스냅 |
+| 26 | 기존 가구 크기 확대 | 화분/책장/자판기/시계 픽셀 키움 |
 
 #### P3+ — 미래
 
