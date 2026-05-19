@@ -49,19 +49,20 @@ const DESK_PALETTE = {
   D: 0x8b5a2b,
   H: 0xe8c898,
 }
+// 책상 폭 축소 (40 → 24, P0 #5) — 모니터가 캐릭터 정면, 메모만 책상 위, 마우스 제거
 const DESK = [
-  'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO',
-  'OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHO',
-  'OWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWO',
-  'OWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWO',
-  'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'ODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDO',
-  'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO',
+  'OOOOOOOOOOOOOOOOOOOOOOOO',
+  'OHHHHHHHHHHHHHHHHHHHHHHO',
+  'OWWWWWWWWWWWWWWWWWWWWWWO',
+  'OWWWWWWWWWWWWWWWWWWWWWWO',
+  'OOOOOOOOOOOOOOOOOOOOOOOO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'ODDDDDDDDDDDDDDDDDDDDDDO',
+  'OOOOOOOOOOOOOOOOOOOOOOOO',
 ]
 
 const MONITOR_PALETTE = { K: 0x1a1a1a, C: 0x3a5a72, G: 0x90c0d0 }
@@ -80,14 +81,7 @@ const MONITOR = [
   '..KKKKKKKKKKKK..',
 ]
 
-const MOUSE_PALETTE = { O: 0x2a1408, M: 0x9a9a9a, H: 0xc8c8c8 }
-const MOUSE = [
-  '.OOOOO.',
-  'OMMHMMO',
-  'OMMMMMO',
-  'OMMMMMO',
-  '.OOOOO.',
-]
+// MOUSE 픽셀 제거 (P0 #5 — 마우스 빼고 메모만 책상 위)
 
 // 메모지 — 책상 위 노란 포스트잇
 const MEMO_PALETTE = { O: 0x8a6a20, Y: 0xfff4a6, L: 0x3a2a08 }
@@ -272,9 +266,9 @@ export class OfficeScene extends Phaser.Scene {
   private readonly ZOOM_MIN = 0.7
   private readonly ZOOM_MAX = 1.6
 
-  // === 빈 자리 채용 hint (B) ===
-  /** 빈 자리 hover 시 떠오르는 "👤 채용" 안내 텍스트 */
-  private emptySeatHint?: Phaser.GameObjects.Text
+  // === 빈 자리 채용 hint (B → P0 #2 DOM tooltip) ===
+  /** 빈 자리 zone 모음 — 이동 모드 진입 시 비활성화 (P0 #3 충돌 회피) */
+  private hireZones: Phaser.GameObjects.Zone[] = []
 
   // 리스너 참조 (cleanup 위해 보관) — payload: unknown으로 받고 내부에서 캐스팅
   private setEmployeesHandler = (payload: unknown) => {
@@ -664,34 +658,7 @@ export class OfficeScene extends Phaser.Scene {
     clock.setDepth(4)
   }
 
-  // ============================================================
-  // 빈 자리 채용 hint (B) — hover 시 "👤 채용" 안내
-  // ============================================================
-
-  /** 빈 자리 hover 시 텍스트 표시. 같은 텍스트 객체 재사용 (없으면 생성). */
-  private showEmptySeatHint(x: number, y: number, seatLabel: string) {
-    if (!this.emptySeatHint) {
-      this.emptySeatHint = this.add
-        .text(x, y, `👤 ${seatLabel} 채용`, {
-          fontFamily: '"Courier New", monospace',
-          fontSize: '12px',
-          color: '#5a3a0f',
-          backgroundColor: '#fff2b8',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(100)
-      this.emptySeatHint.setPadding({ left: 8, right: 8, top: 4, bottom: 4 })
-    } else {
-      this.emptySeatHint.setPosition(x, y)
-      this.emptySeatHint.setText(`👤 ${seatLabel} 채용`)
-      this.emptySeatHint.setVisible(true)
-    }
-  }
-
-  private hideEmptySeatHint() {
-    this.emptySeatHint?.setVisible(false)
-  }
+  // 빈 자리 hover hint는 DOM tooltip으로 전환됨 (P0 #2). Phaser side는 hireZone에서 직접 emit.
 
   // ============================================================
   // 토큰 보드 (M5-c) — 사장석 뒤 벽 액자 LED
@@ -851,6 +818,7 @@ export class OfficeScene extends Phaser.Scene {
       for (const obj of ws.allObjects) obj.destroy()
     }
     this.workstations.clear()
+    this.hireZones = [] // P0 #3 — 다음 빌드에 새 zone 모음
 
     // employee.seatId 기반 lookup
     const empBySeat = new Map<SeatId, Employee>()
@@ -861,21 +829,29 @@ export class OfficeScene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
 
-    // 모든 16자리 항상 표시 (사장석 + 3팀 × 5). 자유롭게 팀 간 이동 가능
-    for (const seat of ALL_SEATS) {
+    // 활성 팀만 표시 (P0 #7) — 팀원 1명 이상 있는 팀만. 초기엔 팀 A만 보임
+    const activeTeams = new Set<'A' | 'B' | 'C'>(['A']) // 팀 A는 기본 항상 활성
+    for (const emp of employees) {
+      if (!emp.seatId) continue
+      const meta = ALL_SEATS.find(s => s.id === emp.seatId)
+      if (meta?.team) activeTeams.add(meta.team)
+    }
+
+    const visibleSeats = ALL_SEATS.filter(s => s.id === 'boss' || (s.team && activeTeams.has(s.team)))
+    for (const seat of visibleSeats) {
       const x = seat.position.xRatio * width
       const y = seat.position.yRatio * height
       const emp = empBySeat.get(seat.id) ?? null
       this.createWorkstation(x, y, emp, seat)
     }
 
-    // 3팀 라벨 항상 표시
-    this.drawTeamLabels()
+    // 활성 팀 라벨만 표시
+    this.drawTeamLabels(activeTeams)
   }
 
-  /** 3팀 라벨 항상 그리기 */
+  /** 활성 팀 라벨만 그리기 (P0 #7) */
   private teamLabels: Phaser.GameObjects.Text[] = []
-  private drawTeamLabels() {
+  private drawTeamLabels(activeTeams: Set<'A' | 'B' | 'C'>) {
     // 기존 라벨 제거
     for (const lbl of this.teamLabels) lbl.destroy()
     this.teamLabels = []
@@ -885,6 +861,7 @@ export class OfficeScene extends Phaser.Scene {
     const labelY = 0.85 * height
     const teamX: Record<string, number> = { A: 0.20, B: 0.50, C: 0.80 }
     for (const team of ['A', 'B', 'C'] as const) {
+      if (!activeTeams.has(team)) continue
       const t = this.add
         .text(teamX[team] * width, labelY, `— 팀 ${team} —`, {
           fontFamily: '"Courier New", monospace',
@@ -953,11 +930,7 @@ export class OfficeScene extends Phaser.Scene {
       })
     }
 
-    // === Mouse (employee 자리에만 — 책상 우측 작은 디테일) ===
-    if (employee) {
-      const mouse = drawPixelGrid(this, MOUSE, MOUSE_PALETTE, 26, -6, 2)
-      deskGroup.add(mouse)
-    }
+    // 마우스 제거 (P0 #5) — 책상 폭 축소로 공간 부족 + 사용자 요청
 
     // === 사장석은 명패 + 끝 (캐릭터/채팅/메모 없음, 아직은 빈 사장석) ===
     if (isBoss) {
@@ -979,28 +952,33 @@ export class OfficeScene extends Phaser.Scene {
 
     // === 빈 자리는 여기까지 (이후는 employee가 있을 때만) ===
     if (!employee) {
-      // 빈 자리에 채용 hint zone — hover 시 안내, 클릭 시 채용 모달 열기
+      // 빈 자리 hover zone — DOM tooltip 트리거 (P0 #2). 클릭은 아무 동작 안 함 (P0 #6 — 채용은 우상단 버튼만)
       const hireZone = this.add.zone(x, deskY - 20, 80, 100)
       hireZone.setInteractive()
       hireZone.setDepth(3)
-      hireZone.on('pointerover', () => {
+      hireZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
         if (this.isShutdown) return
-        this.showEmptySeatHint(x, deskY - 70, seat.label)
-        this.input.setDefaultCursor('pointer')
+        // 이동 모드일 땐 hover 안 받음 (P0 #3 충돌 회피)
+        if (this.movingEmployeeId) return
+        const native = pointer.event as MouseEvent | TouchEvent | undefined
+        const clientX = native && 'clientX' in native ? native.clientX : pointer.x
+        const clientY = native && 'clientY' in native ? native.clientY : pointer.y
+        eventBus.emit('seat:hover-empty', { x: clientX, y: clientY, label: seat.label })
+        this.input.setDefaultCursor('default')
+      })
+      hireZone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+        if (this.isShutdown || this.movingEmployeeId) return
+        const native = pointer.event as MouseEvent | TouchEvent | undefined
+        const clientX = native && 'clientX' in native ? native.clientX : pointer.x
+        const clientY = native && 'clientY' in native ? native.clientY : pointer.y
+        eventBus.emit('seat:hover-empty', { x: clientX, y: clientY, label: seat.label })
       })
       hireZone.on('pointerout', () => {
         if (this.isShutdown) return
-        this.hideEmptySeatHint()
-        this.input.setDefaultCursor('default')
+        eventBus.emit('seat:hover-empty', null)
       })
-      hireZone.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-        if (this.isShutdown) return
-        // 우클릭은 무시 (브라우저 메뉴 차단만)
-        const nativeButton = (pointer.event as MouseEvent | undefined)?.button
-        if (nativeButton === 2 || pointer.rightButtonReleased()) return
-        eventBus.emit('hire:open', { seatId: seat.id })
-        this.hideEmptySeatHint()
-      })
+      // pointerup 핸들러 제거 (P0 #6 — 채용은 우상단 버튼만)
+      this.hireZones.push(hireZone)
       allObjects.push(hireZone)
 
       this.workstations.set(seat.id, { seatMeta: seat, employee: null, allObjects })
@@ -1045,8 +1023,8 @@ export class OfficeScene extends Phaser.Scene {
       })
     }
 
-    // 📝 Memo (책상 좌측 작은 노란 포스트잇 — 책상 회전과 같이 돌아감)
-    const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, -26, -6, 2)
+    // 📝 Memo (책상 우측 상단 — 폭 축소 후 책상 위 표면에 작게, P0 #5)
+    const memo = drawPixelGrid(this, MEMO, MEMO_PALETTE, 12, -4, 2)
     memo.setSize(14, 14)
     memo.setInteractive(
       new Phaser.Geom.Rectangle(-7, -7, 14, 14),
@@ -1069,13 +1047,16 @@ export class OfficeScene extends Phaser.Scene {
     })
     deskGroup.add(memo)
 
-    // 💬 Chat bubble — 캐릭터 머리 위 (회전 안 함, 항상 스크린 기준 위쪽)
+    // 💬 Chat bubble — 회전 시에도 보이도록 위치 보정 (P0 #4)
+    //   정면: 캐릭터 머리 위 / 회전(left/right): 책상 위 영역 (deskY-60) — 캐릭터 옆으로 옮겨도 책상 위에 보임
+    const chatBubbleX = orientation === 'front' ? clawdX : x
+    const chatBubbleY = orientation === 'front' ? clawdY - 28 : deskY - 60
     const chatBubble = drawPixelGrid(
       this,
       CHAT_BUBBLE,
       CHAT_BUBBLE_PALETTE,
-      clawdX,
-      clawdY - 28,
+      chatBubbleX,
+      chatBubbleY,
       2,
     )
     chatBubble.setDepth(19)
@@ -1103,7 +1084,7 @@ export class OfficeScene extends Phaser.Scene {
     })
     this.tweens.add({
       targets: chatBubble,
-      y: { from: clawdY - 28, to: clawdY - 32 },
+      y: { from: chatBubbleY, to: chatBubbleY - 4 },
       yoyo: true,
       repeat: -1,
       duration: 1800,
@@ -1111,9 +1092,9 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Working bubble
+    // Working bubble — chatBubble과 같은 위치 (P0 #4)
     const workingBubble = this.add
-      .text(clawdX, clawdY - 28, '  ✦  ', {
+      .text(chatBubbleX, chatBubbleY, '  ✦  ', {
         fontFamily: '"Courier New", monospace',
         fontSize: '14px',
         color: '#d97500',
@@ -1267,6 +1248,9 @@ export class OfficeScene extends Phaser.Scene {
     // y는 idle bob 영향을 안 받은 베이스 좌표가 필요 → seatMeta + orientation 기반 재계산
     const base = this.getClawdBaseForWorkstation(target)
     this.dragOriginPos = base
+    // 이동 모드 동안 빈 자리 hover zone 비활성화 — 회전+드래그 시 채용 hint 충돌 방지 (P0 #3)
+    for (const z of this.hireZones) z.disableInteractive()
+    eventBus.emit('seat:hover-empty', null)
 
     // ★ 핵심: idle bob 등 기존 트윈을 끄기. 안 그러면 드래그 중에도 y를 계속 덮어씀
     this.tweens.killTweensOf(target.clawd)
@@ -1336,6 +1320,8 @@ export class OfficeScene extends Phaser.Scene {
     this.moveModeHint = undefined
     for (const hi of this.dropTargetHighlights) hi.destroy()
     this.dropTargetHighlights = []
+    // 빈 자리 hover zone 재활성화 (P0 #3) — success 시엔 rebuild가 새 zone 만들어주므로 중복 OK
+    for (const z of this.hireZones) z.setInteractive()
 
     if (success || !movingId) return
 

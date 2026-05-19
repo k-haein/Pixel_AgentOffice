@@ -1639,6 +1639,41 @@ Claude가 "한 번에 커밋하게" 같은 사용자 의도를 받은 후, *Stop
 
 **의의**: 시각 검증으로 *추상에서 구체로*. 코드 단계만 통과시킨 9개 기능 → 실제 PC에서 어떻게 보이고 작동하는지 확인 → 24개 항목 발견. 메타 문서가 자기 역할 함 (피드백 종합 + 우선순위 + 카테고리) — 작업이 흩어지지 않게.
 
+## 88. 🛠 P0 7개 일괄 수정
+
+**사용자**: "P0부터 작업해봐. 이거까지 커밋하고 푸시하고 갈꼐"
+
+**Claude 처리** (한 커밋으로):
+
+| # | 변경 | 파일 |
+|---|---|---|
+| 1 | 사장석 yRatio 0.22 → 0.30 (토큰 보드와 분리) | `src/shared/seats.ts` |
+| 2 | 빈자리 hint Phaser text → React DOM tooltip (`seat:hover-empty` emit) | `OfficeScene.ts` hireZone + `App.tsx` `emptySeatTip` state + `App.css` `.empty-seat-tooltip` |
+| 3 | 회전+자리이동 충돌 — `enterMoveMode`에서 `hireZones.disableInteractive()` | `OfficeScene.ts` `hireZones` 배열 + 모드 토글 |
+| 4 | 회전 시 말풍선 보임 — orientation별 chatBubbleX/Y (회전 시 `deskY-60`) | `OfficeScene.ts` `createWorkstation` |
+| 5 | 책상 폭 40→24 축소 + mouse 제거 + memo 위치 (12, -4) | `OfficeScene.ts` `DESK` 픽셀 + memo 좌표 + MOUSE 제거 |
+| 6 | + 채용 hover 펄스 제거 (`topbar-btn-pulse` 조건 삭제) + 빈자리 클릭 무동작 | `App.tsx` 채용 버튼 + hire:open 핸들러 폐기 |
+| 7 | 팀 A만 표시 (활성 팀 = 직원 있는 팀 + 기본 A) | `OfficeScene.ts` `rebuildWorkstations` filter + `drawTeamLabels(activeTeams)` |
+
+### 검증
+- ✅ `tsc -b` 통과 (4개 unused 에러 정리)
+- ✅ `vite build` 통과
+- ❌ PC 시각 검증 대기
+
+### FEATURES.md 갱신
+- M5-b 섹션: 팀 A만 표시 (활성 팀) + 사장석 yRatio 0.30
+- B 빈자리 섹션: DOM tooltip + 클릭 무동작
+- C 온보딩: 펄스 제거
+- B-4: 책상 24폭 + 마우스 X + 회전 말풍선 보정
+
+### 미반영 (사용자 PC 검증 후 결정)
+- 캐릭터 회전 시각이 여전히 어색하면 옵션 B (좌·우 스프라이트) 폴리시
+- 토큰 보드 위치 — 사장석 내렸지만 여전히 어색하면 좌측 벽 액자로 P1 이동
+- 빈자리 자체 *평소엔 숨김* (채용 모드일 때만 표시) — P1
+- 팀 추가 버튼 — P1
+
+**의의**: 사용자 피드백 → 정확한 코드 위치 매핑 → 일괄 수정. 시각 결함은 PC에서 검증 후 추가 폴리시.
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

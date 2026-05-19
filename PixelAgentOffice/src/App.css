@@ -1241,6 +1241,21 @@ textarea.modal-input {
 .onboarding-sub strong { color: #c89030; }
 .onboarding-hint { font-size: 12px; opacity: 0.7; }
 
+/* 빈 자리 hover tooltip (P0 #2) — 마우스 옆 작은 안내, 명패와 안 겹치게 */
+.empty-seat-tooltip {
+  position: fixed;
+  z-index: 150;
+  pointer-events: none;
+  background: rgba(50, 30, 10, 0.92);
+  color: #fff8e0;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* 명함 hover 카드 (A) — 캐릭터 위 마우스 시 정보 popup */
 .employee-hover-card {
   position: fixed;

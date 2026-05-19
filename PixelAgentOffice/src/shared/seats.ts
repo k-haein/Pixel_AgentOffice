@@ -31,9 +31,9 @@ export type SeatMeta = {
 }
 
 // === 레이아웃 상수 — 한 화면에 다 들어가는 비율 ===
-// 사장석: 화면 가로 중앙, 상단 1/4 지점
+// 사장석: 화면 가로 중앙, 상단 — 토큰 보드가 사장석 *위*에 있으므로 그 아래로 내림 (P0 #1)
 const BOSS_X = 0.5
-const BOSS_Y = 0.22
+const BOSS_Y = 0.30
 
 // 팀별 X 중심 — 좌(A) · 중(B) · 우(C)
 const TEAM_X: Record<TeamId, number> = {

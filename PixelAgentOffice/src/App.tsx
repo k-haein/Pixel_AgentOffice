@@ -27,6 +27,8 @@ function App() {
   const [zoomedIn, setZoomedIn] = useState(false)
   /** 캐릭터 hover 시 떠오르는 명함 카드 (A) */
   const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
+  /** 빈 자리 hover tooltip (P0 #2) — 마우스 옆 작은 안내 */
+  const [emptySeatTip, setEmptySeatTip] = useState<{ x: number; y: number; label: string } | null>(null)
   /** 상태바(F) — 사용량·시간대 라이브 정보 (OfficeScene이 emit) */
   const [usageSummary, setUsageSummary] = useState<{ totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' } | null>(null)
   const [timeOfDay, setTimeOfDay] = useState<{ label: string; forcedNight: boolean } | null>(null)
@@ -146,11 +148,17 @@ function App() {
     return () => eventBus.off('employee:updated', onUpdated)
   }, [])
 
-  // 빈 자리 클릭 → 채용 모달 열기 (B)
+  // 빈 자리 hover → DOM tooltip 갱신 (P0 #2). 클릭으로 채용은 폐기 (P0 #6 — 채용은 우상단 버튼만)
   useEffect(() => {
-    const onHireOpen = () => setHireOpen(true)
-    eventBus.on('hire:open', onHireOpen)
-    return () => eventBus.off('hire:open', onHireOpen)
+    const onSeatHover = (payload: unknown) => {
+      if (!payload) {
+        setEmptySeatTip(null)
+        return
+      }
+      setEmptySeatTip(payload as { x: number; y: number; label: string })
+    }
+    eventBus.on('seat:hover-empty', onSeatHover)
+    return () => eventBus.off('seat:hover-empty', onSeatHover)
   }, [])
 
   // 캐릭터 hover → 명함 카드 위치·대상 갱신 (A)
@@ -244,7 +252,7 @@ function App() {
         </div>
         <div className="topbar-actions">
           <button
-            className={`topbar-btn ${employees.length === 0 && !loading ? 'topbar-btn-pulse' : ''}`}
+            className="topbar-btn"
             onClick={() => setHireOpen(true)}
             disabled={employees.length >= maxEmployees}
             title={employees.length >= maxEmployees ? '최대 인원 도달' : '새 직원 채용'}
@@ -381,6 +389,19 @@ function App() {
           >
             📝 메모지 열기
           </button>
+        </div>
+      )}
+
+      {/* 빈 자리 hover tooltip (P0 #2) — 마우스 옆에 작게 */}
+      {emptySeatTip && (
+        <div
+          className="empty-seat-tooltip"
+          style={{
+            left: emptySeatTip.x + 14,
+            top: emptySeatTip.y + 14,
+          }}
+        >
+          빈 자리 — {emptySeatTip.label}
         </div>
       )}
 
