@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-18** (Day 8 종료 + P0 7개 + P1 #8~16 적용)
+> 최종 갱신: **2026-05-18** (Day 8 종료 + P0 7개 + P1 #8~16 + P1 캐릭터 v2 #17~21 적용)
 
 ---
 
@@ -268,17 +268,17 @@
 - 채팅 영구화 풀 스펙 (앱 재시작 후도 유지 — `store.ts` 영속화)
 - 빈 자리 평소 숨김 (채용 모달 열려있을 때만 표시)
 
-#### P1 — 새 마일스톤 (캐릭터 v2)
+#### P1 캐릭터 v2 #17~21 — 완료 / PC 시각 재검증 대기
 
 자세히 → [`ideas/16-character-customization-v2.md`](ideas/16-character-customization-v2.md)
 
-| # | 영역 | 해야 할 일 |
-|---|---|---|
-| 17 | 커스텀 캐릭터 추가 | `Template = 'custom'` 그림자 진 문어 + 12색 팔레트 + 실시간 미리보기 |
-| 18 | 무늬 시스템 | solid/speckled/gradient/stripes 4종 |
-| 19 | 모든 캐릭터 자유 편집 | MemoModal에 이름·직업·baseInstructions·이모지 수정 |
-| 20 | 지침 placeholder | "직업 : 이름" 포맷 예시 4종 |
-| 21 | 부적절 표현 가드 | system prompt에 "혐오·성적 표현은 '...' 으로 답변" 추가 |
+| # | 영역 | 변경 내용 | 상태 |
+|---|---|---|---|
+| 17 | 커스텀 캐릭터 | `Template = 'custom'` + PIXELS_CUSTOM_OCTOPUS(8다리) + CharacterPalette 12색 + 기본 그림자 회색 | ✅ 코드 / ⏳ 시각 |
+| 18 | 무늬 시스템 | solid/speckled/gradient/stripes 4종. computePatternColor 동적 픽셀 색 (Phaser Color lighten/darken/Interpolate) | ✅ 코드 / ⏳ 시각 |
+| 19 | 모든 캐릭터 자유 편집 | MemoModal에 이름/역할/이모지/baseInstructions/외형 다 편집. updateEmployee 전체 필드 전달 | ✅ 코드 / ⏳ 시각 |
+| 20 | 지침 placeholder | INSTRUCTIONS_PLACEHOLDER 상수 (4 예시) — HireModal·MemoModal | ✅ 코드 |
+| 21 | 부적절 표현 가드 | buildSystemPrompt에 안전 가드 섹션 (혐오/성적/폭력 → "..." 응답) | ✅ 코드 / ⏳ LLM 검증 |
 
 #### P2 — 새 마일스톤 (상점 + 사무실 확장)
 

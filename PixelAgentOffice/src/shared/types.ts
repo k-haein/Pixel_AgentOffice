@@ -1,6 +1,36 @@
 // 공유 타입 — main process와 renderer 둘 다 사용
 
-export type Template = 'editor' | 'writer'
+export type Template = 'editor' | 'writer' | 'custom'
+
+/** 캐릭터 색 팔레트 (v2 — 커스텀 캐릭터 12색). hex 매핑은 CHARACTER_PALETTE에 */
+export type CharacterPalette =
+  | 'red' | 'orange' | 'yellow' | 'green' | 'cyan' | 'blue'
+  | 'purple' | 'pink' | 'brown' | 'gray' | 'white' | 'black'
+
+export const CHARACTER_PALETTE: Record<CharacterPalette, number> = {
+  red:    0xc83838,
+  orange: 0xe87a4a,
+  yellow: 0xe8c060,
+  green:  0x4a8a4a,
+  cyan:   0x7ab5e0,
+  blue:   0x3868a8,
+  purple: 0x8a48a8,
+  pink:   0xd878a8,
+  brown:  0x6a4030,
+  gray:   0x7a7a7a,
+  white:  0xe8e8e8,
+  black:  0x2a2a2a,
+}
+
+/** 캐릭터 무늬 (v2 — 모든 템플릿 적용 가능) */
+export type CharacterPattern = 'solid' | 'speckled' | 'gradient' | 'stripes'
+
+export const CHARACTER_PATTERN_LABELS: Record<CharacterPattern, string> = {
+  solid:    '단색',
+  speckled: '점박이',
+  gradient: '그라데이션',
+  stripes:  '줄무늬',
+}
 
 export type MemoryMode = 'off' | 'manual' | 'ask' | 'auto'
 
@@ -121,6 +151,10 @@ export type Employee = {
   seatId: SeatId | null
   /** 책상 회전 — 기본 'front' */
   deskOrientation: DeskOrientation
+  /** 커스텀 캐릭터 색 (template='custom' 일 때만 사용) — v2 #17 */
+  customColor?: CharacterPalette
+  /** 무늬 (모든 템플릿 적용 가능) — v2 #18. 기본 'solid' */
+  pattern?: CharacterPattern
   // 진급 추적
   totalMessages: number
   totalMemoryUpdates: number
@@ -156,7 +190,7 @@ export const TEMPLATES: Record<Template, {
   defaultName: string
   defaultRole: string
   baseInstructions: string
-  variant: 'basic' | 'jellyfish'
+  variant: 'basic' | 'jellyfish' | 'custom'
   alpha?: number
 }> = {
   editor: {
@@ -178,7 +212,22 @@ export const TEMPLATES: Record<Template, {
     variant: 'jellyfish',
     alpha: 0.85,
   },
+  custom: {
+    emoji: '🐙',
+    defaultName: '새 직원',
+    defaultRole: '직업 입력',
+    baseInstructions: '', // 사용자가 placeholder 보고 자기 형식으로 입력
+    variant: 'custom',
+  },
 }
+
+/** 지침 입력 placeholder — "직업 : 이름" 포맷 (v2 #20) */
+export const INSTRUCTIONS_PLACEHOLDER = `예시 형식 — "직업 : 이름" :
+
+디자이너 : 미니멀 톤으로 답변합니다.
+개발자 : 코드 예시와 함께 짧게 설명합니다.
+PM : 일정·우선순위 위주로 답합니다.
+마케터 : 후킹 카피와 카테고리로 정리합니다.`
 
 export const DEFAULT_SETTINGS: Settings = {
   defaultModel: 'gemini-2-5-flash', // 무료 우선

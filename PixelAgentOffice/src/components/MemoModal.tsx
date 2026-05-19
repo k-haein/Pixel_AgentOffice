@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { platform } from '../platform'
-import { type Employee, type MemoryMode, type Model, MODEL_INFO } from '../shared/types'
+import {
+  type Employee,
+  type MemoryMode,
+  type Model,
+  type CharacterPalette,
+  type CharacterPattern,
+  MODEL_INFO,
+  CHARACTER_PALETTE,
+  CHARACTER_PATTERN_LABELS,
+  INSTRUCTIONS_PLACEHOLDER,
+} from '../shared/types'
 
 type Props = {
   onClose: () => void
@@ -21,9 +31,16 @@ const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-ha
 
 export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   // employee props로 초기화 (key prop으로 다른 employee 시 재마운트됨)
+  const [name, setName] = useState(employee.name)
+  const [role, setRole] = useState(employee.role)
+  const [emoji, setEmoji] = useState(employee.emoji)
+  const [baseInstructions, setBaseInstructions] = useState(employee.baseInstructions)
   const [customInstructions, setCustomInstructions] = useState(employee.customInstructions)
   const [model, setModel] = useState<Model>(employee.model)
   const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
+  // v2 #17·#18 — 외형 자유 편집
+  const [customColor, setCustomColor] = useState<CharacterPalette>(employee.customColor ?? 'orange')
+  const [pattern, setPattern] = useState<CharacterPattern>(employee.pattern ?? 'solid')
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
 
@@ -31,9 +48,16 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
     setSaving(true)
     try {
       const updated = await platform.updateEmployee(employee.id, {
+        name: name.trim() || employee.name,
+        role: role.trim() || employee.role,
+        emoji: emoji.trim() || employee.emoji,
+        baseInstructions: baseInstructions.trim(),
         customInstructions: customInstructions.trim(),
         model,
         memoryMode,
+        // v2 — 외형 편집 (커스텀 템플릿만 색 저장)
+        customColor: employee.template === 'custom' ? customColor : employee.customColor,
+        pattern,
       })
       if (updated) onUpdated(updated)
       setSavedFeedback(true)
@@ -72,20 +96,45 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
         </div>
 
         <div className="modal-body">
-          {/* Identity */}
-          <div className="memo-identity">
-            <div className="memo-id-name">{employee.name}</div>
-            <div className="memo-id-role">
-              {employee.role} · 🏆 {employee.rank} · 입사 {new Date(employee.hiredAt).toLocaleDateString('ko-KR')}
-            </div>
-          </div>
-
-          {/* Base instructions (read-only) */}
+          {/* Identity (v2 #19 — 자유 편집) */}
           <section className="modal-section">
-            <h3>⚙️ 기본 지침 <span className="modal-tag">읽기 전용</span></h3>
-            <pre className="modal-pre">{employee.baseInstructions}</pre>
+            <h3>🪪 정체성 <span className="modal-tag">편집 가능</span></h3>
             <p className="modal-hint">
-              채용 시 결정된 캐릭터 정체성. 자주 변경하지 않습니다.
+              🏆 {employee.rank} · 입사 {new Date(employee.hiredAt).toLocaleDateString('ko-KR')}
+            </p>
+            <label className="modal-label">이름</label>
+            <input
+              className="modal-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+            <label className="modal-label">역할</label>
+            <input
+              className="modal-input"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+            />
+            <label className="modal-label">이모지</label>
+            <input
+              className="modal-input"
+              value={emoji}
+              onChange={e => setEmoji(e.target.value)}
+              maxLength={4}
+            />
+          </section>
+
+          {/* Base instructions (v2 #19 — editable) */}
+          <section className="modal-section">
+            <h3>⚙️ 기본 지침 <span className="modal-tag">편집 가능</span></h3>
+            <textarea
+              className="modal-input"
+              rows={6}
+              value={baseInstructions}
+              onChange={e => setBaseInstructions(e.target.value)}
+              placeholder={INSTRUCTIONS_PLACEHOLDER}
+            />
+            <p className="modal-hint">
+              채용 시 정한 캐릭터 정체성. "직업 : 이름" 포맷 권장.
             </p>
           </section>
 
@@ -149,6 +198,42 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
                   <div className="promotion-label">{m.label}</div>
                   <div className="promotion-desc">{m.desc}</div>
                 </button>
+              ))}
+            </div>
+          </section>
+
+          {/* 외형 편집 (v2 #17·#18) */}
+          <section className="modal-section">
+            <h3>🎨 캐릭터 외형</h3>
+            {employee.template === 'custom' && (
+              <>
+                <label className="modal-label">색</label>
+                <div className="color-palette">
+                  {(Object.keys(CHARACTER_PALETTE) as CharacterPalette[]).map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`color-chip ${customColor === c ? 'selected' : ''}`}
+                      style={{ background: `#${CHARACTER_PALETTE[c].toString(16).padStart(6, '0')}` }}
+                      onClick={() => setCustomColor(c)}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            <label className="modal-label" style={{ marginTop: 10 }}>무늬</label>
+            <div className="model-options">
+              {(Object.keys(CHARACTER_PATTERN_LABELS) as CharacterPattern[]).map(p => (
+                <label key={p} className={`model-option ${pattern === p ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="memo-pattern"
+                    checked={pattern === p}
+                    onChange={() => setPattern(p)}
+                  />
+                  <span className="model-label">{CHARACTER_PATTERN_LABELS[p]}</span>
+                </label>
               ))}
             </div>
           </section>

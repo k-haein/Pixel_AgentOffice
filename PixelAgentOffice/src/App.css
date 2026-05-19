@@ -1127,6 +1127,29 @@ textarea.modal-input {
   letter-spacing: 0.5px;
 }
 
+/* 캐릭터 색 팔레트 (v2 #17) — 12색 픽셀풍 칩 */
+.color-palette {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+.color-chip {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid #8a6a30;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0;
+}
+.color-chip:hover { transform: scale(1.1); }
+.color-chip.selected {
+  border-color: #c89030;
+  box-shadow: 0 0 0 3px rgba(200, 144, 48, 0.4);
+  transform: scale(1.1);
+}
+
 /* 사용량 상세 표 (E) — SettingsModal */
 .usage-table {
   width: 100%;

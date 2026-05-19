@@ -1260,10 +1260,13 @@ export class OfficeScene extends Phaser.Scene {
     const clawdX = clawdPos.x
     const clawdY = clawdPos.y
 
-    // 캐릭터 — orientation별 위치 + 책상과 같은 회전
+    // 캐릭터 — orientation별 위치 + 책상과 같은 회전 (v2 #17·#18: customColor/pattern 적용)
     const variant: ClawdVariant = TEMPLATES[employee.template].variant
     const alpha = TEMPLATES[employee.template].alpha
-    const clawd = createClawd(this, clawdX, clawdY, variant)
+    const clawd = createClawd(this, clawdX, clawdY, variant, {
+      customColor: employee.customColor,
+      pattern: employee.pattern,
+    })
     clawd.setDepth(10)
     clawd.setScale(CLAWD_BASE_SCALE)
     if (rot !== 0) clawd.setRotation(rot)

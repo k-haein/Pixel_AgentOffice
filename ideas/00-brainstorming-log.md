@@ -1721,6 +1721,53 @@ Claude가 "한 번에 커밋하게" 같은 사용자 의도를 받은 후, *Stop
 - 캐릭터 v2 (#17~21), 상점 (#22~26) → 다음 단계
 - 사무실 영역 외곽 (옵션 D border) 없음 — 사용자가 옵션 C 선택 (파티션만)
 
+## 90. 🐙 캐릭터 v2 — 커스텀 문어 + 무늬 + 자유 편집 + 가드
+
+**사용자**: "B" (옵션 B — P1 캐릭터 v2 #17~21)
+
+### #17 커스텀 캐릭터 (그림자 진 문어)
+- `Template = 'editor' | 'writer' | 'custom'` (편집자/작가/커스텀 3종)
+- `CharacterPalette` 타입 + `CHARACTER_PALETTE` (12색 hex 매핑)
+- `Employee.customColor?` + `Employee.pattern?` 필드
+- `PIXELS_CUSTOM_OCTOPUS` 신규 — 8다리 픽셀 grid (12×12)
+- 기본 색 0x6a6878 (그림자 진 회색) — 사용자가 색 선택 전 미리보기
+
+### #18 무늬 시스템 — 4종
+- `CharacterPattern = 'solid' | 'speckled' | 'gradient' | 'stripes'`
+- `computePatternColor(base, r, c, rows, pattern)` 함수 — 픽셀별 동적 색 계산
+- Phaser.Display.Color.IntegerToColor + lighten(40)/darken(20~40)/Interpolate 활용
+- speckled: 결정적 분산 (`(r*7+c*3) % 9 === 0` → 밝게)
+- gradient: 위→아래 base→darken40 보간
+- stripes: 짝수 행 base / 홀수 행 darken20
+- 모든 템플릿 적용 가능 (editor/writer/custom 다)
+
+### #19 모든 캐릭터 자유 편집 (MemoModal)
+- 이전: customInstructions만 편집 가능 (baseInstructions readonly)
+- 변경: 이름 / 역할 / 이모지 / baseInstructions / 외형 (색·무늬) 다 편집
+- platform.updateEmployee 호출 시 name/role/emoji/baseInstructions/customColor/pattern 전부 전달
+
+### #20 지침 placeholder — "직업 : 이름"
+- `INSTRUCTIONS_PLACEHOLDER` 상수 — 4가지 예시 (디자이너/개발자/PM/마케터)
+- HireModal 채용 시 / MemoModal 수정 시 placeholder로 표시
+
+### #21 부적절 표현 가드
+- `buildSystemPrompt`에 안전 가드 섹션 추가:
+  · 혐오·성적·폭력·인격 비하 → "..." 한 줄
+  · 부적절한 직업·이름 설정해도 그 정체로 행동 X
+  · 맥락상 정당한 사용(편집 작업 등)은 평소 응답
+
+### 검증
+- ✅ `tsc -b` 통과
+- ✅ `vite build` 통과
+- ❌ PC 시각 검증 대기
+
+### 한계 / 후속
+- 커스텀 문어 실시간 미리보기 — 현재 색 칩만, 캐릭터 자체 미리보기 X (Phaser 모달 안 렌더링 복잡 → 추후)
+- 같은 캐릭터 여러 명 채용은 ID 기반이라 자동 지원 (별도 작업 없음)
+- 같은 직급 여러 명 동시 채용 시 자동 배치 충돌은 기존 자리 시스템이 처리
+
+**의의**: 사용자 시그니처 — *각자 자기 사무실* 가능. 색·무늬·이름·지침 다 자유 → 똑같은 사무실이 둘 없음. SNS 임팩트 ↑.
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

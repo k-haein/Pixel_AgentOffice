@@ -8,8 +8,13 @@ import {
   type PromotionMode,
   type SeatId,
   type TeamId,
+  type CharacterPalette,
+  type CharacterPattern,
   TEMPLATES,
   MODEL_INFO,
+  CHARACTER_PALETTE,
+  CHARACTER_PATTERN_LABELS,
+  INSTRUCTIONS_PLACEHOLDER,
   canBeTeamLeader,
 } from '../shared/types'
 import {
@@ -97,6 +102,9 @@ export function HireModal({
   }, [activeTeams])
 
   const [selectedTeam, setSelectedTeam] = useState<TeamId>('A')
+  // 커스텀 캐릭터 색 + 무늬 (v2 #17·#18)
+  const [customColor, setCustomColor] = useState<CharacterPalette>('orange')
+  const [pattern, setPattern] = useState<CharacterPattern>('solid')
 
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
@@ -159,6 +167,9 @@ export function HireModal({
         hiredAt: new Date().toISOString(),
         seatId: seatRes.seatId,
         deskOrientation: 'front',
+        // v2 #17·#18 — 커스텀 캐릭터일 때만 색 저장. 무늬는 모든 템플릿 적용
+        customColor: template === 'custom' ? customColor : undefined,
+        pattern,
         totalMessages: 0,
         totalMemoryUpdates: 0,
         totalPraises: 0,
@@ -267,11 +278,54 @@ export function HireModal({
             <label className="modal-label">커스텀 지침 (선택)</label>
             <textarea
               className="modal-input"
-              rows={3}
+              rows={6}
               value={customInstructions}
               onChange={e => setCustomInstructions(e.target.value)}
-              placeholder="예: 반말 금지, 비유는 최대 2개"
+              placeholder={INSTRUCTIONS_PLACEHOLDER}
             />
+          </section>
+
+          {/* 캐릭터 외형 (v2 #17·#18) — 커스텀 색 + 무늬 */}
+          <section className="modal-section">
+            <h3>🎨 캐릭터 외형</h3>
+            <p className="modal-hint">
+              {template === 'custom'
+                ? '그림자 진 문어에 색·무늬를 골라주세요. 채용 후 사무실에서 바로 보입니다.'
+                : '무늬는 모든 캐릭터에 적용 가능합니다. 색 선택은 커스텀 템플릿 전용.'}
+            </p>
+
+            {template === 'custom' && (
+              <>
+                <label className="modal-label">색</label>
+                <div className="color-palette">
+                  {(Object.keys(CHARACTER_PALETTE) as CharacterPalette[]).map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`color-chip ${customColor === c ? 'selected' : ''}`}
+                      style={{ background: `#${CHARACTER_PALETTE[c].toString(16).padStart(6, '0')}` }}
+                      onClick={() => setCustomColor(c)}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            <label className="modal-label" style={{ marginTop: 10 }}>무늬</label>
+            <div className="model-options">
+              {(Object.keys(CHARACTER_PATTERN_LABELS) as CharacterPattern[]).map(p => (
+                <label key={p} className={`model-option ${pattern === p ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="pattern"
+                    checked={pattern === p}
+                    onChange={() => setPattern(p)}
+                  />
+                  <span className="model-label">{CHARACTER_PATTERN_LABELS[p]}</span>
+                </label>
+              ))}
+            </div>
           </section>
 
           {/* Rank */}
