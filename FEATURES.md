@@ -440,6 +440,146 @@
 
 ---
 
+## 사무실 layout 재구성 (Day 10)
+
+### 무엇
+사용자 PC 시각 검증 피드백 → layout 단순화:
+- 상단 띠·title·subtitle Phaser 객체 모두 제거 (OS 윈도우 타이틀 + footer 대체)
+- 창문(skyBand y=0~32) + skyDivider(y=32~36) + 벽 띠(y=36~96) **직접 연결** (사이 빈 공간 X)
+- 사장실 좌우/위 파티션 + 팀 사이 파티션 *모두 제거* (`drawTeamPartitions` 함수 삭제)
+- 토큰 보드 / 시계 / timeLabel 위치 벽 띠(y=36~96) 안으로 재배치 (시계 절대 y=66, 토큰 보드 y=66, timeLabel y=46)
+- footer 상태바에 `💬 말풍선 = 채팅 · 📝 메모 = 설정` 안내 추가
+
+### 사용 방법
+- 정보 / 행동 없음 — 기본 사무실 상태
+
+### 기대 동작 ☐
+- ☐ 창문(skyBand)에 풍경(산·건물·구름·태양) 그대로
+- ☐ skyDivider 얇은 갈색 줄
+- ☐ 벽 띠(베이지) 즉시 아래로 이어짐 — *빈 공간 없음*
+- ☐ 벽 띠 안: 좌측 시계 / 가운데 토큰 보드 / 우측 시간대 라벨 + 줌 토글
+- ☐ 파티션 *0개* (사장실·팀 사이 세로 막대 X)
+- ☐ footer에 "💬 말풍선 = 채팅 · 📝 메모 = 설정" 안내 보임
+- ☐ Phaser 안에 "PixelAgentOffice" 텍스트 *없음* (OS 윈도우 타이틀에만)
+
+### 알려진 한계
+- subtitle 제거로 첫 사용자에게 *말풍선/메모 기능 안내*는 footer만 의존
+
+---
+
+## 말풍선 5 emotion 상태 머신 (Day 10)
+
+### 무엇
+캐릭터 머리 위 말풍선(`chatBubble` 픽셀 9×9 PIXEL_SIZE 3)의 *안 5×5 픽셀 심볼*이 상황별로 변경:
+
+| emotion | 픽셀 | 트리거 | 지속 |
+|---|---|---|---|
+| **thinking** (···) | 점 3개 | 평소 / working | 영구 (기본) |
+| **happy** (◡◡) | 휘어진 눈 | LLM 응답 도착 (`agent:reply`) | 2초 → thinking |
+| **confused** (?) | 물음표 | LLM 에러 (`agent:error`) | 4초 → thinking |
+| **sleepy** (Z) | 누운 Z | 강제 야간 (한도 도달) | 한도 해제까지 |
+| **surprised** (!!) | 두 직선 | 트리거 없음 (예약) | — |
+
+`workingBubble`은 `chatBubble`의 *자식*이라 말풍선 트윈(yoyo)에 자동 동기화. `setBubbleEmotion(employeeId, emotion, expireMs)` 헬퍼로 변경.
+
+### 사용 방법
+- 채팅 메시지 보내기 → 응답 대기 중 `...` (thinking)
+- 응답 도착 → 잠깐 `◡◡` → 2초 후 `...` 복귀
+- 의도적으로 에러 만들기 (API 키 무효 등) → `?` 4초
+- 일일 한도 매우 낮게 ($0.01) 설정 후 채팅 → 한도 도달 → `Z` 영구
+
+### 기대 동작 ☐
+- ☐ 평소 모든 캐릭터 말풍선 안에 `...` 점 3개
+- ☐ 채팅 응답 후 잠시 `◡◡` 얼굴 (happy)
+- ☐ 채팅 에러 시 `?` (confused) 4초
+- ☐ 한도 도달 시 모든 캐릭터 `Z` (sleepy)
+- ☐ 말풍선이 yoyo 트윈으로 위아래 움직일 때 *안 픽셀도 같이 움직임*
+
+### 알려진 한계
+- surprised 트리거 미정 (디자인 결정 보류)
+- emotion 변경 시 destroy + recreate (작은 객체라 부하 미미)
+
+---
+
+## forcedNight 사무실 overlay (Day 10)
+
+### 무엇
+토큰 한도 도달 시 사무실 *안*만 어두워짐 — 창문은 실제 시간대 유지:
+- `resolveTimeOfDay` 에서 `forcedNight` 분기 *제거* (실제 시간만 반환)
+- `forcedNightOverlay` rectangle (y=96~height, color 0x0a1020 alpha 0.55, depth 17)
+- uiCamera ignore → main 카메라만 영향
+- chatBubble(depth 19) > overlay(17) → 말풍선·emotion은 밝게
+- nameplate(depth 15) < overlay → 같이 어두워짐
+
+### 사용 방법
+- 설정 모달 → 일일 한도 $0.01 → 채팅 1~2번 → 한도 도달 트리거
+
+### 기대 동작 ☐
+- ☐ 창문 영역(skyBand·skyDivider·풍경) **실제 시간대 색 그대로** (낮이면 환함)
+- ☐ 사무실 영역(y=96~)만 *반투명 어두움* 덮임
+- ☐ 캐릭터 + 책상 + 가구 + 자리 + 이름표 모두 살짝 어둡게
+- ☐ chatBubble + 안 emotion 픽셀은 밝게 (오버레이 위에 렌더)
+- ☐ 토큰 보드 LED 빨강 + 점멸
+- ☐ timeLabel "(한도 도달)" 추가
+- ☐ 한도 해제 → overlay 사라짐, 평상 모드 복귀
+
+### 알려진 한계
+- 시각 검증 일부 완료 (한도 트리거는 사용자 확인). 일반망에서 채팅 정상 작동 후 더 자세히 검증 필요
+
+---
+
+## 캐릭터 눈 감기 (Day 10) — ⚠️ 검증 대기
+
+### 무엇
+sleepy 상태일 때 캐릭터 *기존 눈 픽셀 hide* + 그 자리에 *가로 선* 표시:
+- `Clawd.ts createClawd`: 픽셀 그릴 때 `X` (basic/headphones/custom) 또는 `Y` (jellyfish) 색이면 `rect.setData('eye', true)` 마커
+- `OfficeScene.setEyesSleepy(ws, sleepy)`:
+  - sleepy=true → clawd 자식 중 eye marker visible(false) + 가로 선 visible(true)
+  - sleepy=false → 반대
+- 무늬(점박이/줄무늬/그라데이션) 영향 0 (눈은 베이스 char 아님 → 무늬 적용 전 색 그대로)
+
+### 사용 방법
+- 일일 한도 도달 트리거 → 모든 캐릭터 눈 감음 + 말풍선 Z
+
+### 기대 동작 ☐
+- ☐ 한도 도달 시 모든 캐릭터의 *X X 눈 픽셀 사라짐*
+- ☐ 그 자리에 *짧은 가로 검정 줄* 두 개 (감은 눈)
+- ☐ 한도 해제 시 가로 줄 사라지고 *원래 X X 눈 복원*
+- ☐ 커스텀 캐릭터(점박이/줄무늬/그라데이션)도 동일 작동
+- ☐ 터미널 콘솔에 `[setEyes] {이름} sleepy: true eyesFound: 4 totalChildren: 144` 로그
+
+### 검증 절차 (다음 세션 우선)
+1. Electron 창 X 버튼 닫기
+2. 터미널 `Ctrl+C`
+3. `Remove-Item dist-electron -Recurse -Force` (캐시 강제 삭제)
+4. `pnpm dev`
+5. 채용 + 한도 도달 → 위 ☐ 모두 확인
+6. 작동 OK → `setEyesSleepy` 안의 console.log 5줄 제거
+
+### 알려진 한계
+- 현재 main process 캐시로 미반영 의심 (위 절차로 강제 새 빌드 필요)
+- 측면 회전(left/right) 캐릭터 눈 위치는 정면 기준이라 어긋날 수 있음 — 추후 확인
+
+---
+
+## 에러 시 채팅 input 복구 (Day 10)
+
+### 무엇
+LLM 응답 실패(`result.ok === false`) 또는 catch 블록 진입 시 `setInput(text)` 호출로 *방금 보낸 메시지를 input에 복구*. 매번 다시 타이핑 안 하게.
+
+### 사용 방법
+- 회사망에서 SSL 이슈 / Gemini 503 / 가드 거부 등 LLM 에러 발생 시 자동
+
+### 기대 동작 ☐
+- ☐ 채팅 전송 후 에러 시스템 메시지 떠도 *input 영역에 방금 친 메시지 그대로 있음*
+- ☐ Enter 다시 누르면 재전송 가능
+- ☐ 성공 시는 input 비어 있음 (정상)
+
+### 알려진 한계
+- 응답 일부만 도착 후 끊긴 경우(streaming)는 입력 복구 X (현재는 비스트리밍이라 무관)
+
+---
+
 ## 🧪 회귀 테스트 — E2E (Playwright)
 
 PC에서 `pnpm test:e2e` 실행 시 자동 검증되는 시나리오:
