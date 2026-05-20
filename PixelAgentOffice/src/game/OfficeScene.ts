@@ -121,6 +121,49 @@ const CHAT_BUBBLE = [
   '....O....',
 ]
 
+// chatBubble 안에 들어가는 상태별 5×5 미니 픽셀 — 감정 표현 (Day 10).
+// CHAT_BUBBLE 내부 흰 영역(7×5)에 들어가도록 좌·우 1px 여백.
+// 색은 검정(O)만. 추후 다른 색 추가 가능 (예: 분노=빨강).
+const BUBBLE_INNER_PALETTE = { O: 0x2a1408 }
+const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
+  thinking: [   // ··· 점 3개
+    '.....',
+    '.....',
+    'O.O.O',
+    '.....',
+    '.....',
+  ],
+  happy: [      // ◡◡ 휘어진 눈 두 개
+    '.....',
+    'O...O',
+    'O...O',
+    '.O.O.',
+    '.....',
+  ],
+  surprised: [  // !? 수직 직선 두 개 + 아래 점
+    '.O.O.',
+    '.O.O.',
+    '.O.O.',
+    '.....',
+    '.O.O.',
+  ],
+  sleepy: [     // 누운 Z (zZ 느낌)
+    'OOOO.',
+    '...O.',
+    '..O..',
+    '.O...',
+    'OOOO.',
+  ],
+  confused: [   // 물음표 모양
+    '.OO..',
+    'O..O.',
+    '...O.',
+    '..O..',
+    '..O..',
+  ],
+}
+export type BubbleEmotion = keyof typeof BUBBLE_INNER_PIXELS
+
 const CLOUD_PALETTE = { W: 0xffffff, H: 0xe0eaf0 }
 const CLOUD_SMALL = [
   '..WWWWWW..',
@@ -246,7 +289,10 @@ type Workstation = {
   seatMeta: SeatMeta
   employee: Employee | null
   clawd?: Phaser.GameObjects.Container
-  workingBubble?: Phaser.GameObjects.Text
+  workingBubble?: Phaser.GameObjects.Container
+  isWorking?: boolean // chat working 상태 추적 (deskLamp 판단용, Day 10 — workingBubble.visible 의존 제거)
+  /** sleepy 시 양쪽 눈 감은 가로줄 overlay (Day 10) — clawd container 자식, visible toggle */
+  eyesClosed?: Phaser.GameObjects.GameObject[]
   chatBubble?: Phaser.GameObjects.Container
   memo?: Phaser.GameObjects.Container
   nameplate?: Phaser.GameObjects.Text
@@ -282,6 +328,8 @@ export class OfficeScene extends Phaser.Scene {
   /** 하늘 / 천체 / 구름 / 별 — 시간대마다 색 갱신해야 하는 요소들 참조 */
   private skyBand?: Phaser.GameObjects.Rectangle
   private skyDivider?: Phaser.GameObjects.Rectangle
+  /** 강제 야간(토큰 한도) 시 사무실 안만 어둡게 — 창문/풍경/시간대는 실제 그대로 (Day 10) */
+  private forcedNightOverlay?: Phaser.GameObjects.Rectangle
   private celestialBody?: Phaser.GameObjects.Container
   private clouds: Phaser.GameObjects.Container[] = []
   private stars: Phaser.GameObjects.Rectangle[] = []
@@ -362,26 +410,68 @@ export class OfficeScene extends Phaser.Scene {
   private setStateHandler = (payload: unknown) => {
     if (this.isShutdown || !this.add) return
     const { agentId, state } = payload as { agentId: string; state: 'idle' | 'working' }
-    // employee.id로 워크스테이션 찾기 (seatId 키로 저장돼 있어서 iterate)
-    let ws: Workstation | undefined
-    for (const w of this.workstations.values()) {
-      if (w.employee?.id === agentId) { ws = w; break }
+    // chatBubble + workingBubble 모두 항상 visible. isWorking flag만 갱신.
+    // emotion은 chat 흐름 별 이벤트(agent:reply / agent:error / 야간)에서 swap.
+    for (const ws of this.workstations.values()) {
+      if (ws.employee?.id === agentId) {
+        ws.isWorking = state === 'working'
+        break
+      }
     }
-    if (ws && ws.workingBubble?.active && ws.chatBubble) {
-      ws.workingBubble.setVisible(state === 'working')
-      ws.chatBubble.setVisible(state !== 'working')
-    }
-    // 탁상 전등 — 야간 + working 시 표시 (P2 #23)
     this.updateAllDeskLamps()
   }
-  /** 토큰 고갈 → 강제 밤 / 회복 → 평시 시간대. 토큰 보드 LED 색·탁상 전등 같이 즉시 갱신. */
+  private replyHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const { agentId } = payload as { agentId: string }
+    // 응답 도착 → happy 2초 → thinking 복귀
+    this.setBubbleEmotion(agentId, 'happy', 2000)
+  }
+  private errorHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const { agentId } = payload as { agentId: string }
+    // LLM error → confused 4초 → thinking 복귀
+    this.setBubbleEmotion(agentId, 'confused', 4000)
+  }
+  /** 토큰 고갈 → 사무실 안만 어둡게(overlay). 창문/풍경/시간대는 실제 그대로. (Day 10 수정) */
   private nightModeHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const { forced } = payload as { forced: boolean }
     this.forcedNight = forced
+    // 사무실 어두움 overlay toggle — 창문/풍경은 영향 없음
+    this.forcedNightOverlay?.setVisible(forced)
+    // timeLabel "(한도 도달)" 갱신 — applyTimeOfDay 호출하면 동일 시간대 분기로 라벨만 갱신
     this.applyTimeOfDay(this.resolveTimeOfDay(), true)
     void this.refreshTokenBoard()
     this.updateAllDeskLamps()
+    // 강제 야간 진입 = 모든 직원 sleepy + 눈 감음, 해제 = thinking 복귀 + 눈 뜸 (Day 10)
+    for (const ws of this.workstations.values()) {
+      if (ws.employee) {
+        this.setBubbleEmotion(ws.employee.id, forced ? 'sleepy' : 'thinking', 0)
+      }
+      this.setEyesSleepy(ws, forced)
+    }
+  }
+
+  /** 캐릭터 눈 상태 toggle — sleepy 시 기존 눈 픽셀 hide + 가로 선 show */
+  private setEyesSleepy(ws: Workstation, sleepy: boolean) {
+    let eyeFound = 0
+    let totalChildren = 0
+    if (ws.clawd) {
+      for (const child of ws.clawd.list) {
+        totalChildren++
+        const obj = child as Phaser.GameObjects.Rectangle
+        if (obj.getData?.('eye') === true) {
+          obj.setVisible(!sleepy)
+          eyeFound++
+        }
+      }
+    }
+    if (ws.eyesClosed) {
+      for (const line of ws.eyesClosed) {
+        (line as Phaser.GameObjects.Rectangle).setVisible(sleepy)
+      }
+    }
+    console.log('[setEyes]', ws.employee?.name, 'sleepy:', sleepy, 'eyesFound:', eyeFound, 'totalChildren:', totalChildren)
   }
 
   /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
@@ -454,11 +544,12 @@ export class OfficeScene extends Phaser.Scene {
     grid.strokePath()
     this.floorGrid = grid
 
-    // Sky band — 색은 시간대 시스템이 결정 (applyTimeOfDay)
+    // Sky band (창문) — y=0~32. 그 아래 skyDivider → 벽 띠 바로 붙음 (Day 10).
+    // 상단 별도 띠 제거 — title/subtitle은 OS 타이틀 + footer 상태바로 옮김.
     this.skyBand = this.add.rectangle(width / 2, 16, width, 32, 0x87ceeb)
     this.skyDivider = this.add.rectangle(width / 2, 34, width, 4, 0x5a4a36)
 
-    // Stars (밤 시간대에만 보이게 alpha 조정) — 살짝 깜빡이는 점들
+    // Stars (밤 시간대에만 보이게 alpha 조정) — 살짝 깜빡이는 점들 (skyBand y=0~32)
     const STAR_POSITIONS: Array<[number, number, number]> = [
       [80, 8, 2], [220, 12, 1.5], [340, 6, 2], [510, 14, 1.5],
       [620, 9, 2], [780, 11, 1.5], [870, 6, 2], [1010, 13, 1.5],
@@ -511,27 +602,11 @@ export class OfficeScene extends Phaser.Scene {
       duration: 1500,
     })
 
-    // Title (UI camera용 — 멤버 보관)
-    this.titleText = this.add
-      .text(width / 2, 60, 'PixelAgentOffice', {
-        fontFamily: '"Courier New", monospace',
-        fontSize: '20px',
-        color: '#5a3a0f',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-    // 토큰 보드 자리 차지 (y=78 영역) — subtitle은 그 아래로
-    this.subtitleText = this.add
-      .text(width / 2, 110, '💬 말풍선 클릭 → 채팅 · 📝 메모지 클릭 → 설정', {
-        fontFamily: '"Courier New", monospace',
-        fontSize: '12px',
-        color: '#5a3a0f',
-      })
-      .setOrigin(0.5)
+    // title/subtitle 제거 — OS 윈도우 타이틀 + footer 상태바로 이동 (Day 10 사용자 피드백)
 
-    // 시간대 라벨 — 우측 상단에 작게 (현재 사무실이 어느 시간대인지 표시)
+    // 시간대 라벨 — 벽 띠(y=36~96) 안 우측
     this.timeLabel = this.add
-      .text(width - 18, 56, '', {
+      .text(width - 18, 46, '', {
         fontFamily: '"Courier New", monospace',
         fontSize: '12px',
         color: '#5a3a0f',
@@ -558,9 +633,27 @@ export class OfficeScene extends Phaser.Scene {
     this.createTokenBoard()
     this.scheduleTokenBoardRefresh()
 
+    // 강제 야간 overlay (Day 10) — 사무실 영역(y=벽띠 끝 96 이후)만 어둡게.
+    // 창문(skyBand·skyDivider·풍경)은 main 카메라에서도 *덮지 않음* — 시간대 자연 유지.
+    // chatBubble(depth 19) > overlay(depth 17) → 말풍선·emotion은 밝게, 캐릭터는 살짝 어두움.
+    const officeY = 96
+    this.forcedNightOverlay = this.add.rectangle(
+      width / 2,
+      (officeY + height) / 2,
+      width,
+      height - officeY,
+      0x0a1020,
+      0.55,
+    )
+    this.forcedNightOverlay.setDepth(17)
+    this.forcedNightOverlay.setVisible(false)
+    this.ignoreWorldOnUiCamera([this.forcedNightOverlay])
+
     // Listen for data changes from React (참조 보관해서 cleanup 가능)
     eventBus.on('office:set-employees', this.setEmployeesHandler)
     eventBus.on('agent:set-state', this.setStateHandler)
+    eventBus.on('agent:reply', this.replyHandler)
+    eventBus.on('agent:error', this.errorHandler)
     eventBus.on('office:night-mode', this.nightModeHandler)
     eventBus.on('seat:start-move', this.startSeatMoveHandler)
     eventBus.on('office:settings', this.setSettingsHandler)
@@ -699,6 +792,8 @@ export class OfficeScene extends Phaser.Scene {
   private cleanupListeners() {
     eventBus.off('office:set-employees', this.setEmployeesHandler)
     eventBus.off('agent:set-state', this.setStateHandler)
+    eventBus.off('agent:reply', this.replyHandler)
+    eventBus.off('agent:error', this.errorHandler)
     eventBus.off('office:night-mode', this.nightModeHandler)
     eventBus.off('seat:start-move', this.startSeatMoveHandler)
     eventBus.off('office:settings', this.setSettingsHandler)
@@ -718,14 +813,21 @@ export class OfficeScene extends Phaser.Scene {
   // ============================================================
 
   /** 강제 야간이 켜져있으면 night, 아니면 실제 시각 기반 */
+  /** 실제 시간대만 반환 — 강제 야간(forcedNight)은 *사무실 안 overlay*로만 표현, 창문은 실제 시간 유지 (Day 10) */
   private resolveTimeOfDay(): TimeOfDay {
-    if (this.forcedNight) return 'night'
     return getTimeOfDay()
   }
 
   /** 시간대 색 팔레트를 모든 씬 요소에 적용 (tween으로 부드럽게) */
   private applyTimeOfDay(t: TimeOfDay, animate: boolean) {
-    if (this.currentTimeOfDay === t) return
+    if (this.currentTimeOfDay === t) {
+      // 시간대 변화 X — timeLabel만 forcedNight 갱신 (한도 도달 표시)
+      if (this.timeLabel) {
+        const label = TIME_PALETTES[t].label
+        this.timeLabel.setText(this.forcedNight ? `${label} (한도 도달)` : label)
+      }
+      return
+    }
     this.currentTimeOfDay = t
     const p = TIME_PALETTES[t]
     const dur = animate ? 1500 : 0
@@ -819,12 +921,12 @@ export class OfficeScene extends Phaser.Scene {
   /** sky 영역에 건물 + 산 픽셀 배치. 정적, create 시 1회. */
   private drawWindowScenery() {
     const width = this.scale.width
-    // 멀리 산 — sky band 아래쪽
+    // 멀리 산 — sky band(y=0~32) 아래쪽
     const mountain1 = drawPixelGrid(this, MOUNTAIN, MOUNTAIN_PALETTE, 0.18 * width, 30, 2)
     mountain1.setDepth(1.5)
     const mountain2 = drawPixelGrid(this, MOUNTAIN, MOUNTAIN_PALETTE, 0.62 * width, 32, 2)
     mountain2.setDepth(1.5)
-    // 건물 (도시 실루엣) — 노란 창문 점이 시간대와 무관하게 항상 살짝 보임 (밤엔 더 또렷)
+    // 건물 (도시 실루엣) — 노란 창문 점
     const buildingTall = drawPixelGrid(this, BUILDING_TALL, BUILDING_PALETTE, 0.38 * width, 24, 2)
     buildingTall.setDepth(1.6)
     const buildingShort = drawPixelGrid(this, BUILDING_SHORT, BUILDING_PALETTE, 0.48 * width, 30, 2)
@@ -838,75 +940,16 @@ export class OfficeScene extends Phaser.Scene {
   // 사무실 벽 + 파티션 (P1 #12 옵션 C — 풀 파티션)
   // ============================================================
 
-  /** 위쪽 벽 영역 + 사장실 격리 파티션 — 정적, create 시 1회. */
+  /** 위쪽 벽 영역만 — 창문(skyBand y=0~32) + skyDivider(y=32~36) 바로 아래 벽 띠. */
   private drawWallsAndPartitions() {
     const width = this.scale.width
-    const height = this.scale.height
-
-    // 위쪽 벽 영역 (y=60~120) — 베이지 배경 + 아래 갈색 경계
-    const wallBg = this.add.rectangle(width / 2, 90, width, 60, 0xd8c890)
+    // 위쪽 벽 영역 (y=36~96) — 베이지 배경 + 아래 갈색 경계. 시계·토큰 보드 액자가 부착될 영역.
+    const wallBg = this.add.rectangle(width / 2, 66, width, 60, 0xd8c890)
     wallBg.setDepth(0.5) // sky(0) 위, 자리(다양) 아래
-    const wallBorder = this.add.rectangle(width / 2, 120, width, 2, 0x8a6a30)
+    const wallBorder = this.add.rectangle(width / 2, 96, width, 2, 0x8a6a30)
     wallBorder.setDepth(0.6)
     this.walls.push(wallBg, wallBorder)
-
-    // 사장실 격리 — 사장석 좌우 큰 파티션 (사장석 yRatio 0.30)
-    const bossDeskY = 0.30 * height
-    const partCenterY = bossDeskY + 10
-    const partHeight = 100
-    const bossLeftX = 0.5 * width - 56
-    const bossRightX = 0.5 * width + 56
-    const bossLeftPart = this.add.rectangle(bossLeftX, partCenterY, 6, partHeight, 0xc8b878)
-    bossLeftPart.setStrokeStyle(1, 0x6a5a30)
-    bossLeftPart.setDepth(7)
-    const bossRightPart = this.add.rectangle(bossRightX, partCenterY, 6, partHeight, 0xc8b878)
-    bossRightPart.setStrokeStyle(1, 0x6a5a30)
-    bossRightPart.setDepth(7)
-    // 사장실 윗쪽 가로 파티션 (벽 아래·사장석 위)
-    const bossTopY = bossDeskY - 50
-    const bossTopPart = this.add.rectangle(0.5 * width, bossTopY, 120, 5, 0xc8b878)
-    bossTopPart.setStrokeStyle(1, 0x6a5a30)
-    bossTopPart.setDepth(7)
-    this.walls.push(bossLeftPart, bossRightPart, bossTopPart)
-  }
-
-  /** 활성 팀 사이 + 같은 팀 내 자리 사이 파티션 (rebuild 시 호출, P1 #12). */
-  private drawTeamPartitions() {
-    // 기존 파티션 정리
-    for (const p of this.partitions) p.destroy()
-    this.partitions = []
-
-    const width = this.scale.width
-    const height = this.scale.height
-
-    // 팀 사이 파티션 — 활성 팀 인접 사이만
-    const teamXs: Record<'A' | 'B' | 'C', number> = { A: 0.20, B: 0.50, C: 0.80 }
-    const teamsOrdered: ('A' | 'B' | 'C')[] = ['A', 'B', 'C']
-    const activeOrdered = teamsOrdered.filter(t => this.activeTeams.has(t))
-    for (let i = 0; i < activeOrdered.length - 1; i++) {
-      const t1 = activeOrdered[i]
-      const t2 = activeOrdered[i + 1]
-      const x = ((teamXs[t1] + teamXs[t2]) / 2) * width
-      const y = 0.65 * height
-      const part = this.add.rectangle(x, y, 8, 220, 0xb8a868)
-      part.setStrokeStyle(1, 0x6a5a30)
-      part.setDepth(6)
-      this.partitions.push(part)
-    }
-
-    // 같은 팀 내 자리 사이 파티션 — member 좌·우 분리 (leader 아래쪽 세로 파티션)
-    for (const team of activeOrdered) {
-      const x = teamXs[team] * width
-      // leader y=0.45, member y=0.60·0.75. leader 책상 아래(deskY+30)부터 member 책상 아래(0.75deskY+30)까지
-      const yTop = 0.55 * height
-      const yBot = 0.80 * height
-      const partHeight = yBot - yTop
-      const partCenterY = (yTop + yBot) / 2
-      const part = this.add.rectangle(x, partCenterY, 4, partHeight, 0xc8b878)
-      part.setStrokeStyle(1, 0x6a5a30)
-      part.setDepth(5) // 책상·캐릭터보다 아래 (depth 8·10)
-      this.partitions.push(part)
-    }
+    // 사장실 좌·우·위 파티션은 제거 (어색하다는 사용자 피드백)
   }
 
   // ============================================================
@@ -936,9 +979,9 @@ export class OfficeScene extends Phaser.Scene {
 
     this.worldFurniture = [plant1, plant2, bookshelf, vending]
 
-    // 시계 — 좌측 벽 상단 (UI). 크기 키움 (pixelSize 2→3, P1 #10) + 시침·분침 graphics
-    const clockX = 0.18 * width
-    const clockY = 0.13 * height
+    // 시계 — 벽 띠(y=36~96) 안 좌측. 절대 y로 (벽 띠가 화면 크기 독립이므로)
+    const clockX = 0.10 * width
+    const clockY = 66
     this.clockFace = drawPixelGrid(this, CLOCK, CLOCK_PALETTE, clockX, clockY, 3)
     this.clockFace.setDepth(4)
 
@@ -1000,7 +1043,7 @@ export class OfficeScene extends Phaser.Scene {
   private createTokenBoard() {
     const width = this.scale.width
     const boardX = width / 2
-    const boardY = 78
+    const boardY = 66 // 벽 띠(y=36~96) 중앙
     const boardW = 200
     const boardH = 36
 
@@ -1177,8 +1220,7 @@ export class OfficeScene extends Phaser.Scene {
     // 활성 팀 라벨만 표시
     this.drawTeamLabels()
 
-    // 팀 사이 + 같은 팀 내 자리 사이 파티션 (P1 #12 옵션 C)
-    this.drawTeamPartitions()
+    // 팀 파티션 제거 — Day 10 사용자 피드백 ("걍 파티션 제거"). 함수 자체는 보존 (필요 시 복구)
 
     // 새 월드 객체들을 uiCamera에서 ignore (P1 #8)
     const newWorld: Phaser.GameObjects.GameObject[] = []
@@ -1186,6 +1228,36 @@ export class OfficeScene extends Phaser.Scene {
     newWorld.push(...this.teamLabels)
     newWorld.push(...this.partitions)
     this.ignoreWorldOnUiCamera(newWorld)
+  }
+
+  // ============================================================
+  // 말풍선 안 emotion swap — 채팅 상황별로 표시 (Day 10)
+  // ============================================================
+  /** 특정 직원의 말풍선 안 픽셀 심볼을 emotion으로 교체. expireMs > 0이면 자동 복귀(thinking) */
+  setBubbleEmotion(employeeId: string, emotion: BubbleEmotion, expireMs = 0) {
+    let target: Workstation | undefined
+    for (const ws of this.workstations.values()) {
+      if (ws.employee?.id === employeeId) { target = ws; break }
+    }
+    if (!target || !target.workingBubble || !target.chatBubble) return
+    const old = target.workingBubble
+    if (!old.active) return
+    old.destroy()
+    // 새 emotion 그리드를 chatBubble 자식으로 생성 (local 좌표) — 트윈 자동 동기화
+    const newBubble = drawPixelGrid(this, BUBBLE_INNER_PIXELS[emotion], BUBBLE_INNER_PALETTE, 0, -3, 2)
+    newBubble.setDepth(20)
+    newBubble.setVisible(true)
+    target.chatBubble.add(newBubble)
+    target.workingBubble = newBubble
+    target.allObjects.push(newBubble)
+    this.uiCamera?.ignore(newBubble)
+
+    // 자동 복귀 — expireMs 후 thinking으로
+    if (expireMs > 0 && emotion !== 'thinking') {
+      this.time.delayedCall(expireMs, () => {
+        this.setBubbleEmotion(employeeId, 'thinking', 0)
+      })
+    }
   }
 
   /** 활성 팀 라벨만 그리기 (P0 #7). 우클릭 시 이름 수정 (P1 #11) */
@@ -1352,6 +1424,13 @@ export class OfficeScene extends Phaser.Scene {
     if (alpha !== undefined) clawd.setAlpha(alpha)
     allObjects.push(clawd)
 
+    // 감은 눈 가로 선 (Day 10) — sleepy 시 visible. 기존 눈 픽셀 (setData('eye',true))은 hide.
+    // 양 눈 자리 (local -6, -6 / 6, -6)에 짧은 가로 줄. 두 화면 단위 두께 + 6 너비 (눈 3 픽셀 폭과 일치)
+    const lineLeft = this.add.rectangle(-6, -6, 6, 2, 0x2a1408).setVisible(false)
+    const lineRight = this.add.rectangle(6, -6, 6, 2, 0x2a1408).setVisible(false)
+    clawd.add([lineLeft, lineRight])
+    const eyesClosed = [lineLeft, lineRight]
+
     // 자리 내부 우클릭 공통 처리 — 어느 요소 위에서든 우클릭 = 컨텍스트 메뉴
     const isRightClick = (pointer: Phaser.Input.Pointer): boolean => {
       const nativeButton = (pointer.event as MouseEvent | undefined)?.button
@@ -1416,16 +1495,17 @@ export class OfficeScene extends Phaser.Scene {
     deskGroup.add(memo)
 
     // 💬 Chat bubble — 회전 시에도 보이도록 위치 보정 (P0 #4)
-    //   정면: 캐릭터 머리 위 / 회전(left/right): 책상 위 영역 (deskY-60) — 캐릭터 옆으로 옮겨도 책상 위에 보임
+    //   정면: 캐릭터 머리 위 / 회전(left/right): 책상 위 영역 — 캐릭터 옆으로 옮겨도 책상 위에 보임
+    // chatBubble PIXEL_SIZE 2→3 (Day 10) — 안 픽셀 심볼이 잘 보이게 키움
     const chatBubbleX = orientation === 'front' ? clawdX : x
-    const chatBubbleY = orientation === 'front' ? clawdY - 28 : deskY - 60
+    const chatBubbleY = orientation === 'front' ? clawdY - 36 : deskY - 66
     const chatBubble = drawPixelGrid(
       this,
       CHAT_BUBBLE,
       CHAT_BUBBLE_PALETTE,
       chatBubbleX,
       chatBubbleY,
-      2,
+      3,
     )
     chatBubble.setDepth(19)
     chatBubble.setSize(20, 20)
@@ -1460,18 +1540,20 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Working bubble (P1 #15) — 점선 점점점(…)을 말풍선 안에 오버레이.
-    //   평소엔 chatBubble(빈 말풍선) / 채팅 중엔 chatBubble 위에 thinkingDots 표시 → 시각 일관성
-    const workingBubble = this.add
-      .text(chatBubbleX, chatBubbleY - 4, '…', {
-        fontFamily: '"Courier New", monospace',
-        fontSize: '14px',
-        color: '#5a3a0f',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(20)
-      .setVisible(false)
+    // Bubble inner pixels (Day 10) — chatBubble의 *자식*으로 들어가서 트윈 자동 동기화.
+    // 흰 영역 중앙 local 좌표 (0, -3) — chatBubble 중심 기준 1픽셀(PIXEL_SIZE 3) 위.
+    // inner PIXEL_SIZE 2 → 5×5×2=10×10 화면, 흰 영역(21×15) 안 여유.
+    const workingBubble = drawPixelGrid(
+      this,
+      BUBBLE_INNER_PIXELS.thinking,
+      BUBBLE_INNER_PALETTE,
+      0,  // local x (chatBubble 안)
+      -3, // local y (흰 영역 중앙)
+      2,
+    )
+    workingBubble.setDepth(20)
+    workingBubble.setVisible(true)
+    chatBubble.add(workingBubble) // chatBubble 자식 → 트윈 동기화
     // 점선 깜빡임 — 생각하는 느낌
     this.tweens.add({
       targets: workingBubble,
@@ -1504,7 +1586,7 @@ export class OfficeScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
-      .setDepth(20)
+      .setDepth(15) // overlay(17)보다 아래 — 야간 시 같이 어두워짐 (Day 10)
     nameplate.setPadding({ left: 8, right: 8, top: 3, bottom: 3 })
     allObjects.push(nameplate)
 
@@ -1577,16 +1659,21 @@ export class OfficeScene extends Phaser.Scene {
       nameplate,
       deskLamp,
       deskLampGlow,
+      eyesClosed,
       allObjects,
     })
+    // forcedNight 진입 중이면 이미 sleepy 상태 → 새 캐릭터도 눈 감음 + 가로 선 show
+    if (this.forcedNight) {
+      const ws = this.workstations.get(seat.id)
+      if (ws) this.setEyesSleepy(ws, true)
+    }
   }
 
   /** 야간 + 일하는 직원 책상 = 탁상 전등 켜짐 (P2 #23). setStateHandler·nightModeHandler에서 호출 */
   private updateAllDeskLamps() {
     for (const ws of this.workstations.values()) {
-      if (!ws.deskLamp || !ws.workingBubble) continue
-      const isWorking = ws.workingBubble.visible
-      const show = isWorking && this.forcedNight
+      if (!ws.deskLamp) continue
+      const show = !!ws.isWorking && this.forcedNight
       ws.deskLamp.setVisible(show)
       ws.deskLampGlow?.setVisible(show)
     }

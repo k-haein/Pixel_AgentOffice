@@ -173,6 +173,11 @@ export function createClawd(
       const px = (c - cols / 2 + 0.5) * PIXEL_SIZE
       const py = (r - rows / 2 + 0.5) * PIXEL_SIZE
       const rect = scene.add.rectangle(px, py, PIXEL_SIZE, PIXEL_SIZE, color)
+      // 눈 픽셀 마커 (Day 10) — sleepy 시 visible toggle용.
+      // basic/headphones/custom = 'X', jellyfish = 'Y'. 무늬 적용 전이라 안정.
+      if (ch === 'X' || (variant === 'jellyfish' && ch === 'Y')) {
+        rect.setData('eye', true)
+      }
       container.add(rect)
     }
   }

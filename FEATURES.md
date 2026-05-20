@@ -504,3 +504,37 @@ PC에서 다음 순서로 빠른 검증:
 - 가구·토큰 보드 위치가 자리와 겹치거나 잘리면 → 좌표 미세 조정 필요
 - 책상 회전 시 캐릭터가 누운 듯 어색하면 → 옵션 B (좌·우 스프라이트 신규)로 폴리시 결정
 - 상태바 폭이 좁아서 항목 잘리면 → CSS 줄임 처리 추가
+
+---
+
+## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)
+
+> Day 10 발견: 사용자 PC가 회사망에 있어 SSL inspection으로 Node fetch 차단. 임시 fix(`NODE_TLS_REJECT_UNAUTHORIZED=0`)는 dev 한정이지만 **배포 전 일반망 검증 필수**.
+> 자세히는 [`ideas/18-corp-network-ssl-issue.md`](ideas/18-corp-network-ssl-issue.md)
+
+### A. 일반망 dev 동작 검증
+- [ ] **회사망 떠나기** — 집 Wi-Fi / 카페 / 모바일 핫스팟 등 회사망이 아닌 환경에서 PC 연결
+- [ ] `pnpm dev` 실행 → Electron 창 정상 떠짐
+- [ ] 채팅 메시지 보내기 (Gemini) → 정상 응답 도착 (`Gemini가 응답을 거부했어요` X)
+- [ ] 채팅 메시지 보내기 (Claude) → 정상 응답
+- [ ] main process 콘솔에 `[gemini] raw error`·`[anthropic] raw error` 없음
+- ✅ 모두 통과 → dev 환경 자체는 회사망 의존성 없음 (`!app.isPackaged` 가드 OK)
+
+### B. Production 빌드 검증
+- [ ] `pnpm build` 또는 `electron-builder` 실행 → 빌드 성공
+- [ ] 빌드된 `.exe` (또는 `.dmg` / `.AppImage`)를 **다른 PC**에 복사 → 실행 (회사 PC에서 다른 PC로 옮기든, 동료에게 줘서 실행)
+- [ ] 빌드된 앱에서 API 키 입력 → 채팅 → 정상 응답
+- ✅ 통과 → production은 SSL 정상 검증, 회사망 임시 fix 누출 없음
+
+### C. 코드 cleanup
+- [ ] `electron/main.ts` — `NODE_TLS_REJECT_UNAUTHORIZED=0`이 **`if (!app.isPackaged)` 블록 안**에 있는지 마지막 확인
+- [x] `electron/llm/gemini.ts` — 진단 로그 5줄은 *유지* 결정 (Day 10). catch 블록 안이라 정상 시 출력 0. fetch·SSL·DNS·API 재발 시 첫 단서. 주석으로 용도 명시됨
+- [ ] (선택) `NODE_EXTRA_CA_CERTS` 마이그레이션 — IT에서 회사 CA cert 받으면 `NODE_TLS_REJECT_UNAUTHORIZED` 대신 *회사 CA만 추가 신뢰*로 전환. 자세히는 [`ideas/18`](ideas/18-corp-network-ssl-issue.md) §5 옵션 A
+
+### D. 같은 패턴 재발 방지
+- 새 외부 API 도입 시 (예: OpenAI / 백엔드 프록시) **회사망에서 처음 시도하면 SSL inspection 가능성** 의심
+- 진단 첫 명령 (PowerShell):
+  ```powershell
+  node -e "fetch('https://API_ENDPOINT').then(r => console.log(r.status)).catch(e => console.error(e.cause))"
+  ```
+- `cause.code === 'SELF_SIGNED_CERT_IN_CHAIN'` 또는 `'CERT_HAS_EXPIRED'` 나오면 회사망 SSL inspection 확정

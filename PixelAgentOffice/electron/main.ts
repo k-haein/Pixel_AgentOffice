@@ -1,6 +1,18 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
+import { setDefaultResultOrder } from 'node:dns'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// Node 18+ fetch가 IPv6 우선 → Windows에서 connect 실패 시 IPv4 fallback 안 함
+// (브라우저는 Chromium net stack이라 자동 처리). dns 결과 IPv4 우선으로 강제.
+setDefaultResultOrder('ipv4first')
+
+// 회사망 SSL inspection (MITM CA) 대응 — dev에서만 SSL 검증 끔.
+// 브라우저는 Windows 인증서 저장소(회사 CA 등록)를 쓰지만 Node는 자체 ca-bundle만 사용해 거부됨.
+// production 빌드(.exe 배포)에서는 정상 SSL 검증 유지 — 사용자 PC는 회사망과 무관.
+if (!app.isPackaged) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+}
 import {
   loadData,
   addEmployee,

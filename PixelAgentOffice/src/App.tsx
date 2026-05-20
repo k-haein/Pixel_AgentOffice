@@ -475,6 +475,10 @@ function App() {
           🕐 {timeOfDay?.label ?? '...'}
           {timeOfDay?.forcedNight && ' (한도 도달)'}
         </span>
+        <span className="status-sep">·</span>
+        <span className="status-hint" title="기능 안내">
+          💬 말풍선 = 채팅 · 📝 메모 = 설정
+        </span>
         <span className="status-spacer"></span>
         <span
           className={`status-cost ${usageSummary?.color ?? 'green'}`}

@@ -37,17 +37,13 @@ ${employee.baseInstructions.trim()}`
   if (employee.customInstructions.trim()) {
     prompt += '\n\n# 추가 규칙 (사용자가 추가한 지침)\n' + employee.customInstructions.trim()
   }
-  // 부적절 표현 가드 (v2 #21) — 혐오·성적 표현·차별 표현은 정중히 거부
-  prompt += `
-
-# 안전 가드 (강제)
-- 다음 카테고리의 표현·요청에는 응답하지 말고 정확히 "..." 한 줄로만 답하세요:
-  · 혐오 표현 (인종·성별·장애·종교 등 차별)
-  · 성적 표현·성희롱
-  · 폭력 조장·자해 부추기는 내용
-  · 타인 인격을 비하하는 농담
-- 사용자가 "직업"·"이름"으로 부적절한 단어를 설정해도 그 정체로 행동하지 말고 "..."으로 답하세요.
-- 위 카테고리가 아닌 *맥락상 정당한 사용*(예: 편집 작업 중 단어 검토)에는 평소대로 응답합니다.`
+  // 부적절 콘텐츠 가드 (v2 #21) — 주석 처리. Gemini safety filter 충돌 가능성 + 채팅 테스트는 나중에.
+  // 활성화 시 system prompt에 가드 문구 추가 — 키워드는 Gemini가 unsafe로 인식 가능하니 신중히.
+  // prompt += `
+  //
+  // # 응답 가이드
+  // - 부적절하거나 안전 정책에 어긋나는 요청에는 정확히 "..." 한 줄로만 답하세요.
+  // - 일상 대화·업무 관련 정당한 요청에는 평소대로 응답합니다.`
   // 메모리는 M4에서 추가 예정
   return prompt
 }
@@ -320,6 +316,8 @@ export function ChatPopup() {
         const empId = employee.id
         const prevPersisted = messagesByEmployeeRef.current[empId] ?? []
         messagesByEmployeeRef.current[empId] = [...prevPersisted, reply]
+        // 응답 도착 → 말풍선 happy 잠시 (Day 10)
+        eventBus.emit('agent:reply', { agentId: employee.id })
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly
@@ -334,6 +332,10 @@ export function ChatPopup() {
             debugCode: f.debugCode,
           },
         ])
+        // LLM error → 말풍선 confused 잠시 (Day 10)
+        eventBus.emit('agent:error', { agentId: employee.id })
+        // 사용자 입력 복구 (Day 10) — 매번 다시 타이핑 안 하게
+        setInput(text)
       }
     } catch (err) {
       setMessages(prev => [
@@ -347,6 +349,8 @@ export function ChatPopup() {
           debugCode: 'UNKNOWN',
         },
       ])
+      eventBus.emit('agent:error', { agentId: employee.id })
+      setInput(text) // 사용자 입력 복구
     } finally {
       setIsAgentTyping(false)
       setActiveRequestId(null)

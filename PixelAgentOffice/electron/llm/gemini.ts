@@ -74,8 +74,20 @@ export const geminiProvider: LLMProvider = {
       if (signal?.aborted || (err as Error)?.name === 'AbortError') {
         throw new LLMError('google', 'ABORTED', 'cancelled')
       }
-      // 원본 에러를 main process 콘솔에 출력 (개발자 디버깅용)
+      // ───── 진단 로그 (Day 10 회사망 SSL inspection 추적 시 신설) ─────
+      // 평소엔 catch 안이라 출력 X. fetch 실패·SSL·DNS·API 오류 등 *재발 시* 첫 단서.
+      // 같은 패턴이 보이면 ideas/18-corp-network-ssl-issue.md 진단 절차 참고.
+      // SDK가 cause를 wrap해서 가리는 케이스가 있어 err type + keys + cause 별도 출력.
       console.error('[gemini] raw error:', err)
+      console.error('[gemini] err type:', (err as { constructor?: { name: string } })?.constructor?.name)
+      console.error('[gemini] err keys:', Object.getOwnPropertyNames(err ?? {}))
+      const cause = (err as { cause?: unknown })?.cause
+      console.error('[gemini] cause:', cause)
+      if (cause) {
+        console.error('[gemini] cause keys:', Object.getOwnPropertyNames(cause))
+        console.error('[gemini] cause json:', JSON.stringify(cause, Object.getOwnPropertyNames(cause)))
+      }
+      // ────────────────────────────────────────────────────────
       const e = err as { status?: number; message?: string; statusText?: string; cause?: unknown }
       const msg = e?.message ?? '알 수 없는 오류'
       const status = e?.status
