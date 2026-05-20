@@ -1848,6 +1848,139 @@ Claude가 "한 번에 커밋하게" 같은 사용자 의도를 받은 후, *Stop
 
 ---
 
+# 📅 Day 10 (2026-05-20) — 평행 통합 + 사무실 layout 재구성 + 말풍선 감정 + 회사망 SSL fix
+
+## 93. 🔀 평행 Day 8 통합 — 옵션 A (우리 v2 폐기, 태블릿 흐름 채택, force push)
+
+Day 10 시작 시 `git pull` → 태블릿 브랜치(`claude/setup-local-project-Xy7cS`)에 7 커밋 더 발견. base `d02a5a1` — 우리 Day 9 머지(`47e7bc8`)를 모름 = *또 평행 분기*.
+
+**핵심 통찰**: 사용자가 PC에서 실제로 본 화면 = `d02a5a1` 시점 = **v1 (setRotation 회전)**. 우리 Day 9 v2 (3방향 측면 픽셀)는 *사용자가 한 번도 본 적 없음*. 25개 PC 검증 피드백 = v1 가정. P0 #4 "회전 시 말풍선 보정"도 setRotation 살아있다는 전제 → v2에선 의미 없음.
+
+**옵션 정리**:
+- A. 우리 v2 폐기 + 태블릿 흐름 main으로 (force push) ⭐
+- B. v2 유지 + 머지 + 충돌 수동 해결
+- C. 보류 + v2 PC 검증 후 결정
+
+**사용자 선택 A**. `git reset --hard origin/claude/setup-local-project-Xy7cS` → `git push --force-with-lease origin main`. main이 `fd8156f`로. 우리 데스크탑 4 커밋 (`d09b6be`·`a0bef41`·`4fbe66c`·`63dc959`) + Day 9 머지 `47e7bc8`는 history만 (reflog로 복구 가능).
+
+## 94. 🏛 사무실 layout 재구성 — 파티션·title·창문·벽
+
+데스크탑에서 시각 검증 시작. 사용자 피드백 흐름:
+
+**파티션**: "걍 파티션을 제거" — `drawTeamPartitions` 함수 + `drawWallsAndPartitions`의 사장실 좌우·위 파티션 모두 삭제. 위쪽 벽 띠만 유지.
+
+**토큰 보드 위치**: "PixelAgentOffice 글씨가 토큰 보드에 가려진다" — title y=60, 토큰 보드 y=78 → 충돌. 시도 흐름:
+- 1차: title을 sky band 위로(y=22) + subtitle 제거 → 풍경과 겹침
+- 2차: sky band 위에 별도 상단 띠(y=0~24) + 풍경/벽 +24 shift → "모양 더 이상해짐, 글씨 영역 빼고 창문이랑 벽만 붙여"
+- 최종: 상단 띠·title·subtitle 모두 제거 + 풍경 원래 위치 복구 + 벽 띠를 y=36~96으로 위로 올림 (skyDivider y=34와 직접 연결) + footer에 "💬 말풍선 = 채팅 · 📝 메모 = 설정" 안내 추가
+
+→ OS 윈도우 타이틀에 PixelAgentOffice 있고 footer에 사용법. Phaser scene에서는 *순수 사무실*만.
+
+**timeLabel·시계·토큰 보드 위치도 같이 조정** (벽 띠 y=36~96 안으로). 시계 절대 y=66 (`0.13*height` 폐기).
+
+## 95. 🌐 회사망 SSL inspection 진단 + 임시 fix
+
+채팅 시도 시 `Gemini가 응답을 거부했어요 / API_ERROR`. 단계 진단:
+
+1. 가드 system prompt 의심 → 주석 처리 후에도 동일
+2. DNS/TCP/시스템 프록시 확인 → 모두 정상
+3. IPv6 우선 의심 → `setDefaultResultOrder('ipv4first')` → 동일
+4. SDK가 cause 안 보존 (`GoogleGenerativeAIError` wrap)
+5. **`node -e "fetch(...)..."` 직접 실행** → `cause: Error: self-signed certificate in certificate chain` / code: `SELF_SIGNED_CERT_IN_CHAIN`
+
+**확정**: 회사망 SSL inspection. 회사 IT가 HTTPS 트래픽 가로채서 회사 CA로 다시 서명 → Node.js는 자체 ca-bundle만 신뢰하므로 거부 (브라우저는 Windows 인증서 저장소 사용해 OK).
+
+**임시 fix**: `electron/main.ts`에 `if (!app.isPackaged) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'`. dev 한정 — production 빌드(`.exe` 배포)는 정상 SSL 검증 유지.
+
+**기록**:
+- `ideas/18-corp-network-ssl-issue.md` 신규 — 증상·진단 과정·원리·해결 옵션·배포 전 체크리스트
+- `FEATURES.md` §배포 전 검증 신규 — 일반망 검증 + production 빌드 검증 + 코드 cleanup
+- `HANDOFF.md §3` 상단에 "🚨 배포 전 cleanup 필요" 한 줄
+- `gemini.ts`에 진단 console.error 5줄 유지 결정 (catch 안이라 정상 시 출력 0, 미래 fetch 재발 시 첫 단서)
+
+## 96. 🎭 말풍선 감정 표현 시스템 — 5 emotion + chatBubble 자식 통합
+
+사용자: "지금 ...이 나오는데 말풍선 안에 다양한 이모지로 감정 표현하면 좋겠어"
+
+진화:
+- 1차: `💭` 이모지 텍스트 → 픽셀 톤과 안 어울림
+- 2차: 픽셀 톤 이모지 표준 없음 발견 → **직접 픽셀 아트**
+- 5개 `BUBBLE_INNER_PIXELS` 정의 (5×5 픽셀): thinking(···) / happy(◡◡) / surprised(!!) / sleepy(Z) / confused(?)
+- workingBubble을 *chatBubble 자식*으로 (`chatBubble.add(workingBubble)`) — chatBubble 트윈에 자동 동기화 (사용자 피드백 "말풍선 움직임에 따라 글씨도")
+
+**emotion 매핑**:
+- idle / working: thinking (`...`) 기본
+- 응답 도착: happy 2초 → thinking
+- LLM 에러: confused 4초 → thinking
+- 강제 야간: sleepy (한도 해제까지)
+
+**ChatPopup 이벤트**:
+- `agent:reply` (성공 시) → happy
+- `agent:error` (실패 시) → confused
+- `agent:set-state` working/idle → isWorking flag (deskLamp 판단용)
+
+`setBubbleEmotion(employeeId, emotion, expireMs)` 헬퍼 — destroy + 새 grid 생성 + chatBubble.add. `expireMs > 0`이면 자동 thinking 복귀.
+
+## 97. 🌙 forcedNight 사무실 overlay — 창문은 실제 시간대 유지
+
+사용자: "토큰 다 쓰면 사무실 불만 꺼지고 창밖 날씨는 그대로"
+
+수정:
+- `resolveTimeOfDay`에서 `if (forcedNight) return 'night'` *제거* — 실제 시간만 반환
+- `applyTimeOfDay` early return 시 timeLabel만 갱신 (한도 도달 표시)
+- `forcedNightOverlay` rectangle 신규 (y=96~height, color 0x0a1020, alpha 0.55, depth 17) — 사무실 영역만 어둡게
+- uiCamera에서 ignore → main 카메라만 어둠 (창문·풍경·title·시계·토큰 보드는 정상)
+- 사용자 피드백 "이름표는 왜 빛나" → nameplate depth 20→15 (overlay 17 아래로)
+
+## 98. 😴 눈 감기 — Clawd setData 마커 + setEyesSleepy helper
+
+사용자: "캐릭터가 눈을 감게 해줘 픽셀로"
+
+시행착오:
+- 1차: 양 눈 위치에 작은 검정 사각형 4×2 → 안 보임 (너무 얇음)
+- 2차: 6×3 → 위치 어긋남
+- 3차: 10×2 가로 줄 → 눈 *위*에 떠 있음 (눈 자체는 그대로)
+- 4차: 8×4 큰 사각형 + setDepth(100) → 여전히 위치 어긋남
+- 사용자: "걍 기존 눈을 없애고 가로선으로"
+- **최종**: `Clawd.ts`에 `setData('eye', true)` 마커 (X 색 / jellyfish Y) → `OfficeScene.setEyesSleepy(ws, sleepy)` — clawd 자식 중 eye marker visible toggle + 가로 선(`eyesClosed`) toggle
+
+→ 무늬(점박이/줄무늬/그라데이션) 영향 0 (눈은 베이스 char 아님 → 무늬 적용 전 픽셀 그대로).
+
+⚠️ **현재 상태**: 코드 작성 완료 BUT main process 캐시로 미반영 의심. 다음 세션이 *Electron 창 닫기 → dist-electron 삭제 → pnpm dev* 강제 새 빌드 후 작동 확인 필요. 작동 OK면 `[setEyes]` 디버그 console.log 제거.
+
+## 99. ✨ 잡다 fix
+
+- **ChatPopup 가드 system prompt 주석 처리** — Gemini safety filter 호환. 채팅 테스트는 마지막에
+- **에러 시 input 복구** — `result.ok === false` / catch 블록에서 `setInput(text)`. 매번 다시 타이핑 안 하게
+- **이름표 어둡게** — depth 15
+- **footer "💬 말풍선 = 채팅 · 📝 메모 = 설정" 신규**
+
+## 100. 💡 아이디어 추가 — 채팅 멀티모달
+
+`ideas/06-decisions-to-make.md §P (#64)` 신규:
+- 채팅 input 옆 📎 / 드래그앤드롭 → 이미지 첨부
+- Gemini·Claude 둘 다 vision 지원
+- messages에 `images?: string[]` (base64) + electron-store
+- 우선순위: M5-d 성격 / Phase 3 백엔드 다음
+
+## 101. 📦 세션 정리 + 태블릿 인계
+
+사용자: "여기까지 세션 정리하고 문서 업데이트하고 커밋해줘. 태블릿으로 마저 할께"
+
+미커밋 9 파일 (FEATURES + HANDOFF + gemini + main + App + ChatPopup + OfficeScene + Clawd + ideas/06) + 신규 1 (ideas/18). 의미 단위 commit + push origin main.
+
+**다음 세션 (태블릿) 진입 점**:
+1. `git pull` (force push 이후 brancht 정상화)
+2. `HANDOFF.md` §1·§3 확인 — 배포 전 cleanup 항목 + 현재 미커밋 0
+3. **눈 감기 검증 필요** — PC에서 *Electron 창 닫기 → dist-electron 삭제 → pnpm dev* → 한도 도달 → 양 눈 사라지고 가로 선만 보여야. `[setEyes]` 로그도 확인. 그러면 작동 OK → 디버그 console.log 제거 + 다음 작업
+4. 다음 후보:
+   - P2 #25 가구 드래그앤드롭 (모호점 결정 필요)
+   - M5-d 성격 (M 보류 결정 답한 후)
+   - Phase 3 백엔드
+   - 채팅 멀티모달 (§P #64)
+
+---
+
 ## 결정 진화 요약 (M5 시점)
 
 | 항목 | 처음 | M1 | M2 | M3 | M4 | 최종 (M5) |

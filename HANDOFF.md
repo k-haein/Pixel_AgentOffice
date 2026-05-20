@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-18** (Day 8 종료 + P0 7개 + P1 #8~16 + 캐릭터 v2 #17~21 + P2 #22~24·26 적용)
+> 최종 갱신: **2026-05-20 (Day 10)** — 평행 통합(우리 v2 폐기 + 태블릿 흐름 채택, force push) + 사무실 layout 재구성 + 말풍선 5 emotion + forcedNight 사무실 overlay + 눈 감기 (Clawd setData) + 회사망 SSL inspection fix
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + **PC 검증 1차 사이클 반영** (P0 7 + P1 #8~16 + 캐릭터 v2 #17~21 + P2 #22~24·26) |
-| **다음 작업** | P2 #25 가구 배치 드래그앤드롭 / 남은 P1 (채팅 풀 영속화·빈자리 숨김) / M5-d 성격 / Phase 3 백엔드 중 택 |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. UI 카메라 분리·파티션·실시간 시계·캐릭터 v2·상점 카탈로그 다 들어옴 |
-| **검증 상태** | 모든 코드 *태블릿 작성*. PC 시각 재검증 대기 — `FEATURES.md` 21단계 + 새 항목 (풍경·탁상전등·파티션·커스텀 캐릭터·상점 등) |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout 재구성 + 말풍선 5 emotion + forcedNight 사무실 overlay + 눈 감기 + 회사망 SSL fix |
+| **다음 작업** | 🚨 **눈 감기 PC 검증 우선** (강제 새 빌드 후) → P2 #25 가구 드래그앤드롭 / 남은 P1 (채팅 풀 영속화·빈자리 숨김) / M5-d 성격 / Phase 3 백엔드 / 채팅 멀티모달(§P) 중 택 |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 10**: 평행 Day 8 통합 시 v2 폐기 + 태블릿 흐름 main 채택 (force push). 사무실 layout 단순화 (상단 띠/title/subtitle/파티션 제거 + 창문·벽 직접 연결). 말풍선 = 5 emotion 상태 머신 |
+| **검증 상태** | 일부 PC 검증 완료 (사무실 layout / 토큰 보드 / footer). **눈 감기 미검증** (main 캐시 의심 — 강제 새 빌드 필요). 태블릿 평행 코드 (M5-c·B-5·UI 폴리시 6종) 추가 검증도 대기 |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -225,6 +225,12 @@
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
+
+### 🚨 배포 전 cleanup + 다음 세션 우선 검증 (Day 10 추가)
+- **눈 감기 코드 작성 완료, 미검증** — `Clawd.setData('eye', true)` + `OfficeScene.setEyesSleepy()`. 다음 세션 시작 시: ① Electron 창 X 닫기 ② `Remove-Item dist-electron -Recurse -Force` ③ `pnpm dev` ④ 한도 도달 트리거 ⑤ 양 눈 사라지고 가로 선만 보이면 OK ⑥ 터미널 `[setEyes]` 로그도 확인 ⑦ 작동 OK면 디버그 console.log 5줄 제거 (`setEyesSleepy` 안)
+- **회사망 SSL inspection 임시 fix** — `electron/main.ts`의 `NODE_TLS_REJECT_UNAUTHORIZED=0` (`!app.isPackaged` 가드 안). dev 한정. 배포 전 일반망 검증 + 코드 재확인 필수. 자세히는 [`ideas/18-corp-network-ssl-issue.md`](ideas/18-corp-network-ssl-issue.md) + [`FEATURES.md`](FEATURES.md) "배포 전 검증" 섹션
+- **gemini.ts 진단 console.error 5줄** — 유지 결정 (Day 10). catch 안이라 정상 시 0 출력, 재발 시 첫 단서. 주석으로 용도 명시
+- **ChatPopup buildSystemPrompt 가드 주석 처리** (Day 10) — Gemini safety filter 호환. 채팅 안정 확인 후 더 중립 문구로 다시 활성화 검토
 
 ### ✅ Day 8 모든 작업 + P0 7개 push 완료 — 미커밋 없음
 
