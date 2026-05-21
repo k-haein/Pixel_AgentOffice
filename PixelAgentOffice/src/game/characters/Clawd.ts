@@ -1,8 +1,41 @@
 import Phaser from 'phaser'
-import type { CharacterPattern, CharacterPalette } from '../../shared/types'
+import type { CharacterPattern, CharacterPalette, AccessoryId } from '../../shared/types'
 import { CHARACTER_PALETTE } from '../../shared/types'
 
 export type ClawdVariant = 'basic' | 'headphones' | 'jellyfish' | 'custom'
+
+// === 액세서리 픽셀 (Day 11 v2.5 C) — 시각 비활성화. 다음에 활성화 시 사용 ===
+// @ts-expect-error unused — 비활성 코드 유지용
+const ACCESSORY_PALETTE: Record<string, number> = {
+  K: 0x2a1408, W: 0xfafafa, B: 0x3a5a8a, M: 0xd03048, Y: 0xc8a020,
+}
+// @ts-expect-error unused — 비활성 코드 유지용
+const ACCESSORY_PIXELS: Record<AccessoryId, string[]> = {
+  glasses: [        // 안경 — 양 눈 둥근 테
+    '............',
+    '............',
+    '.KKKK..KKKK.',
+    '.KKKK..KKKK.',
+    '............',
+    '............',
+  ],
+  sunglasses: [     // 선글라스 — 검은색 가로 막대
+    '............',
+    '............',
+    '.KKKKKKKKKK.',
+    '.KKKKKKKKKK.',
+    '............',
+    '............',
+  ],
+  cap: [            // 야구 모자 — 빨강 + 챙
+    '...MMMMMM...',
+    '..MMMMMMMM..',
+    '.KKKMMMMKKK.',
+    '............',
+    '............',
+    '............',
+  ],
+}
 
 // === Color palette ===
 const PALETTE: Record<string, number> = {
@@ -133,7 +166,7 @@ export function createClawd(
   x: number,
   y: number,
   variant: ClawdVariant = 'basic',
-  options?: { customColor?: CharacterPalette; pattern?: CharacterPattern },
+  options?: { customColor?: CharacterPalette; pattern?: CharacterPattern; accessoryId?: AccessoryId },
 ): Phaser.GameObjects.Container {
   const container = scene.add.container(x, y)
 
@@ -181,6 +214,26 @@ export function createClawd(
       container.add(rect)
     }
   }
+
+  // 액세서리 overlay (Day 11 v2.5 C) — 시각 비활성화 (그리드 12×6 너무 작음, PNG·그리드 확대 후 활성화 예정)
+  // 원래 코드:
+  //   if (options?.accessoryId && ACCESSORY_PIXELS[options.accessoryId]) {
+  //     const accPixels = ACCESSORY_PIXELS[options.accessoryId]
+  //     const accCols = accPixels[0].length
+  //     const accRows = accPixels.length
+  //     for (let r = 0; r < accRows; r++) {
+  //       for (let c = 0; c < accPixels[r].length; c++) {
+  //         const ch = accPixels[r][c]
+  //         const color = ACCESSORY_PALETTE[ch]
+  //         if (color === undefined) continue
+  //         const px = (c - accCols / 2 + 0.5) * PIXEL_SIZE
+  //         const py = (r - accRows / 2 + 0.5) * PIXEL_SIZE - PIXEL_SIZE * 2
+  //         const rect = scene.add.rectangle(px, py, PIXEL_SIZE, PIXEL_SIZE, color)
+  //         rect.setData('accessory', true)
+  //         container.add(rect)
+  //       }
+  //     }
+  //   }
 
   const hitW = totalW + 2
   const hitH = totalH + 2

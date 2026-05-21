@@ -1981,6 +1981,118 @@ Day 10 시작 시 `git pull` → 태블릿 브랜치(`claude/setup-local-project
 
 ---
 
+# 📅 Day 11 (2026-05-21) — 팀 중앙 정렬 + 팻말 시각화 + v2.5 시도 → 그리드 한계 발견
+
+## 102. 🎯 팀 동적 중앙 정렬
+
+활성 팀 수에 따라 자리·라벨 baseX 자동 조정:
+- 1팀: 중앙 (0.50)
+- 2팀: 양옆 (0.32 / 0.68)
+- 3팀: 기존 (0.20·0.50·0.80)
+
+`seats.ts`에 `getDynamicSeatX(seat, activeTeams)`·`getDynamicTeamX(team, activeTeams)` export. OfficeScene 6곳(자리 그리기·라벨·드래그·blocked flash·getClawdBase·hireZones)에서 직접 `seat.position.xRatio` 호출 → 함수로 치환. TEAM_X 원본 기준 dx(멤버 offset) 보존.
+
+## 103. 🌙 사장석 명패·팀 라벨 야간 어두움 + 디버그 로그 정리
+
+- nameplate / 팀 라벨 / 사장석 plate depth 20→15 (overlay 17 아래) — 강제 야간 시 같이 어두워짐
+- setEyesSleepy 디버그 console.log 5줄 제거 (Day 10 진단 끝)
+
+## 104. 🚫 빈 자리 hover tooltip 완전 제거
+
+사용자 피드백: "거슬려, 그냥 툴팁" → React DOM tooltip + state + 핸들러 모두 제거. Phaser emit은 그대로 둠 (리스너 없어 무시).
+
+## 105. 📏 자리 간격 조정 — dy 0.15 → 0.20
+
+위 자리 명패 + 아래 자리 말풍선 겹침 해소. 멤버 좌하 yRatio = 0.85 → 충돌 X. 팀 라벨 labelY 0.85 → 0.93 (멤버 좌하 자리와 안 겹치게). 명패 deskY+38 → +28 (책상 더 가까이).
+
+## 106. 🪧 팀 라벨 → 팻말 시각화
+
+`drawTeamPlate(team, name, x, y)` 헬퍼 신규. style별 분기 (wood/hanging/stone):
+- **wood**: 갈색 + 바닥 박힌 기둥 2개 + 모서리 못 4개 + 우측 위 작은 새싹 (초록 잎)
+- **hanging**: 위 수평 바 + 양옆 짧은 줄 + 막대 양 끝 사슬 고리 (회색)
+- **stone**: 회색 돌받침대 2개 + 양 옆 풀잎 4개 (진초록·연초록 교차)
+
+기둥 위치 — 사용자 피드백 "팻말 위에 매달려 있는 모양" → labelY-14 → labelY+14 (*아래에서 박힌* 모양).
+
+## 107. ✏️ 팀 이름 수정 — 컨텍스트 메뉴 + 모달
+
+사용자: "우클릭으로 수정 버튼" — 흐름:
+1. 팻말 우클릭 → `team:context-menu` emit (마우스 좌표 포함)
+2. App.tsx `teamContextMenu` state + ESC/외부 클릭 닫기
+3. "✏️ 이름 수정" 버튼 → `teamRenameModal` 모달 (input + 저장/취소 + Enter)
+4. `platform.updateSettings({ teamNames })` → 즉시 반영
+
+**버그 발견·fix**: `window.prompt` Electron renderer 기본 비활성 → custom inline modal로 대체.
+
+## 108. 🛍 상점 — 팻말 카탈로그 추가
+
+`Settings.teamPlateStyle?: 'wood' | 'hanging' | 'stone'` 신규 + `DEFAULT_SETTINGS.teamPlateStyle: 'wood'`. ShopModal에 *🪧 팀 팻말 디자인* 섹션 추가:
+- 3종 카드 + 현재 사용 중 ✓
+- *적용* 버튼 → `platform.updateSettings` + `office:settings` emit → 즉시 시각 변경
+- `setSettingsHandler` 안에 teamPlateStyle 변화 시 재그리기 로직
+
+## 109. 🎭 v2.5 A — 말풍선 emotion 5종 → 12종
+
+신규 7종 픽셀 (5×5 그리드): idea(💡) / love(♥) / angry(×) / sad(💧) / sweat(💦) / music(♪) / wow(✨). `BubbleEmotion` 타입 확장.
+
+상점에 *🎭 감정 표현 미리보기 (12종)* 갤러리 + 클릭 시 모든 직원에 5초간 적용 + 자동 thinking 복귀. `agent:set-emotion` 이벤트 (`agentId: '*'` 특수값) + OfficeScene handler.
+
+## 110. 👀 v2.5 B — 눈 표정 5종 + emotion 자동 동기
+
+14×3 그리드 픽셀 5종:
+- closed (sleepy — `--` 가로 줄)
+- happy (`◡ ◡`)
+- love (♥ ♥ 빨강)
+- surprised (`O O` 큰 눈)
+- star (★ ★ 노랑)
+
+`setEyesByExpression(ws, expr)` 헬퍼 — 원래 눈(eye marker) hide + overlay 그리기. `setBubbleEmotion` 안에서 `emotionToExpression` 매핑 통해 자동 호출. `setEyesSleepy`는 호환 wrapper.
+
+## 111. 👓🪴 v2.5 C·D — 액세서리 + 책상 소품 (구현)
+
+- Employee에 `accessoryId?: AccessoryId`, `deskItem?: DeskItemId` 신규
+- `AccessoryId`: glasses / sunglasses / cap (12×6 그리드)
+- `DeskItemId`: mug / plant / laptop (5×4 그리드)
+- Clawd.ts에 accessory overlay 그리기 (머리 영역)
+- createWorkstation에 deskItem 그리기 (책상 좌측)
+- ShopModal에 *👓 액세서리 & 🪴 책상 소품* 섹션 + 직원 dropdown 선택 + `applyAccessory`/`applyDeskItem`
+
+## 112. 🚫 v2.5 시각 구림 → 비활성화 결정
+
+사용자 피드백: "**너무 구린데**" — 픽셀 디자인 미검증 + 너무 작은 그리드 (12×6 액세서리, 5×4 소품, 14×3 눈 표정, 5×5 emotion) 한계.
+
+**원인 분석**:
+- Clawd 12×12 PIXEL_SIZE 2 = 화면 24×24. 그 안에 *5×5 emotion + 14×3 눈 표정 + 12×6 액세서리* overlay → 디테일 깨짐
+- 첨부 이미지 수준은 *20×12 PIXEL_SIZE 3 = 화면 60×36*급 필요
+
+**결정**: v2.5 시각만 OFF, 코드 유지 (다음 활성화 대비):
+- Clawd accessory overlay 그리기 *주석 처리* — `ACCESSORY_PALETTE`·`ACCESSORY_PIXELS`에 `@ts-expect-error unused` 마커
+- createWorkstation deskItem 그리기 *주석 처리* — `DESK_ITEM_PALETTE`·`DESK_ITEM_PIXELS` 동일
+- setBubbleEmotion 안의 `setEyesByExpression` 호출은 *closed/normal만* 분기 (happy/love/surprised/star overlay 안 그림)
+- ShopModal *👓 액세서리·소품* 섹션 *`{false && (<>...</>)}` 로 hide*
+- 12 emotion 갤러리·말풍선 12종은 *유지* (말풍선 자체는 사용자 OK)
+- 팻말·팻말 카탈로그·이름 수정 모달·팀 중앙 정렬·자리 간격 조정 — 모두 *유지*
+
+**다음 세션 우선 작업**: **그리드 확대 (캐릭터 20×12 PIXEL_SIZE 3)** — 화면 60×36으로 키워서 v2.5 시각 재활성화. 작업 3~4시간 예상:
+- 캐릭터 픽셀 6종 (basic/headphones/jellyfish/custom + 측면) 20×12로 재그림
+- 책상·의자·모니터 사이즈 비례 조정
+- 자리 좌표·간격 재조정 (16자리 화면 fit 검토)
+- chatBubble·overlay 좌표 재계산
+
+**의의**: 사용자 *솔직한 피드백* + *시각 구림 인정* → *그리드 확대*라는 *근본 해결* 방향 결정. v2.5 코드는 유지로 다음 세션 즉시 재활용.
+
+## 113. 📦 세션 정리 + 그리드 확대 다음 세션
+
+사용자: "지금까지 작업을 세션 정리해. 커밋 푸시하고 다시 그리드 확대 작업을 할꺼야."
+
+CONVENTIONS §7 체크리스트:
+- ✅ brainstorming-log Day 11 §102~113 추가
+- ✅ HANDOFF.md 동기화 (최종일자 / §1 / §3 cleanup / §4 다음 작업)
+- ✅ FEATURES.md — Day 11 신규 기능 명세 + v2.5 시각 비활성화 메모
+- ✅ ideas/16-character-customization-v2.md — v2.5 (액세서리·소품·눈 표정) 섹션 추가, 그리드 확대 후 활성화 계획
+
+---
+
 ## 결정 진화 요약 (M5 시점)
 
 | 항목 | 처음 | M1 | M2 | M3 | M4 | 최종 (M5) |

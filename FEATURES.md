@@ -647,6 +647,113 @@ PC에서 다음 순서로 빠른 검증:
 
 ---
 
+## 팀 동적 중앙 정렬 (Day 11)
+
+### 무엇
+활성 팀 수에 따라 자리·라벨 baseX 자동 조정:
+- 1팀: 중앙 (0.50)
+- 2팀: 양옆 (0.32 / 0.68)
+- 3팀: 기존 (0.20·0.50·0.80)
+
+`seats.ts`에 `getDynamicSeatX`·`getDynamicTeamX` 함수 export. 사장석은 항상 0.5 고정.
+
+### 기대 동작 ☐
+- ☐ 팀 A 하나만 활성 → 화면 중앙
+- ☐ 새 팀 추가 (B 자리에 채용) → 양옆으로 분리
+- ☐ 3팀 모두 활성 → 좌·중·우 (기존)
+- ☐ 자리 이동(드래그·드롭·스냅·blocked flash)도 동적 좌표 반영
+
+---
+
+## 팻말 시각화 + 3종 스타일 + 이름 수정 모달 (Day 11)
+
+### 무엇
+팀 라벨이 단순 텍스트 → *팻말* 형태로 변경. 3종 스타일 카탈로그:
+- **wood**: 갈색 + 바닥 박힌 기둥 2개 + 모서리 못 + 우측 위 새싹
+- **hanging**: 위 수평 바 + 양옆 짧은 줄 + 막대 양 끝 사슬 고리
+- **stone**: 회색 돌받침대 + 양 옆 풀잎
+
+상점 (🛍) 모달의 *🪧 팀 팻말 디자인* 섹션에서 즉시 변경. `Settings.teamPlateStyle?: 'wood' | 'hanging' | 'stone'`로 저장.
+
+### 사용 방법
+- 팻말 **우클릭** → 컨텍스트 메뉴 → *✏️ 이름 수정* → inline 모달 (input + Enter / 저장 / 취소)
+- 상점 → *🪧 팀 팻말 디자인* → 카드 *적용* → 즉시 시각 변경
+
+### 기대 동작 ☐
+- ☐ 팻말이 wood 디자인으로 보임 (기본) — 갈색 + 모서리 못 + 새싹
+- ☐ 상점에서 hanging 적용 → 즉시 매달림 팻말로
+- ☐ stone 적용 → 회색 돌 + 풀잎
+- ☐ 팻말 우클릭 → 메뉴 + "✏️ 이름 수정" 클릭 → 모달 떠서 입력 가능
+- ☐ 모달에서 Enter / 저장 → 새 이름 즉시 반영 + electron-store 영구 저장
+- ☐ 강제 야간 시 팻말도 같이 어두워짐 (depth 15, overlay 17 아래)
+
+### 알려진 한계
+- Electron 기본 `window.prompt` 비활성이라 custom 모달로 대체
+- 팀 라벨이 *현재 1개 스타일 = 모든 팀 동일*. 팀별 다른 스타일은 추후 확장
+
+---
+
+## 자리 간격 조정 + 명패·라벨 야간 어두움 (Day 11)
+
+### 무엇
+- 멤버 dy 0.15 → 0.20 (자리 세로 간격 +33%) — 위 명패 + 아래 말풍선 겹침 해소
+- 명패 위치 `deskY+38` → `deskY+28` (책상에 더 가까이)
+- 팀 라벨 labelY 0.85 → 0.93 (멤버 좌하 자리와 안 겹치게)
+- 명패·팀 라벨·사장석 plate **depth 20→15** (overlay 17 아래 — 강제 야간 시 같이 어두워짐)
+
+### 기대 동작 ☐
+- ☐ 위 자리 명패가 아래 자리 말풍선과 *겹치지 않음*
+- ☐ 팀 라벨이 멤버 좌하 자리와 *겹치지 않음*
+- ☐ 강제 야간 시 명패·팀 라벨·사장석 plate 모두 *어두워짐* (chatBubble·emotion만 밝게)
+
+---
+
+## 말풍선 emotion 5종 → 12종 + 상점 미리보기 갤러리 (Day 11 v2.5 A)
+
+### 무엇
+말풍선 안 픽셀 5종 → **12종**:
+- 기존: thinking / happy / surprised / sleepy / confused
+- 신규: idea (💡) / love (♥) / angry (×) / sad (💧) / sweat (💦) / music (♪) / wow (✨)
+
+상점 → *🎭 감정 표현 미리보기 (12종)* 갤러리 카드 클릭 → 모든 직원 5초간 적용 → 자동 thinking 복귀.
+
+### 기대 동작 ☐
+- ☐ 상점 갤러리에 12 emotion 카드 다 보임
+- ☐ 각 카드 클릭 → 모든 직원 말풍선 안 픽셀 변경
+- ☐ 5초 후 자동 thinking 복귀
+- ☐ 새 7종 (idea/love/angry/sad/sweat/music/wow) 픽셀 *알아볼 수 있음* (작아도)
+
+### 알려진 한계
+- 5×5 그리드라 픽셀 디테일 한계 — 일부는 식별 어려움
+- 트리거 매핑 미정 — 채팅 흐름별 자동 적용은 다음 단계
+
+---
+
+## v2.5 액세서리·책상 소품·눈 표정 (Day 11 — 코드 유지, 시각 비활성화) ⚠️
+
+### 무엇
+구현은 완료했으나 *그리드 사이즈 한계로 시각 비활성화* — 다음 세션 *그리드 확대 (캐릭터 20×12)* 후 활성화 예정:
+
+- **액세서리** (`Employee.accessoryId`): glasses / sunglasses / cap — 캐릭터 머리 위 overlay
+- **책상 소품** (`Employee.deskItem`): mug / plant / laptop — 책상 좌측 작은 픽셀
+- **눈 표정** 5종: closed (sleepy) / happy / love (♥) / surprised (큰 눈) / star (★) — emotion 자동 동기
+
+### 현재 상태
+- 코드 모두 유지 (`@ts-expect-error unused` 마커 + `if (false)` 또는 주석)
+- ShopModal *👓 액세서리·소품* 섹션 `{false && (<>...</>)}` 로 hide
+- `setBubbleEmotion` 안의 `setEyesByExpression` 호출은 *closed/normal만* 분기 (다른 overlay 안 그림)
+- `closed` (sleepy) 시 눈 감기는 *그대로 작동* (Day 10 기능)
+
+### 활성화 절차 (다음 세션)
+1. 캐릭터 그리드 12×12 → 20×12 + PIXEL_SIZE 2 → 3
+2. 책상·의자·모니터 비례 조정
+3. 자리 좌표·간격 재조정
+4. eyesClosed·EYE_EXPRESSION·ACCESSORY·DESK_ITEM 그리드 새 사이즈로 재디자인
+5. Clawd.ts accessory `if` 주석 해제 + OfficeScene deskItem `if` 주석 해제 + ShopModal `{false &&}` 해제 + setBubbleEmotion 분기 제거
+6. 시각 검증
+
+---
+
 ## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)
 
 > Day 10 발견: 사용자 PC가 회사망에 있어 SSL inspection으로 Node fetch 차단. 임시 fix(`NODE_TLS_REJECT_UNAUTHORIZED=0`)는 dev 한정이지만 **배포 전 일반망 검증 필수**.

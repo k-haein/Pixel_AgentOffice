@@ -96,6 +96,30 @@ const LAMP = [
 ]
 
 // 메모지 — 책상 위 노란 포스트잇
+// 책상 소품 (Day 11 v2.5 D) — 시각 비활성화 (그리드 너무 작음). 다음에 활성화 시 사용
+// @ts-expect-error unused — 비활성 코드 유지용
+const DESK_ITEM_PALETTE = { O: 0x2a1408, W: 0xfafafa, B: 0x6a4a30, G: 0x60a040, S: 0x8a8a8a, R: 0xd03048 }
+// @ts-expect-error unused — 비활성 코드 유지용
+const DESK_ITEM_PIXELS: Record<string, string[]> = {
+  mug: [           // ☕ 머그컵 — 흰 컵 + 손잡이
+    'WWWW.',
+    'WWWWO',
+    'WWWW.',
+    '.OOO.',
+  ],
+  plant: [         // 🪴 작은 화분
+    '.GGG.',
+    'GGGGG',
+    '.GGG.',
+    '.BBB.',
+  ],
+  laptop: [        // 💻 노트북 (작은 사이즈)
+    '.OOOOO.',
+    'OWWWWWO',
+    'OOOOOOO',
+  ],
+}
+
 const MEMO_PALETTE = { O: 0x8a6a20, Y: 0xfff4a6, L: 0x3a2a08 }
 const MEMO = [
   'OOOOOOO',
@@ -124,6 +148,7 @@ const CHAT_BUBBLE = [
 // chatBubble 안에 들어가는 상태별 5×5 미니 픽셀 — 감정 표현 (Day 10).
 // CHAT_BUBBLE 내부 흰 영역(7×5)에 들어가도록 좌·우 1px 여백.
 // 색은 검정(O)만. 추후 다른 색 추가 가능 (예: 분노=빨강).
+// Day 11 v2.5 A: 5종 → 12종 (idea·love·angry·sad·sweat·music·wow 추가)
 const BUBBLE_INNER_PALETTE = { O: 0x2a1408 }
 const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
   thinking: [   // ··· 점 3개
@@ -161,8 +186,90 @@ const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
     '..O..',
     '..O..',
   ],
+  idea: [       // 💡 전구
+    '.OOO.',
+    'O...O',
+    '.OOO.',
+    '.OOO.',
+    '..O..',
+  ],
+  love: [       // ♥ 하트
+    'OO.OO',
+    'OOOOO',
+    'OOOOO',
+    '.OOO.',
+    '..O..',
+  ],
+  angry: [      // × 가위표
+    'O...O',
+    '.O.O.',
+    '..O..',
+    '.O.O.',
+    'O...O',
+  ],
+  sad: [        // 💧 눈물 방울
+    '..O..',
+    '.O.O.',
+    'O...O',
+    'O...O',
+    '.OOO.',
+  ],
+  sweat: [      // 💦 작은 물방울 두 개
+    '.O.O.',
+    'O.O.O',
+    '.O.O.',
+    '.....',
+    '.....',
+  ],
+  music: [      // ♪ 음표
+    '...OO',
+    '..O.O',
+    '..O.O',
+    'OO.O.',
+    'OO...',
+  ],
+  wow: [        // ✨ 작은 별
+    '..O..',
+    '.OOO.',
+    'OOOOO',
+    '.OOO.',
+    '..O..',
+  ],
 }
 export type BubbleEmotion = keyof typeof BUBBLE_INNER_PIXELS
+
+// === 눈 표정 overlay (Day 11 v2.5 B) === 캐릭터 양 눈 자리에 그리는 표정 픽셀
+// 사이즈 14×3 (PIXEL_SIZE 2 → 화면 28×6), local (0, -6) 중심. Clawd 양 눈 영역 덮음.
+// 색: O 검정, R 빨강(love), Y 노랑(wow)
+const EYE_EXPRESSION_PALETTE = { O: 0x2a1408, R: 0xd03048, Y: 0xffd040 }
+const EYE_EXPRESSION_PIXELS: Record<string, string[]> = {
+  closed: [      // --  -- 가로 줄 (sleepy)
+    '..............',
+    'OOOOO....OOOOO',
+    '..............',
+  ],
+  happy: [       // ◡    ◡ 휘어진 눈
+    'OO........OO..',
+    '..OO....OO....',
+    '..............',
+  ],
+  love: [        // ♥    ♥ 하트 (사랑)
+    'RR.RR....RR.RR',
+    'RRRRR....RRRRR',
+    '.RRR......RRR.',
+  ],
+  surprised: [   // O    O 큰 눈 (놀람)
+    '.OOO......OOO.',
+    'OO.OO....OO.OO',
+    '.OOO......OOO.',
+  ],
+  star: [        // ★    ★ 별 (wow)
+    '..Y........Y..',
+    '.YYY......YYY.',
+    'YYYYY....YYYYY',
+  ],
+}
+export type EyeExpression = 'normal' | keyof typeof EYE_EXPRESSION_PIXELS
 
 const CLOUD_PALETTE = { W: 0xffffff, H: 0xe0eaf0 }
 const CLOUD_SMALL = [
@@ -291,8 +398,10 @@ type Workstation = {
   clawd?: Phaser.GameObjects.Container
   workingBubble?: Phaser.GameObjects.Container
   isWorking?: boolean // chat working 상태 추적 (deskLamp 판단용, Day 10 — workingBubble.visible 의존 제거)
-  /** sleepy 시 양쪽 눈 감은 가로줄 overlay (Day 10) — clawd container 자식, visible toggle */
+  /** sleepy 시 양쪽 눈 감은 가로줄 overlay (Day 10, B 통합 시 폐기 예정) */
   eyesClosed?: Phaser.GameObjects.GameObject[]
+  /** 눈 표정 overlay (Day 11 v2.5 B) — emotion 따라 swap. closed/happy/love/surprised/star */
+  eyeExpression?: Phaser.GameObjects.Container
   chatBubble?: Phaser.GameObjects.Container
   memo?: Phaser.GameObjects.Container
   nameplate?: Phaser.GameObjects.Text
@@ -396,6 +505,7 @@ export class OfficeScene extends Phaser.Scene {
   private activeTeams = new Set<'A' | 'B' | 'C'>(['A'])
   /** 설정에서 받은 팀 표시 이름 — 기본 "팀 A/B/C" */
   private teamDisplayNames: { A: string; B: string; C: string } = { A: '팀 A', B: '팀 B', C: '팀 C' }
+  private teamPlateStyle: 'wood' | 'hanging' | 'stone' = 'wood'
 
   // === 빈 자리 채용 hint (B → P0 #2 DOM tooltip) ===
   /** 빈 자리 zone 모음 — 이동 모드 진입 시 비활성화 (P0 #3 충돌 회피) */
@@ -432,6 +542,23 @@ export class OfficeScene extends Phaser.Scene {
     // LLM error → confused 4초 → thinking 복귀
     this.setBubbleEmotion(agentId, 'confused', 4000)
   }
+  /** 외부에서 emotion 직접 적용 (상점 미리보기 등). agentId='*'면 모든 직원 (Day 11) */
+  private setEmotionHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const { agentId, emotion, expireMs } = payload as {
+      agentId: string
+      emotion: BubbleEmotion
+      expireMs?: number
+    }
+    const dur = expireMs ?? 5000
+    if (agentId === '*') {
+      for (const ws of this.workstations.values()) {
+        if (ws.employee) this.setBubbleEmotion(ws.employee.id, emotion, dur)
+      }
+    } else {
+      this.setBubbleEmotion(agentId, emotion, dur)
+    }
+  }
   /** 토큰 고갈 → 사무실 안만 어둡게(overlay). 창문/풍경/시간대는 실제 그대로. (Day 10 수정) */
   private nightModeHandler = (payload: unknown) => {
     if (this.isShutdown) return
@@ -452,20 +579,57 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
-  /** 캐릭터 눈 상태 toggle — sleepy 시 기존 눈 픽셀 hide + 가로 선 show */
+  /** 캐릭터 눈 상태 toggle — sleepy 시 기존 눈 픽셀 hide + 가로 선 show (Day 10 호환) */
   private setEyesSleepy(ws: Workstation, sleepy: boolean) {
+    this.setEyesByExpression(ws, sleepy ? 'closed' : 'normal')
+  }
+
+  /** 눈 표정 변경 (Day 11 v2.5 B) — emotion에 따라 자동 호출. closed/happy/love/surprised/star 또는 normal */
+  private setEyesByExpression(ws: Workstation, expression: EyeExpression) {
+    // 원래 눈 픽셀 (eye marker) toggle — normal일 때만 visible
     if (ws.clawd) {
       for (const child of ws.clawd.list) {
         const obj = child as Phaser.GameObjects.Rectangle
         if (obj.getData?.('eye') === true) {
-          obj.setVisible(!sleepy)
+          obj.setVisible(expression === 'normal')
         }
       }
     }
-    if (ws.eyesClosed) {
-      for (const line of ws.eyesClosed) {
-        (line as Phaser.GameObjects.Rectangle).setVisible(sleepy)
+    // 기존 표정 overlay 제거
+    if (ws.eyeExpression) {
+      ws.eyeExpression.destroy()
+      ws.eyeExpression = undefined
+    }
+    // normal이면 끝 (원래 눈만 보임)
+    if (expression === 'normal') {
+      // Day 10 eyesClosed 가로선 호환 — 같이 hide
+      if (ws.eyesClosed) {
+        for (const line of ws.eyesClosed) (line as Phaser.GameObjects.Rectangle).setVisible(false)
       }
+      return
+    }
+    // closed는 기존 eyesClosed 사용 (Day 10 호환), 다른 표정은 새 overlay 그림
+    if (expression === 'closed' && ws.eyesClosed) {
+      for (const line of ws.eyesClosed) (line as Phaser.GameObjects.Rectangle).setVisible(true)
+      return
+    }
+    // closed가 아닌 표정: EYE_EXPRESSION_PIXELS 그리드를 clawd 자식으로 추가
+    const pixels = EYE_EXPRESSION_PIXELS[expression]
+    if (!pixels || !ws.clawd) return
+    const overlay = drawPixelGrid(this, pixels, EYE_EXPRESSION_PALETTE, 0, -6, 2)
+    ws.clawd.add(overlay)
+    ws.eyeExpression = overlay
+  }
+
+  /** emotion → eye expression 매핑 (Day 11 v2.5 B) */
+  private emotionToExpression(emotion: BubbleEmotion): EyeExpression {
+    switch (emotion) {
+      case 'sleepy': return 'closed'
+      case 'happy': return 'happy'
+      case 'love': return 'love'
+      case 'surprised': return 'surprised'
+      case 'wow': return 'star'
+      default: return 'normal' // thinking/confused/idea/angry/sad/sweat/music
     }
   }
 
@@ -476,16 +640,22 @@ export class OfficeScene extends Phaser.Scene {
     this.enterMoveMode(employeeId)
   }
 
-  /** 사용자 설정 동기화 (dailyLimitUsd, teamNames 등) — 토큰 보드 임계 + 팀 라벨 갱신 */
+  /** 사용자 설정 동기화 (dailyLimitUsd, teamNames, teamPlateStyle 등) */
   private setSettingsHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const settings = payload as Settings
     this.dailyLimitUsd = settings.dailyLimitUsd
+    let needsRedraw = false
     if (settings.teamNames) {
       this.teamDisplayNames = settings.teamNames
-      // 활성 팀 라벨 즉시 다시 그리기 (P1 #11)
+      needsRedraw = true
+    }
+    if (settings.teamPlateStyle && settings.teamPlateStyle !== this.teamPlateStyle) {
+      this.teamPlateStyle = settings.teamPlateStyle
+      needsRedraw = true
+    }
+    if (needsRedraw) {
       this.drawTeamLabels()
-      // 새 라벨도 uiCamera에서 ignore
       this.ignoreWorldOnUiCamera(this.teamLabels)
     }
     void this.refreshTokenBoard()
@@ -649,6 +819,7 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.on('agent:set-state', this.setStateHandler)
     eventBus.on('agent:reply', this.replyHandler)
     eventBus.on('agent:error', this.errorHandler)
+    eventBus.on('agent:set-emotion', this.setEmotionHandler)
     eventBus.on('office:night-mode', this.nightModeHandler)
     eventBus.on('seat:start-move', this.startSeatMoveHandler)
     eventBus.on('office:settings', this.setSettingsHandler)
@@ -789,6 +960,7 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.off('agent:set-state', this.setStateHandler)
     eventBus.off('agent:reply', this.replyHandler)
     eventBus.off('agent:error', this.errorHandler)
+    eventBus.off('agent:set-emotion', this.setEmotionHandler)
     eventBus.off('office:night-mode', this.nightModeHandler)
     eventBus.off('seat:start-move', this.startSeatMoveHandler)
     eventBus.off('office:settings', this.setSettingsHandler)
@@ -1248,6 +1420,13 @@ export class OfficeScene extends Phaser.Scene {
     target.allObjects.push(newBubble)
     this.uiCamera?.ignore(newBubble)
 
+    // Day 11 v2.5 B — emotion에 맞춰 눈 표정 자동 동기
+    // ⚠️ 부분 비활성화 (Day 11) — happy/love/surprised/star overlay는 깨짐. closed(sleepy)만 유지
+    const expr = this.emotionToExpression(emotion)
+    if (expr === 'closed' || expr === 'normal') {
+      this.setEyesByExpression(target, expr)
+    }
+
     // 자동 복귀 — expireMs 후 thinking으로
     if (expireMs > 0 && emotion !== 'thinking') {
       this.time.delayedCall(expireMs, () => {
@@ -1265,32 +1444,100 @@ export class OfficeScene extends Phaser.Scene {
 
     const width = this.scale.width
     const height = this.scale.height
-    const labelY = 0.85 * height
-    // Day 11: 활성 팀 수에 따라 동적 중앙 정렬
+    const labelY = 0.93 * height // Day 11: 0.85→0.93 (멤버 좌하 자리와 안 겹치게)
+    // Day 11: 활성 팀 수에 따라 동적 중앙 정렬 + style 분기 (wood/hanging/stone)
     for (const team of ['A', 'B', 'C'] as const) {
       if (!this.activeTeams.has(team)) continue
       const displayName = this.teamDisplayNames[team]
       const labelX = getDynamicTeamX(team, this.activeTeams) * width
-      const t = this.add
-        .text(labelX, labelY, `— ${displayName} —`, {
-          fontFamily: '"Courier New", monospace',
-          fontSize: '13px',
-          color: '#5a3a0f',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(15) // overlay(17) 아래 — 야간 시 같이 어두워짐 (Day 11)
-      // 우클릭 → React에 이름 수정 요청 (P1 #11)
-      t.setInteractive()
-      t.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-        if (this.isShutdown) return
-        const nativeButton = (pointer.event as MouseEvent | undefined)?.button
-        const isRightClick = nativeButton === 2 || pointer.rightButtonReleased()
-        if (!isRightClick) return
-        eventBus.emit('team:rename-request', { team, currentName: displayName })
-      })
-      this.teamLabels.push(t)
+      this.drawTeamPlate(team, displayName, labelX, labelY)
     }
+  }
+
+  /** 팻말 한 개 그리기 — teamPlateStyle에 따라 wood / hanging / stone 분기 (Day 11) */
+  private drawTeamPlate(team: 'A' | 'B' | 'C', displayName: string, labelX: number, labelY: number) {
+    const style = this.teamPlateStyle
+    let textColor = '#fff8d0'
+    let bgColor = '#8a5a2a'
+
+    if (style === 'wood') {
+      // 갈색 + 바닥에 박힌 기둥 2개 + 모서리 못 4개 (디테일) + 위 작은 새싹
+      const post1 = this.add.rectangle(labelX - 22, labelY + 14, 3, 14, 0x5a3a0f).setDepth(14)
+      const post2 = this.add.rectangle(labelX + 22, labelY + 14, 3, 14, 0x5a3a0f).setDepth(14)
+      this.teamLabels.push(post1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(post2 as unknown as Phaser.GameObjects.Text)
+      // 모서리 못 (어두운 갈색 작은 점 4개) — 팻말 글자 영역에 가려져도 양쪽 끝은 보임
+      for (const [dx, dy] of [[-26, -7], [26, -7], [-26, 7], [26, 7]]) {
+        const nail = this.add.rectangle(labelX + dx, labelY + dy, 2, 2, 0x2a1408).setDepth(16)
+        this.teamLabels.push(nail as unknown as Phaser.GameObjects.Text)
+      }
+      // 위 작은 새싹 (자연 디테일) — 우측 위에 작은 초록 점
+      const leaf1 = this.add.rectangle(labelX + 28, labelY - 12, 2, 3, 0x60a040).setDepth(16)
+      const leaf2 = this.add.rectangle(labelX + 30, labelY - 14, 3, 2, 0x80c050).setDepth(16)
+      this.teamLabels.push(leaf1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(leaf2 as unknown as Phaser.GameObjects.Text)
+    } else if (style === 'hanging') {
+      // 위 수평 바 + 양옆 짧은 줄 + 막대 양 끝에 작은 사슬 고리
+      const topBar = this.add.rectangle(labelX, labelY - 18, 60, 3, 0x3a2a08).setDepth(14)
+      const chain1 = this.add.rectangle(labelX - 20, labelY - 11, 2, 8, 0x5a4a30).setDepth(14)
+      const chain2 = this.add.rectangle(labelX + 20, labelY - 11, 2, 8, 0x5a4a30).setDepth(14)
+      // 막대 양 끝 고리 (작은 회색 동그라미)
+      const knob1 = this.add.rectangle(labelX - 28, labelY - 18, 4, 4, 0x9a9a9a).setDepth(15)
+      knob1.setStrokeStyle(1, 0x5a5a5a)
+      const knob2 = this.add.rectangle(labelX + 28, labelY - 18, 4, 4, 0x9a9a9a).setDepth(15)
+      knob2.setStrokeStyle(1, 0x5a5a5a)
+      this.teamLabels.push(topBar as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(chain1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(chain2 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(knob1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(knob2 as unknown as Phaser.GameObjects.Text)
+      bgColor = '#6a4020'
+    } else if (style === 'stone') {
+      // 회색 돌 받침대 2개 + 옆에 작은 풀잎 (자연 디테일)
+      const stone1 = this.add.rectangle(labelX - 20, labelY + 14, 10, 8, 0x8a8a8a).setDepth(14)
+      stone1.setStrokeStyle(1, 0x5a5a5a)
+      const stone2 = this.add.rectangle(labelX + 20, labelY + 14, 10, 8, 0x8a8a8a).setDepth(14)
+      stone2.setStrokeStyle(1, 0x5a5a5a)
+      // 양 옆 풀잎 (초록 작은 막대)
+      const grass1 = this.add.rectangle(labelX - 32, labelY + 12, 2, 5, 0x60a040).setDepth(15)
+      const grass2 = this.add.rectangle(labelX - 30, labelY + 13, 2, 4, 0x80c050).setDepth(15)
+      const grass3 = this.add.rectangle(labelX + 30, labelY + 13, 2, 4, 0x80c050).setDepth(15)
+      const grass4 = this.add.rectangle(labelX + 32, labelY + 12, 2, 5, 0x60a040).setDepth(15)
+      this.teamLabels.push(stone1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(stone2 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(grass1 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(grass2 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(grass3 as unknown as Phaser.GameObjects.Text)
+      this.teamLabels.push(grass4 as unknown as Phaser.GameObjects.Text)
+      bgColor = '#9a9a9a'
+      textColor = '#2a2a2a'
+    }
+
+    // 팻말 본체 텍스트
+    const t = this.add
+      .text(labelX, labelY, displayName, {
+        fontFamily: '"Courier New", monospace',
+        fontSize: '13px',
+        color: textColor,
+        backgroundColor: bgColor,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(15)
+    t.setPadding({ left: 12, right: 12, top: 5, bottom: 5 })
+    // 우클릭 → React 컨텍스트 메뉴
+    t.setInteractive()
+    t.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (this.isShutdown) return
+      const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+      const isRightClick = nativeButton === 2 || pointer.rightButtonReleased()
+      if (!isRightClick) return
+      const native = pointer.event as MouseEvent | TouchEvent | undefined
+      let cx = pointer.x, cy = pointer.y
+      if (native && 'clientX' in native) { cx = native.clientX; cy = native.clientY }
+      eventBus.emit('team:context-menu', { team, currentName: displayName, x: cx, y: cy })
+    })
+    this.teamLabels.push(t)
   }
 
   /**
@@ -1414,6 +1661,7 @@ export class OfficeScene extends Phaser.Scene {
     const clawd = createClawd(this, clawdX, clawdY, variant, {
       customColor: employee.customColor,
       pattern: employee.pattern,
+      accessoryId: employee.accessoryId,
     })
     clawd.setDepth(10)
     clawd.setScale(CLAWD_BASE_SCALE)
@@ -1490,6 +1738,14 @@ export class OfficeScene extends Phaser.Scene {
       eventBus.emit('memo:open', { employeeId: employee.id })
     })
     deskGroup.add(memo)
+
+    // 책상 소품 (Day 11 v2.5 D) — 시각 비활성화 (그리드 5×4 너무 작음, PNG·그리드 확대 후 활성화 예정)
+    // 원래 코드:
+    //   if (employee.deskItem && DESK_ITEM_PIXELS[employee.deskItem]) {
+    //     const itemGrid = DESK_ITEM_PIXELS[employee.deskItem]
+    //     const item = drawPixelGrid(this, itemGrid, DESK_ITEM_PALETTE, -12, -4, 2)
+    //     deskGroup.add(item)
+    //   }
 
     // 💬 Chat bubble — 회전 시에도 보이도록 위치 보정 (P0 #4)
     //   정면: 캐릭터 머리 위 / 회전(left/right): 책상 위 영역 — 캐릭터 옆으로 옮겨도 책상 위에 보임
@@ -1571,11 +1827,11 @@ export class OfficeScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     })
 
-    // Nameplate — 리더면 약간 강조
+    // Nameplate — 리더면 약간 강조. Day 11: y deskY+36→+28 (책상에 더 가까이, 다음 자리 말풍선과 겹침 방지)
     const isLeader = seat.role === 'leader'
     const namePrefix = isLeader ? '⭐ ' : ''
     const nameplate = this.add
-      .text(x, deskY + 36, `${namePrefix}${employee.emoji}  ${employee.name} · ${employee.role}`, {
+      .text(x, deskY + 28, `${namePrefix}${employee.emoji}  ${employee.name} · ${employee.role}`, {
         fontFamily: '"Courier New", monospace',
         fontSize: '12px',
         color: isLeader ? '#5a3a0f' : '#2a2118',
@@ -1715,6 +1971,10 @@ export class OfficeScene extends Phaser.Scene {
     // 이동 모드 동안 빈 자리 hover zone 비활성화 — 회전+드래그 시 채용 hint 충돌 방지 (P0 #3)
     for (const z of this.hireZones) z.disableInteractive()
     eventBus.emit('seat:hover-empty', null)
+
+    // [debug] activeTeams 상태 — 동적 정렬이 잘못된 base 쓸 때 진단 (Day 11)
+    console.log('[enterMoveMode] activeTeams:', [...this.activeTeams], 'workstations:',
+      [...this.workstations.values()].filter(w => !w.employee).map(w => `${w.seatMeta.id}@${getDynamicSeatX(w.seatMeta, this.activeTeams).toFixed(2)}`))
 
     // ★ 핵심: idle bob 등 기존 트윈을 끄기. 안 그러면 드래그 중에도 y를 계속 덮어씀
     this.tweens.killTweensOf(target.clawd)

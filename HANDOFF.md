@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-20 (Day 10)** — 평행 통합(우리 v2 폐기 + 태블릿 흐름 채택, force push) + 사무실 layout 재구성 + 말풍선 5 emotion + forcedNight 사무실 overlay + 눈 감기 (Clawd setData) + 회사망 SSL inspection fix
+> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화·3종 스타일·이름 수정 모달 + 말풍선 12 emotion + v2.5 (액세서리·소품·눈 표정) 시도→그리드 한계로 시각 비활성화 (코드 유지). 다음 세션 우선: **그리드 확대 (캐릭터 20×12 PIXEL_SIZE 3)**.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout 재구성 + 말풍선 5 emotion + forcedNight 사무실 overlay + 눈 감기 + 회사망 SSL fix |
-| **다음 작업** | 🚨 **눈 감기 PC 검증 우선** (강제 새 빌드 후) → P2 #25 가구 드래그앤드롭 / 남은 P1 (채팅 풀 영속화·빈자리 숨김) / M5-d 성격 / Phase 3 백엔드 / 채팅 멀티모달(§P) 중 택 |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 10**: 평행 Day 8 통합 시 v2 폐기 + 태블릿 흐름 main 채택 (force push). 사무실 layout 단순화 (상단 띠/title/subtitle/파티션 제거 + 창문·벽 직접 연결). 말풍선 = 5 emotion 상태 머신 |
-| **검증 상태** | 일부 PC 검증 완료 (사무실 layout / 토큰 보드 / footer). **눈 감기 미검증** (main 캐시 의심 — 강제 새 빌드 필요). 태블릿 평행 코드 (M5-c·B-5·UI 폴리시 6종) 추가 검증도 대기 |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout 재구성 + Day 11 팀 중앙 정렬·팻말 시각화·말풍선 12 emotion·v2.5 코드(액세서리·소품·눈 표정 — 시각 비활성화) |
+| **다음 작업** | 🚨 **그리드 확대 (캐릭터 20×12 PIXEL_SIZE 3)** — v2.5 시각 재활성화 우선. 그 후 P2 #25 가구 / M5-d 성격 / Phase 3 백엔드 / 채팅 멀티모달(§P) |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 우클릭 컨텍스트 + 이름 수정 모달 (Electron window.prompt 비활성 → custom inline modal) / 말풍선 emotion 5→12종 / v2.5 시각 구림 인정 → *코드 유지 + 시각 비활성화*, 다음 세션 그리드 확대로 재활성화 |
+| **검증 상태** | 팻말 3종·이름 수정·팀 중앙 정렬·자리 간격·12 emotion(말풍선만) 시각 검증 완료. v2.5 액세서리·소품·눈 표정 overlay는 *시각 비활성화* (작은 그리드 한계). 그리드 확대 후 재활성화 예정 |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -226,10 +226,24 @@
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 🚨 배포 전 cleanup + 다음 세션 우선 검증 (Day 10 추가)
-- **눈 감기 코드 작성 완료, 미검증** — `Clawd.setData('eye', true)` + `OfficeScene.setEyesSleepy()`. 다음 세션 시작 시: ① Electron 창 X 닫기 ② `Remove-Item dist-electron -Recurse -Force` ③ `pnpm dev` ④ 한도 도달 트리거 ⑤ 양 눈 사라지고 가로 선만 보이면 OK ⑥ 터미널 `[setEyes]` 로그도 확인 ⑦ 작동 OK면 디버그 console.log 5줄 제거 (`setEyesSleepy` 안)
+### 🚨 다음 세션 우선 + 배포 전 cleanup
+
+**🎯 가장 시급 (Day 12 시작점)** — v2.5 시각 재활성화 위한 **그리드 확대**:
+- 현재 캐릭터 12×12 PIXEL_SIZE 2 = 화면 24×24. v2.5 액세서리·소품·눈 표정 overlay가 *너무 작아 디테일 깨짐*
+- 목표: **20×12 PIXEL_SIZE 3 = 화면 60×36** (가로 2.5x, 세로 1.5x)
+- 작업 (3~4시간):
+  1. Clawd 픽셀 6종 (basic / headphones / jellyfish / custom + 측면 3종) 20×12로 재그림
+  2. 책상·의자·모니터 사이즈 비례 조정 (드래그·드롭 좌표 같이)
+  3. 자리 좌표·간격 재조정 (16자리 화면 fit 검토 — `MEMBER_OFFSETS` dy 다시)
+  4. chatBubble·overlay 좌표 재계산 (`clawdY-36` 같은 magic number 다시)
+  5. eyesClosed·EYE_EXPRESSION_PIXELS·ACCESSORY_PIXELS·DESK_ITEM_PIXELS 새 그리드로 재그림
+  6. v2.5 시각 재활성화 — Clawd.ts accessory `if` 주석 해제, OfficeScene deskItem `if` 주석 해제, ShopModal `{false && (<>...</>)}` 해제, setBubbleEmotion의 `if (expr === 'closed' || expr === 'normal')` 분기 제거
+  7. 작동 확인 후 PNG asset 도입도 검토 (사용자 직접 디자인)
+
+### 보류 cleanup (변동 없음)
+- **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). 다음 세션 그리드 확대 시 같이 확인
 - **회사망 SSL inspection 임시 fix** — `electron/main.ts`의 `NODE_TLS_REJECT_UNAUTHORIZED=0` (`!app.isPackaged` 가드 안). dev 한정. 배포 전 일반망 검증 + 코드 재확인 필수. 자세히는 [`ideas/18-corp-network-ssl-issue.md`](ideas/18-corp-network-ssl-issue.md) + [`FEATURES.md`](FEATURES.md) "배포 전 검증" 섹션
-- **gemini.ts 진단 console.error 5줄** — 유지 결정 (Day 10). catch 안이라 정상 시 0 출력, 재발 시 첫 단서. 주석으로 용도 명시
+- **gemini.ts 진단 console.error 5줄** — 유지 결정 (Day 10). catch 안이라 정상 시 0 출력, 재발 시 첫 단서
 - **ChatPopup buildSystemPrompt 가드 주석 처리** (Day 10) — Gemini safety filter 호환. 채팅 안정 확인 후 더 중립 문구로 다시 활성화 검토
 
 ### ✅ Day 8 모든 작업 + P0 7개 push 완료 — 미커밋 없음

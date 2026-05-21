@@ -155,6 +155,10 @@ export type Employee = {
   customColor?: CharacterPalette
   /** 무늬 (모든 템플릿 적용 가능) — v2 #18. 기본 'solid' */
   pattern?: CharacterPattern
+  /** 액세서리 (Day 11 v2.5 C) — 머리/얼굴에 입히는 아이템. null이면 없음 */
+  accessoryId?: AccessoryId
+  /** 책상 위 소품 (Day 11 v2.5 D) — 머그컵·화분·노트북. null이면 기본 (메모만) */
+  deskItem?: DeskItemId
   // 진급 추적
   totalMessages: number
   totalMemoryUpdates: number
@@ -167,6 +171,15 @@ export type Employee = {
 /** 채팅창 상단 사용량 표시 모드 */
 export type UsageDisplayMode = 'chips' | 'toggle'
 
+/** 팀 팻말 디자인 — Day 11 상점 카탈로그 (3종 시작) */
+export type TeamPlateStyle = 'wood' | 'hanging' | 'stone'
+
+/** 캐릭터 액세서리 (Day 11 v2.5 C) — 머리/얼굴에 추가되는 아이템 */
+export type AccessoryId = 'glasses' | 'sunglasses' | 'cap'
+
+/** 책상 위 소품 (Day 11 v2.5 D) — 캐릭터 옆 작은 디테일 */
+export type DeskItemId = 'mug' | 'plant' | 'laptop'
+
 export type Settings = {
   defaultModel: Model
   defaultMemoryModel: Model
@@ -175,6 +188,8 @@ export type Settings = {
   usageDisplayMode: UsageDisplayMode
   /** 팀 표시 이름 — 우클릭으로 사용자 편집 가능 (P1 #11) */
   teamNames: { A: string; B: string; C: string }
+  /** 팀 팻말 디자인 — 전체 동일 (Day 11). 팀별 분리는 추후 확장 */
+  teamPlateStyle?: TeamPlateStyle
   // API 키는 safeStorage에 따로 저장
 }
 
@@ -235,6 +250,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyLimitUsd: 5,
   usageDisplayMode: 'chips',
   teamNames: { A: '팀 A', B: '팀 B', C: '팀 C' },
+  teamPlateStyle: 'wood',
 }
 
 /** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */

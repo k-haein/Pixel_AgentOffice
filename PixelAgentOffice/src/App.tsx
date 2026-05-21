@@ -29,8 +29,7 @@ function App() {
   const [zoomedIn, setZoomedIn] = useState(false)
   /** 캐릭터 hover 시 떠오르는 명함 카드 (A) */
   const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
-  /** 빈 자리 hover tooltip (P0 #2) — 마우스 옆 작은 안내 */
-  const [emptySeatTip, setEmptySeatTip] = useState<{ x: number; y: number; label: string } | null>(null)
+  // 빈 자리 hover tooltip 제거 (Day 11) — emptySeatTip state·이벤트 핸들러 함께 제거
   /** 상태바(F) — 사용량·시간대 라이브 정보 (OfficeScene이 emit) */
   const [usageSummary, setUsageSummary] = useState<{ totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' } | null>(null)
   const [timeOfDay, setTimeOfDay] = useState<{ label: string; forcedNight: boolean } | null>(null)
@@ -150,37 +149,67 @@ function App() {
     return () => eventBus.off('employee:updated', onUpdated)
   }, [])
 
-  // 빈 자리 hover → DOM tooltip 갱신 (P0 #2). 클릭으로 채용은 폐기 (P0 #6 — 채용은 우상단 버튼만)
-  useEffect(() => {
-    const onSeatHover = (payload: unknown) => {
-      if (!payload) {
-        setEmptySeatTip(null)
-        return
-      }
-      setEmptySeatTip(payload as { x: number; y: number; label: string })
-    }
-    eventBus.on('seat:hover-empty', onSeatHover)
-    return () => eventBus.off('seat:hover-empty', onSeatHover)
-  }, [])
+  // 빈 자리 hover tooltip 제거 (Day 11 사용자 피드백) — 이벤트 핸들러도 제거
 
-  // 팀 라벨 우클릭 → 이름 수정 (P1 #11)
+  // 팀 라벨 우클릭 → 컨텍스트 메뉴 (Day 11)
+  const [teamContextMenu, setTeamContextMenu] = useState<{
+    team: 'A' | 'B' | 'C'
+    currentName: string
+    x: number
+    y: number
+  } | null>(null)
   useEffect(() => {
-    const onRename = async (payload: unknown) => {
-      const { team, currentName } = payload as { team: 'A' | 'B' | 'C'; currentName: string }
-      const newName = window.prompt(`팀 ${team} 이름을 수정하세요:`, currentName)
-      if (!newName || newName.trim() === '' || newName === currentName) return
-      const updatedTeamNames = { ...settingsRef.current.teamNames, [team]: newName.trim() }
-      try {
-        const next = await platform.updateSettings({ teamNames: updatedTeamNames })
-        setSettings(next)
-        eventBus.emit('office:settings', next)
-      } catch (err) {
-        console.error('팀 이름 변경 실패:', err)
-      }
+    const onTeamCtx = (payload: unknown) => {
+      const p = payload as { team: 'A' | 'B' | 'C'; currentName: string; x: number; y: number }
+      // 같은 자리 다시 우클릭 시 갱신 위해 null 거친 후 set (employee-context-menu 패턴과 동일)
+      setTeamContextMenu(null)
+      setTimeout(() => setTeamContextMenu(p), 0)
     }
-    eventBus.on('team:rename-request', onRename)
-    return () => eventBus.off('team:rename-request', onRename)
+    eventBus.on('team:context-menu', onTeamCtx)
+    return () => eventBus.off('team:context-menu', onTeamCtx)
   }, [])
+  // 메뉴 외부 클릭·ESC 시 닫기
+  useEffect(() => {
+    if (!teamContextMenu) return
+    const onClose = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      setTeamContextMenu(null)
+    }
+    window.addEventListener('click', onClose)
+    window.addEventListener('keydown', onClose)
+    return () => {
+      window.removeEventListener('click', onClose)
+      window.removeEventListener('keydown', onClose)
+    }
+  }, [teamContextMenu])
+  // 팀 이름 수정 — Electron에서 window.prompt 비활성이라 inline 모달로 (Day 11)
+  const [teamRenameModal, setTeamRenameModal] = useState<{
+    team: 'A' | 'B' | 'C'
+    currentName: string
+    inputValue: string
+  } | null>(null)
+  const openRenameModal = (team: 'A' | 'B' | 'C', currentName: string) => {
+    setTeamContextMenu(null)
+    setTeamRenameModal({ team, currentName, inputValue: currentName })
+  }
+  const submitRename = async () => {
+    if (!teamRenameModal) return
+    const { team, currentName, inputValue } = teamRenameModal
+    const newName = inputValue.trim()
+    if (newName === '' || newName === currentName) {
+      setTeamRenameModal(null)
+      return
+    }
+    const updatedTeamNames = { ...settingsRef.current.teamNames, [team]: newName }
+    try {
+      const next = await platform.updateSettings({ teamNames: updatedTeamNames })
+      setSettings(next)
+      eventBus.emit('office:settings', next)
+    } catch (err) {
+      console.error('팀 이름 변경 실패:', err)
+    }
+    setTeamRenameModal(null)
+  }
 
   // 캐릭터 hover → 명함 카드 위치·대상 갱신 (A)
   useEffect(() => {
@@ -421,18 +450,65 @@ function App() {
         </div>
       )}
 
-      {/* 빈 자리 hover tooltip (P0 #2) — 마우스 옆에 작게 */}
-      {emptySeatTip && (
+      {/* 팀 컨텍스트 메뉴 (Day 11) — 팻말 우클릭 시 */}
+      {teamContextMenu && (
         <div
-          className="empty-seat-tooltip"
-          style={{
-            left: emptySeatTip.x + 14,
-            top: emptySeatTip.y + 14,
-          }}
+          className="employee-context-menu"
+          style={{ position: 'fixed', left: teamContextMenu.x, top: teamContextMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
         >
-          빈 자리 — {emptySeatTip.label}
+          <div className="context-menu-header">
+            🏷️ {teamContextMenu.currentName}
+          </div>
+          <button
+            className="context-menu-item"
+            onClick={() => openRenameModal(teamContextMenu.team, teamContextMenu.currentName)}
+          >
+            ✏️ 이름 수정
+          </button>
         </div>
       )}
+
+      {/* 팀 이름 수정 모달 (Day 11) — Electron window.prompt 대체 */}
+      {teamRenameModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setTeamRenameModal(null)}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: 360 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>✏️ 팀 이름 수정</h2>
+              <button onClick={() => setTeamRenameModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 8 }}>현재: <strong>{teamRenameModal.currentName}</strong></p>
+              <input
+                type="text"
+                value={teamRenameModal.inputValue}
+                onChange={e =>
+                  setTeamRenameModal(prev => prev ? { ...prev, inputValue: e.target.value } : null)
+                }
+                onKeyDown={e => {
+                  if (e.key === 'Enter') submitRename()
+                  if (e.key === 'Escape') setTeamRenameModal(null)
+                }}
+                autoFocus
+                style={{ width: '100%', padding: 8, fontSize: 14 }}
+              />
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setTeamRenameModal(null)}>취소</button>
+              <button className="primary" onClick={submitRename}>저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 빈 자리 hover hint 제거 (Day 11) — 사용자 피드백 "거슬려, 그냥 툴팁" */}
 
       {/* 명함 hover 카드 (A) — 캐릭터 위에 마우스 떴을 때 */}
       {hoverCard && (
