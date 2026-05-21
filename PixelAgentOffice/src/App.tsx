@@ -8,7 +8,7 @@ import { ShopModal } from './components/ShopModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation } from './shared/types'
-import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, MODEL_INFO } from './shared/types'
+import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
 import './App.css'
 
 function App() {
@@ -31,8 +31,8 @@ function App() {
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
   /** 줌 토글 상태 (B-5) — true=1.4x, false=1.0x. Phaser scene과 동기화 */
   const [zoomedIn, setZoomedIn] = useState(false)
-  /** 캐릭터 hover 시 떠오르는 명함 카드 (A) */
-  const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
+  /** 캐릭터 hover 시 떠오르는 명함 카드 (A) — Day 11 후속 +2 비활성. 보존 위해 주석 */
+  // const [hoverCard, setHoverCard] = useState<{ employee: Employee; x: number; y: number } | null>(null)
   // 빈 자리 hover tooltip 제거 (Day 11) — emptySeatTip state·이벤트 핸들러 함께 제거
   /** 상태바(F) — 사용량·시간대 라이브 정보 (OfficeScene이 emit) */
   const [usageSummary, setUsageSummary] = useState<{ totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' } | null>(null)
@@ -215,21 +215,21 @@ function App() {
     setTeamRenameModal(null)
   }
 
-  // 캐릭터 hover → 명함 카드 위치·대상 갱신 (A)
-  useEffect(() => {
-    const onHover = (payload: unknown) => {
-      if (!payload) {
-        setHoverCard(null)
-        return
-      }
-      const { employeeId, x, y } = payload as { employeeId: string; x: number; y: number }
-      const emp = employeesRef.current.find(e => e.id === employeeId)
-      if (!emp) return
-      setHoverCard({ employee: emp, x, y })
-    }
-    eventBus.on('employee:hover-card', onHover)
-    return () => eventBus.off('employee:hover-card', onHover)
-  }, [])
+  // 캐릭터 hover → 명함 카드 (Day 11 후속 +2: 일단 주석 — 나중에 다른 위치 결정)
+  // useEffect(() => {
+  //   const onHover = (payload: unknown) => {
+  //     if (!payload) {
+  //       setHoverCard(null)
+  //       return
+  //     }
+  //     const { employeeId, x, y } = payload as { employeeId: string; x: number; y: number }
+  //     const emp = employeesRef.current.find(e => e.id === employeeId)
+  //     if (!emp) return
+  //     setHoverCard({ employee: emp, x, y })
+  //   }
+  //   eventBus.on('employee:hover-card', onHover)
+  //   return () => eventBus.off('employee:hover-card', onHover)
+  // }, [])
 
   // P2 #25 — 가구 배치/이동/제거 이벤트 처리 (placedFurniture 갱신 → Settings 영속화)
   useEffect(() => {
@@ -554,7 +554,9 @@ function App() {
 
       {/* 빈 자리 hover hint 제거 (Day 11) — 사용자 피드백 "거슬려, 그냥 툴팁" */}
 
-      {/* 명함 hover 카드 (A) — 캐릭터 위에 마우스 떴을 때 */}
+      {/* 명함 hover 카드 (A) — Day 11 후속 +2: 일단 주석 (나중에 다른 위치 결정).
+          state·렌더링 모두 보존하되 UI에서 안 보임. */}
+      {/*
       {hoverCard && (
         <div
           className="employee-hover-card"
@@ -583,6 +585,7 @@ function App() {
           </div>
         </div>
       )}
+      */}
 
       <footer className="statusbar">
         <span className="status-build">● M5 Build</span>

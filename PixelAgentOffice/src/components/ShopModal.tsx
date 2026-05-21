@@ -8,7 +8,9 @@
 import { platform } from '../platform'
 import { useEffect, useState } from 'react'
 import { eventBus } from '../game/eventBus'
-import type { Employee, Settings, TeamPlateStyle, AccessoryId, DeskItemId } from '../shared/types'
+import type { Employee, Settings, TeamPlateStyle, AccessoryId, DeskItemId, FurnitureId } from '../shared/types'
+import { FURNITURE_CATALOG } from '../shared/furnitureCatalog'
+import { FurniturePreview } from './FurniturePreview'
 import './ShopModal.css'
 
 type ShopItem = {
@@ -254,43 +256,52 @@ export function ShopModal({ onClose }: Props) {
             ))}
           </div>
 
-          <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 (P2 #25 — 일부 활성화)</h3>
+          <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 — 배치 가능 (8종)</h3>
           <div className="shop-notice">
-            ✅ <strong>8종 배치 가능</strong> — "사무실에 추가" 클릭 시 화면 중앙에 배치됩니다. 드래그로 이동, 우클릭으로 제거. 나머지는 다음 업데이트.
+            ✅ <strong>"사무실에 배치" 클릭</strong> → 모달 닫히고 마우스 따라 ghost 표시 → 원하는 위치 클릭 → 배치 완료. ESC 또는 우클릭으로 취소. 배치 후 드래그로 이동·우클릭으로 제거.
           </div>
 
-          <div className="shop-grid">
-            {SHOP_CATALOG.map(item => {
-              // FURNITURE_SPECS와 매칭되는 ID만 배치 가능 (8종)
-              const PLACEABLE_IDS = new Set([
-                'plant-large', 'bookshelf-tall', 'vending-soda',
-                'sofa', 'calendar', 'frame', 'trash-can', 'lounge-table',
-              ])
-              const isPlaceable = PLACEABLE_IDS.has(item.id)
+          {/* 배치 가능 가구 — 픽셀 미리보기 + 큰 카드 */}
+          <div className="shop-grid-furniture">
+            {(Object.keys(FURNITURE_CATALOG) as FurnitureId[]).map(itemId => {
+              const spec = FURNITURE_CATALOG[itemId]
               return (
-                <div key={item.id} className="shop-item">
-                  <div className="shop-item-emoji">{item.emoji}</div>
-                  <div className="shop-item-name">{item.name}</div>
-                  <div className="shop-item-cat">{item.category}</div>
-                  <div className="shop-item-desc">{item.desc}</div>
-                  {isPlaceable ? (
-                    <button
-                      className="shop-item-btn"
-                      onClick={() => {
-                        // 화면 중앙에 배치 (xRatio 0.5, yRatio 0.5)
-                        eventBus.emit('furniture:placed', { itemId: item.id, xRatio: 0.5, yRatio: 0.5 })
-                      }}
-                    >
-                      🏢 사무실에 추가
-                    </button>
-                  ) : (
-                    <button className="shop-item-btn" disabled title="다음 업데이트">
-                      곧 구매 가능
-                    </button>
-                  )}
+                <div key={itemId} className="shop-item shop-item-furniture">
+                  <div className="shop-item-pixel-preview">
+                    <FurniturePreview itemId={itemId} scale={2} />
+                  </div>
+                  <div className="shop-item-name">{spec.displayName}</div>
+                  <div className="shop-item-cat">{spec.category}</div>
+                  <div className="shop-item-desc">{spec.desc}</div>
+                  <button
+                    className="shop-item-btn"
+                    onClick={() => {
+                      // 배치 모드 진입 — 모달 닫고 사무실에서 클릭 위치에 배치
+                      eventBus.emit('furniture:start-placement', { itemId })
+                      onClose()
+                    }}
+                  >
+                    🏢 사무실에 배치
+                  </button>
                 </div>
               )
             })}
+          </div>
+
+          {/* 미구현 가구 — 기존 emoji 카드 (다음 업데이트) */}
+          <h3 style={{ marginTop: 24 }}>🚧 다음 업데이트 예정 (미리보기)</h3>
+          <div className="shop-grid">
+            {SHOP_CATALOG.filter(item => !(item.id in FURNITURE_CATALOG)).map(item => (
+              <div key={item.id} className="shop-item">
+                <div className="shop-item-emoji">{item.emoji}</div>
+                <div className="shop-item-name">{item.name}</div>
+                <div className="shop-item-cat">{item.category}</div>
+                <div className="shop-item-desc">{item.desc}</div>
+                <button className="shop-item-btn" disabled title="다음 업데이트">
+                  곧 구매 가능
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 

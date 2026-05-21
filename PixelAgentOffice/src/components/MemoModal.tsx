@@ -4,11 +4,7 @@ import {
   type Employee,
   type MemoryMode,
   type Model,
-  type CharacterPalette,
-  type CharacterPattern,
   MODEL_INFO,
-  CHARACTER_PALETTE,
-  CHARACTER_PATTERN_LABELS,
   INSTRUCTIONS_PLACEHOLDER,
 } from '../shared/types'
 
@@ -38,9 +34,9 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   const [customInstructions, setCustomInstructions] = useState(employee.customInstructions)
   const [model, setModel] = useState<Model>(employee.model)
   const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
-  // v2 #17·#18 — 외형 자유 편집
-  const [customColor, setCustomColor] = useState<CharacterPalette>(employee.customColor ?? 'orange')
-  const [pattern, setPattern] = useState<CharacterPattern>(employee.pattern ?? 'solid')
+  // v2 #17·#18 — 외형 (Day 11 후속 +2: 메모에서 편집 비활성, 기존 값 read-only로 저장 시 전달)
+  const customColor = employee.customColor
+  const pattern = employee.pattern
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
 
@@ -202,7 +198,10 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
             </div>
           </section>
 
-          {/* 외형 편집 (v2 #17·#18) */}
+          {/* 외형 편집 (v2 #17·#18) — Day 11 후속 +2: 메모에서 비활성화 (최초 채용 시에만 변경 가능).
+              사용자 결정 — 캐릭터 외형은 채용 후 고정. customColor/pattern state는 저장 시 기존값 전달용으로 보존.
+              UI는 주석 — 나중에 다른 위치(예: 별도 외형 편집 모달)로 옮길지 검토. */}
+          {/*
           <section className="modal-section">
             <h3>🎨 캐릭터 외형</h3>
             {employee.template === 'custom' && (
@@ -237,6 +236,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
               ))}
             </div>
           </section>
+          */}
 
           {/* Stats */}
           <section className="modal-section">
