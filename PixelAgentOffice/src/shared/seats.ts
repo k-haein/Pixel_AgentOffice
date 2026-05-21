@@ -42,6 +42,40 @@ const TEAM_X: Record<TeamId, number> = {
   C: 0.80,
 }
 
+/**
+ * 활성 팀 수에 따라 *동적 중앙 정렬* (Day 11 신규).
+ * - 1팀: 중앙 (0.50)
+ * - 2팀: 양옆 (0.32, 0.68)
+ * - 3팀: 기존 (0.20, 0.50, 0.80)
+ * @param seat 좌석 메타
+ * @param activeTeams 현재 활성 팀 Set (직원 있는 팀만)
+ */
+export function getDynamicSeatX(seat: SeatMeta, activeTeams: Set<TeamId>): number {
+  if (seat.team === null) return BOSS_X // 사장석은 항상 가운데
+  const order: TeamId[] = ['A', 'B', 'C']
+  const active = order.filter(t => activeTeams.has(t))
+  const idx = active.indexOf(seat.team)
+  if (idx === -1) return seat.position.xRatio // 비활성 팀은 정적 좌표 (rebuild 직전 잠시 보일 수 있음)
+  let baseX: number
+  if (active.length === 1) baseX = 0.5
+  else if (active.length === 2) baseX = idx === 0 ? 0.32 : 0.68
+  else baseX = [0.20, 0.50, 0.80][idx]
+  // 팀원 offset 보존 — seat.position.xRatio = TEAM_X[team] + dx
+  const dx = seat.position.xRatio - TEAM_X[seat.team]
+  return baseX + dx
+}
+
+/** 팀 라벨 등 *팀 단위* 동적 x — getDynamicSeatX의 baseX와 같은 로직 */
+export function getDynamicTeamX(team: TeamId, activeTeams: Set<TeamId>): number {
+  const order: TeamId[] = ['A', 'B', 'C']
+  const active = order.filter(t => activeTeams.has(t))
+  const idx = active.indexOf(team)
+  if (idx === -1) return TEAM_X[team]
+  if (active.length === 1) return 0.5
+  if (active.length === 2) return idx === 0 ? 0.32 : 0.68
+  return [0.20, 0.50, 0.80][idx]
+}
+
 // 리더 자리 Y (사장석과 팀원 사이)
 const LEADER_Y = 0.45
 

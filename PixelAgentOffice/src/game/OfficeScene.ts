@@ -4,7 +4,7 @@ import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
 import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
-import { ALL_SEATS, type SeatMeta } from '../shared/seats'
+import { ALL_SEATS, type SeatMeta, getDynamicSeatX, getDynamicTeamX } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
 // ========================================================
@@ -454,15 +454,11 @@ export class OfficeScene extends Phaser.Scene {
 
   /** 캐릭터 눈 상태 toggle — sleepy 시 기존 눈 픽셀 hide + 가로 선 show */
   private setEyesSleepy(ws: Workstation, sleepy: boolean) {
-    let eyeFound = 0
-    let totalChildren = 0
     if (ws.clawd) {
       for (const child of ws.clawd.list) {
-        totalChildren++
         const obj = child as Phaser.GameObjects.Rectangle
         if (obj.getData?.('eye') === true) {
           obj.setVisible(!sleepy)
-          eyeFound++
         }
       }
     }
@@ -471,7 +467,6 @@ export class OfficeScene extends Phaser.Scene {
         (line as Phaser.GameObjects.Rectangle).setVisible(sleepy)
       }
     }
-    console.log('[setEyes]', ws.employee?.name, 'sleepy:', sleepy, 'eyesFound:', eyeFound, 'totalChildren:', totalChildren)
   }
 
   /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
@@ -1211,7 +1206,8 @@ export class OfficeScene extends Phaser.Scene {
 
     const visibleSeats = ALL_SEATS.filter(s => s.id === 'boss' || (s.team && this.activeTeams.has(s.team)))
     for (const seat of visibleSeats) {
-      const x = seat.position.xRatio * width
+      // Day 11: 활성 팀 수에 따라 동적 중앙 정렬
+      const x = getDynamicSeatX(seat, this.activeTeams) * width
       const y = seat.position.yRatio * height
       const emp = empBySeat.get(seat.id) ?? null
       this.createWorkstation(x, y, emp, seat)
@@ -1270,19 +1266,20 @@ export class OfficeScene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
     const labelY = 0.85 * height
-    const teamX: Record<string, number> = { A: 0.20, B: 0.50, C: 0.80 }
+    // Day 11: 활성 팀 수에 따라 동적 중앙 정렬
     for (const team of ['A', 'B', 'C'] as const) {
       if (!this.activeTeams.has(team)) continue
       const displayName = this.teamDisplayNames[team]
+      const labelX = getDynamicTeamX(team, this.activeTeams) * width
       const t = this.add
-        .text(teamX[team] * width, labelY, `— ${displayName} —`, {
+        .text(labelX, labelY, `— ${displayName} —`, {
           fontFamily: '"Courier New", monospace',
           fontSize: '13px',
           color: '#5a3a0f',
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
-        .setDepth(20)
+        .setDepth(15) // overlay(17) 아래 — 야간 시 같이 어두워짐 (Day 11)
       // 우클릭 → React에 이름 수정 요청 (P1 #11)
       t.setInteractive()
       t.on('pointerup', (pointer: Phaser.Input.Pointer) => {
@@ -1364,7 +1361,7 @@ export class OfficeScene extends Phaser.Scene {
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
-        .setDepth(20)
+        .setDepth(15) // overlay(17) 아래 — 야간 시 같이 어두워짐 (Day 11)
       bossPlate.setPadding({ left: 10, right: 10, top: 4, bottom: 4 })
       allObjects.push(bossPlate)
       this.workstations.set(seat.id, { seatMeta: seat, employee: null, allObjects })
@@ -1693,7 +1690,7 @@ export class OfficeScene extends Phaser.Scene {
 
   /** workstation의 seatMeta + employee.deskOrientation으로 캐릭터 베이스 좌표 계산 */
   private getClawdBaseForWorkstation(ws: Workstation): { x: number; y: number } {
-    const deskX = ws.seatMeta.position.xRatio * this.scale.width
+    const deskX = getDynamicSeatX(ws.seatMeta, this.activeTeams) * this.scale.width
     const deskY = ws.seatMeta.position.yRatio * this.scale.height
     const orientation: DeskOrientation = ws.employee?.deskOrientation ?? 'front'
     return this.getClawdPos(deskX, deskY, orientation)
@@ -1748,7 +1745,7 @@ export class OfficeScene extends Phaser.Scene {
         (ws.seatMeta.role === 'leader' && !canBeTeamLeader(emp.rank)) ||
         (ws.seatMeta.role === 'boss' && !canBeBoss(emp.rank))
       const color = blocked ? 0xff6060 : 0x60ff80
-      const x = ws.seatMeta.position.xRatio * this.scale.width
+      const x = getDynamicSeatX(ws.seatMeta, this.activeTeams) * this.scale.width
       const y = ws.seatMeta.position.yRatio * this.scale.height
       const hi = this.add.rectangle(x, y, 70, 70, color, 0.18)
       hi.setStrokeStyle(2, color, 0.9)
@@ -1827,7 +1824,7 @@ export class OfficeScene extends Phaser.Scene {
     for (const ws of this.workstations.values()) {
       if (ws.employee) continue
       if (ws.seatMeta.id === this.findEmployeeSeatId(this.movingEmployeeId)) continue
-      const sx = ws.seatMeta.position.xRatio * this.scale.width
+      const sx = getDynamicSeatX(ws.seatMeta, this.activeTeams) * this.scale.width
       const sy = ws.seatMeta.position.yRatio * this.scale.height
       const dx = obj.x - sx
       const dy = obj.y - sy
@@ -1864,7 +1861,7 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     // 좌표를 자리 중앙으로 스냅 (애니메이션). orientation 유지 — 캐릭터 위치도 그에 맞게.
-    const deskX = targetSeat.position.xRatio * this.scale.width
+    const deskX = getDynamicSeatX(targetSeat, this.activeTeams) * this.scale.width
     const deskY = targetSeat.position.yRatio * this.scale.height
     const snap = this.getClawdPos(deskX, deskY, movingEmp.deskOrientation)
     this.tweens.add({
@@ -1903,7 +1900,7 @@ export class OfficeScene extends Phaser.Scene {
 
   /** 부적합 자리에 잠깐 빨간 깜빡임 */
   private flashBlockedSeat(ws: Workstation, _reason: string) {
-    const x = ws.seatMeta.position.xRatio * this.scale.width
+    const x = getDynamicSeatX(ws.seatMeta, this.activeTeams) * this.scale.width
     const y = ws.seatMeta.position.yRatio * this.scale.height
     const flash = this.add.rectangle(x, y, 80, 80, 0xff4040, 0.5)
     flash.setDepth(101)
