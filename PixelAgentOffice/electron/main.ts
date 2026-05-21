@@ -19,6 +19,9 @@ import {
   updateEmployee,
   removeEmployee,
   updateSettings,
+  loadChatHistory,
+  saveChatHistory,
+  clearChatHistory,
 } from './data/store'
 import {
   saveApiKey,
@@ -71,6 +74,13 @@ function registerIpc() {
   )
   ipcMain.handle('employee:remove', async (_e, id: string) => removeEmployee(id))
   ipcMain.handle('settings:update', async (_e, patch: Partial<Settings>) => updateSettings(patch))
+
+  // 채팅 이력 영구화 (Day 11+ 풀 스펙)
+  ipcMain.handle('chat:load-history', async (_e, employeeId: string) => loadChatHistory(employeeId))
+  ipcMain.handle('chat:save-history', async (_e, employeeId: string, messages: unknown) =>
+    saveChatHistory(employeeId, messages as never)
+  )
+  ipcMain.handle('chat:clear-history', async (_e, employeeId: string) => clearChatHistory(employeeId))
 
   // === API Keys (provider별) ===
   ipcMain.handle('apikey:save', async (_e, provider: ProviderName, key: string) => {

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppData, Employee, Settings, Model } from '../src/shared/types'
+import type { AppData, Employee, Settings, Model, ChatMessage } from '../src/shared/types'
 import type { ChatRequest, ChatResponse, ProviderName, LLMErrorCode } from './llm/types'
 import type { FriendlyError } from './llm/errorMessages'
 import type { RateLimitStatus } from './llm/usage'
@@ -28,6 +28,14 @@ const api = {
     ipcRenderer.invoke('employee:remove', id),
   updateSettings: (patch: Partial<Settings>): Promise<Settings> =>
     ipcRenderer.invoke('settings:update', patch),
+
+  // === 채팅 이력 영구화 (Day 11+ 풀 스펙) ===
+  loadChatHistory: (employeeId: string): Promise<ChatMessage[]> =>
+    ipcRenderer.invoke('chat:load-history', employeeId),
+  saveChatHistory: (employeeId: string, messages: ChatMessage[]): Promise<void> =>
+    ipcRenderer.invoke('chat:save-history', employeeId, messages),
+  clearChatHistory: (employeeId: string): Promise<void> =>
+    ipcRenderer.invoke('chat:clear-history', employeeId),
 
   // === API 키 (provider별) ===
   saveApiKey: (provider: ProviderName, key: string): Promise<{ ok: true }> =>

@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화·3종 스타일·이름 수정 모달 + 말풍선 12 emotion + v2.5 (액세서리·소품·눈 표정) 시도→그리드 한계로 시각 비활성화 (코드 유지). 다음 세션 우선: **그리드 확대 (캐릭터 20×12 PIXEL_SIZE 3)**.
+> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화·3종 스타일·이름 수정 모달 + 말풍선 12 emotion + v2.5 (액세서리·소품·눈 표정) 시도→그리드 한계로 시각 비활성화 (코드 유지). **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → **G/A/B/C 4작업 완료** (HANDOFF 정리 + P2 #25 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김). 다음: **사용자 시각 검증**.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout 재구성 + Day 11 팀 중앙 정렬·팻말 시각화·말풍선 12 emotion·v2.5 코드(액세서리·소품·눈 표정 — 시각 비활성화) |
-| **다음 작업** | 🚨 **그리드 확대 (캐릭터 20×12 PIXEL_SIZE 3)** — v2.5 시각 재활성화 우선. 그 후 P2 #25 가구 / M5-d 성격 / Phase 3 백엔드 / 채팅 멀티모달(§P) |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 우클릭 컨텍스트 + 이름 수정 모달 (Electron window.prompt 비활성 → custom inline modal) / 말풍선 emotion 5→12종 / v2.5 시각 구림 인정 → *코드 유지 + 시각 비활성화*, 다음 세션 그리드 확대로 재활성화 |
-| **검증 상태** | 팻말 3종·이름 수정·팀 중앙 정렬·자리 간격·12 emotion(말풍선만) 시각 검증 완료. v2.5 액세서리·소품·눈 표정 overlay는 *시각 비활성화* (작은 그리드 한계). 그리드 확대 후 재활성화 예정 |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 (8종) + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김 |
+| **다음 작업** | **사용자 시각 검증** (Day 11 후속 12개 파일) → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 우클릭 컨텍스트 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 시각 비활성화. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료 (HANDOFF 정리 + 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 숨김) |
+| **검증 상태** | Day 11 전반(팻말·이름 수정·팀 중앙·자리 간격·12 emotion) 검증 완료. v2.5는 시각 비활성. **Day 11 후속 12개 파일 — 사용자 검증 대기** (P2 #25 가구 드래그·드롭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글) |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -226,22 +226,32 @@
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 🚨 다음 세션 우선 + 배포 전 cleanup
+### 🎯 다음 작업 우선순위 (Day 11 후속)
 
-**🎯 가장 시급 (Day 12 시작점)** — v2.5 시각 재활성화 위한 **그리드 확대**:
-- 현재 캐릭터 12×12 PIXEL_SIZE 2 = 화면 24×24. v2.5 액세서리·소품·눈 표정 overlay가 *너무 작아 디테일 깨짐*
-- 목표: **20×12 PIXEL_SIZE 3 = 화면 60×36** (가로 2.5x, 세로 1.5x)
-- 작업 (3~4시간):
-  1. Clawd 픽셀 6종 (basic / headphones / jellyfish / custom + 측면 3종) 20×12로 재그림
-  2. 책상·의자·모니터 사이즈 비례 조정 (드래그·드롭 좌표 같이)
-  3. 자리 좌표·간격 재조정 (16자리 화면 fit 검토 — `MEMBER_OFFSETS` dy 다시)
-  4. chatBubble·overlay 좌표 재계산 (`clawdY-36` 같은 magic number 다시)
-  5. eyesClosed·EYE_EXPRESSION_PIXELS·ACCESSORY_PIXELS·DESK_ITEM_PIXELS 새 그리드로 재그림
-  6. v2.5 시각 재활성화 — Clawd.ts accessory `if` 주석 해제, OfficeScene deskItem `if` 주석 해제, ShopModal `{false && (<>...</>)}` 해제, setBubbleEmotion의 `if (expr === 'closed' || expr === 'normal')` 분기 제거
-  7. 작동 확인 후 PNG asset 도입도 검토 (사용자 직접 디자인)
+**Day 11 후반 — 그리드 확대 시도 실패 회고:**
+- 시도 1: 16×14 cells PIXEL_SIZE 2 (캐릭터 32×28 px) → "너무 못생겻어"
+- 시도 2: 32×24 cells PIXEL_SIZE 2 + 가구 PIXEL_SIZE 3 (캐릭터 64×48 px, 가구 1.5x) → "너무 못생겻다"
+- 사용자 결정: 그리드 확대 포기 → `git restore`로 449fdbf 시점 원복 완료
+- 결론: Claude의 픽셀 그리드 문자열 디자인은 12×12 단순 마스코트 수준이 한계. 레퍼런스 수준 디테일은 **PNG asset 필수** (Aseprite/Piskel로 사용자 직접 그림)
+- v2.5 액세서리/소품/눈 표정 코드는 모두 보존 (`@ts-expect-error unused`로 마킹). PNG 도입 시 부활
+- 상세 회고: [`ideas/19-day11-grid-and-followup-retro.md`](ideas/19-day11-grid-and-followup-retro.md)
+
+**Day 11 후반 — G/A/B/C 4개 작업 완료:**
+| 단계 | 작업 | 파일 |
+|---|---|---|
+| G | HANDOFF 정리 — 그리드 확대 결정 반영 | HANDOFF.md |
+| A | **P2 #25 가구 배치 드래그앤드롭** (8종 가구) | types.ts / OfficeScene.ts / App.tsx / ShopModal.tsx |
+| B | **채팅 영구화 풀 스펙** (store.ts 영속화) | types.ts / store.ts / main.ts / preload.ts / platform/*  / ChatPopup.tsx |
+| C | **빈 자리 평소 숨김** (채용 모달·이동 모드 한정) | App.tsx / OfficeScene.ts |
+
+**다음 작업 (검증 후):**
+1. **시각 검증** — 사용자 PC `pnpm dev` 실행. P2 #25 가구 배치 / 채팅 영구화 / 빈 자리 숨김 3종 (FEATURES.md "기대 동작 ☐" 체크리스트)
+2. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
+3. **Phase 3 백엔드 셋업** (모바일 진입)
+4. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)
 
 ### 보류 cleanup (변동 없음)
-- **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). 다음 세션 그리드 확대 시 같이 확인
+- **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). PNG asset 도입 시 같이 확인
 - **회사망 SSL inspection 임시 fix** — `electron/main.ts`의 `NODE_TLS_REJECT_UNAUTHORIZED=0` (`!app.isPackaged` 가드 안). dev 한정. 배포 전 일반망 검증 + 코드 재확인 필수. 자세히는 [`ideas/18-corp-network-ssl-issue.md`](ideas/18-corp-network-ssl-issue.md) + [`FEATURES.md`](FEATURES.md) "배포 전 검증" 섹션
 - **gemini.ts 진단 console.error 5줄** — 유지 결정 (Day 10). catch 안이라 정상 시 0 출력, 재발 시 첫 단서
 - **ChatPopup buildSystemPrompt 가드 주석 처리** (Day 10) — Gemini safety filter 호환. 채팅 안정 확인 후 더 중립 문구로 다시 활성화 검토

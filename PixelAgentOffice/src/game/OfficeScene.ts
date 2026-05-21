@@ -3,7 +3,7 @@ import { eventBus } from './eventBus'
 import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, type PlacedFurniture, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
 import { ALL_SEATS, type SeatMeta, getDynamicSeatX, getDynamicTeamX } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
 
@@ -367,6 +367,91 @@ const VENDING = [
   'OOO...OOO',
 ]
 
+// === 추가 가구 5종 (P2 #25, Day 11 후속) — 단순 픽셀 ===
+// 색은 모두 어두운 외곽 + 본체 + 디테일 1-2색
+
+// 소파 — 등받이 + 쿠션 + 다리
+const SOFA_PALETTE = { O: 0x2a1a04, B: 0x6a4030, C: 0x4a78a8, S: 0x7098c8 }
+const SOFA = [
+  '..BBBBBBBBBB..',
+  '.BCCCCCCCCCCB.',
+  'BCSCCCCCCCSCBB', // S 쿠션 하이라이트
+  'BCCCCCCCCCCCCB',
+  'BCCCCCCCCCCCCB',
+  'BBBBBBBBBBBBBB',
+  'O.O........O.O',
+  'O.O........O.O',
+]
+
+// 벽 캘린더 — 빨강 헤더 + 흰 본체 + 회색 격자
+const CALENDAR_PALETTE = { O: 0x2a1a04, R: 0xd03048, W: 0xfafafa, X: 0x6a6a6a }
+const CALENDAR = [
+  'OOOOOOOO',
+  'ORRRRRRO',
+  'ORRRRRRO',
+  'OWWWWWWO',
+  'OWXXXXWO',
+  'OWXXXXWO',
+  'OWXXXXWO',
+  'OWXXXXWO',
+  'OOOOOOOO',
+]
+
+// 액자 — 두꺼운 외곽 + 안에 풍경 (초록 + 갈색 나무)
+const FRAME_PALETTE = { O: 0x5a3a0f, G: 0x60a040, S: 0x6a4030, B: 0x80c0e0 }
+const FRAME = [
+  'OOOOOOOO',
+  'OOOOOOOO',
+  'OOBBBBOO', // 하늘
+  'OOBBBBOO',
+  'OOGSGSGO', // 나무 + 잔디
+  'OOGGGGOO',
+  'OOGGGGOO',
+  'OOOOOOOO',
+  'OOOOOOOO',
+]
+
+// 휴지통 — 어두운 뚜껑 + 밝은 본체
+const TRASH_CAN_PALETTE = { O: 0x2a2a2a, S: 0x4a4a4a, B: 0x8a8a8a }
+const TRASH_CAN = [
+  '.SSSS.',
+  'SSSSSS',
+  'SBBBBS',
+  'SBBBBS',
+  'SBBBBS',
+  'SBBBBS',
+  'SBBBBS',
+  'SSSSSS',
+]
+
+// 탕비실 테이블 — 긴 상판 + 다리 4개
+const LOUNGE_TABLE_PALETTE = { O: 0x3a2008, W: 0xc9a878, D: 0x8b5a2b }
+const LOUNGE_TABLE = [
+  'OOOOOOOOOOOOOOOO',
+  'OWWWWWWWWWWWWWWO',
+  'OWWWWWWWWWWWWWWO',
+  'OOOOOOOOOOOOOOOO',
+  '.D............D.',
+  '.D............D.',
+]
+
+/** 가구 카탈로그 매핑 (P2 #25) — itemId → 픽셀 그리드 + 팔레트 + 픽셀 사이즈 */
+type FurnitureSpec = {
+  pixels: string[]
+  palette: Record<string, number>
+  pixelSize: number
+}
+const FURNITURE_SPECS: Record<string, FurnitureSpec> = {
+  'plant-large':    { pixels: PLANT,         palette: PLANT_PALETTE,         pixelSize: 3 },
+  'bookshelf-tall': { pixels: BOOKSHELF,     palette: BOOKSHELF_PALETTE,     pixelSize: 3 },
+  'vending-soda':   { pixels: VENDING,       palette: VENDING_PALETTE,       pixelSize: 3 },
+  'sofa':           { pixels: SOFA,          palette: SOFA_PALETTE,          pixelSize: 3 },
+  'calendar':       { pixels: CALENDAR,      palette: CALENDAR_PALETTE,      pixelSize: 3 },
+  'frame':          { pixels: FRAME,         palette: FRAME_PALETTE,         pixelSize: 3 },
+  'trash-can':      { pixels: TRASH_CAN,     palette: TRASH_CAN_PALETTE,     pixelSize: 3 },
+  'lounge-table':   { pixels: LOUNGE_TABLE,  palette: LOUNGE_TABLE_PALETTE,  pixelSize: 3 },
+}
+
 // 시계 face (P1 #10) — 시침·분침 픽셀 제거. 시침·분침은 graphics로 동적 그리기 (실시간 시간 반영)
 const CLOCK_PALETTE = { O: 0x2a1a04, W: 0xf8f0d0 }
 const CLOCK = [
@@ -426,6 +511,8 @@ export class OfficeScene extends Phaser.Scene {
   private dropTargetHighlights: Phaser.GameObjects.Rectangle[] = []
   /** 드래그 중인 캐릭터의 원래 좌표 (취소 시 복귀용) */
   private dragOriginPos: { x: number; y: number } | null = null
+  /** 채용 모달 열림 상태 (Day 11+ C) — true일 때만 빈 자리 visible. movingEmployee 모드도 별도 처리 */
+  private hireMode = false
 
   // === 시간대 시스템 ===
   /** 강제 야간 모드 (토큰 고갈 시 외부에서 true로 설정) */
@@ -464,6 +551,11 @@ export class OfficeScene extends Phaser.Scene {
 
   /** 가구 (drawFurniture에서 만든 정적 월드 객체) — UI camera ignore 대상 */
   private worldFurniture: Phaser.GameObjects.GameObject[] = []
+
+  /** 사용자가 배치한 가구 (P2 #25). Settings.placedFurniture와 동기화. 드래그·우클릭 지원 */
+  private placedFurniture: PlacedFurniture[] = []
+  /** placedFurniture를 그려낸 Phaser 객체들 — 재렌더링 시 destroy + 재생성 */
+  private placedFurnitureObjects: Map<string, Phaser.GameObjects.Container> = new Map()
 
   /** 사무실 벽 + 사장실 파티션 (P1 #12 옵션 C, 정적). UI 카메라용 (sky·시계와 같이) */
   private walls: Phaser.GameObjects.GameObject[] = []
@@ -640,7 +732,7 @@ export class OfficeScene extends Phaser.Scene {
     this.enterMoveMode(employeeId)
   }
 
-  /** 사용자 설정 동기화 (dailyLimitUsd, teamNames, teamPlateStyle 등) */
+  /** 사용자 설정 동기화 (dailyLimitUsd, teamNames, teamPlateStyle, placedFurniture 등) */
   private setSettingsHandler = (payload: unknown) => {
     if (this.isShutdown) return
     const settings = payload as Settings
@@ -658,7 +750,35 @@ export class OfficeScene extends Phaser.Scene {
       this.drawTeamLabels()
       this.ignoreWorldOnUiCamera(this.teamLabels)
     }
+    // 가구 배치 동기화 (P2 #25) — Settings.placedFurniture 변경 시 재렌더링
+    const nextFurniture = settings.placedFurniture ?? []
+    if (JSON.stringify(this.placedFurniture) !== JSON.stringify(nextFurniture)) {
+      this.placedFurniture = nextFurniture
+      this.drawPlacedFurniture()
+    }
     void this.refreshTokenBoard()
+  }
+
+  /** 채용 모달 열림 상태 동기 (Day 11+ C) — true일 때만 빈 자리 visible */
+  private hireModeHandler = (payload: unknown) => {
+    if (this.isShutdown) return
+    const open = !!payload
+    this.hireMode = open
+    this.setEmptySeatsVisibility(open || !!this.movingEmployeeId)
+  }
+
+  /** 빈 자리 (employee null) 객체들 visibility 토글. movingEmployeeId 모드일 땐 강제 표시 */
+  private setEmptySeatsVisibility(visible: boolean) {
+    for (const ws of this.workstations.values()) {
+      if (ws.employee) continue // 사람 있는 자리는 항상 visible
+      if (ws.seatMeta.team === null) continue // 사장석은 항상 visible (별도 plate)
+      for (const obj of ws.allObjects) {
+        const go = obj as Phaser.GameObjects.GameObject & { setVisible?: (v: boolean) => unknown }
+        if (typeof go.setVisible === 'function') {
+          go.setVisible(visible)
+        }
+      }
+    }
   }
 
   /** 외부에서 줌 토글 트리거 (App.tsx 좌상단 🔍 버튼) — 1.0x ↔ 1.4x 300ms 트랜지션 */
@@ -824,6 +944,7 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.on('seat:start-move', this.startSeatMoveHandler)
     eventBus.on('office:settings', this.setSettingsHandler)
     eventBus.on('camera:zoom-toggle', this.zoomToggleHandler)
+    eventBus.on('office:hire-mode', this.hireModeHandler)
 
     // 마우스 휠 줌 — 포인터 위치 기준 (마우스가 가리킨 지점이 줌 후에도 같은 화면 위치에)
     this.input.on(
@@ -965,6 +1086,7 @@ export class OfficeScene extends Phaser.Scene {
     eventBus.off('seat:start-move', this.startSeatMoveHandler)
     eventBus.off('office:settings', this.setSettingsHandler)
     eventBus.off('camera:zoom-toggle', this.zoomToggleHandler)
+    eventBus.off('office:hire-mode', this.hireModeHandler)
     this.timeRefreshTimer?.remove(false)
     this.timeRefreshTimer = undefined
     this.tokenBoardTimer?.remove(false)
@@ -1146,6 +1268,9 @@ export class OfficeScene extends Phaser.Scene {
 
     this.worldFurniture = [plant1, plant2, bookshelf, vending]
 
+    // 사용자 배치 가구 (P2 #25) — Settings.placedFurniture 그리기
+    this.drawPlacedFurniture()
+
     // 시계 — 벽 띠(y=36~96) 안 좌측. 절대 y로 (벽 띠가 화면 크기 독립이므로)
     const clockX = 0.10 * width
     const clockY = 66
@@ -1165,6 +1290,79 @@ export class OfficeScene extends Phaser.Scene {
       callback: () => this.updateClockHands(),
       loop: true,
     })
+  }
+
+  /** 사용자 배치 가구 그리기 (P2 #25) — placedFurniture 배열을 Phaser 객체로 변환 + 드래그·우클릭 핸들러 */
+  private drawPlacedFurniture() {
+    if (this.isShutdown) return
+    // 기존 객체 모두 destroy
+    for (const obj of this.placedFurnitureObjects.values()) {
+      obj.destroy()
+    }
+    this.placedFurnitureObjects.clear()
+
+    const width = this.scale.width
+    const height = this.scale.height
+
+    for (const f of this.placedFurniture) {
+      const spec = FURNITURE_SPECS[f.itemId]
+      if (!spec) continue
+      const x = f.xRatio * width
+      const y = f.yRatio * height
+      const obj = drawPixelGrid(this, spec.pixels, spec.palette, x, y, spec.pixelSize)
+      obj.setDepth(4) // 캐릭터(10)보다 아래, 자판기(2)·책장(2)보다 약간 위
+      obj.setData('uid', f.uid)
+      obj.setData('itemId', f.itemId)
+
+      // hit area = 그리드 사이즈 + 4px 여유
+      const cols = spec.pixels[0].length
+      const rows = spec.pixels.length
+      const hitW = cols * spec.pixelSize + 4
+      const hitH = rows * spec.pixelSize + 4
+      obj.setSize(hitW, hitH)
+      obj.setInteractive(
+        new Phaser.Geom.Rectangle(-hitW / 2, -hitH / 2, hitW, hitH),
+        Phaser.Geom.Rectangle.Contains,
+      )
+      this.input.setDraggable(obj, true)
+
+      // 드래그 — Phaser native draggable. drag 중엔 화면 좌표만 갱신, dragend에 Settings 반영
+      obj.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+        obj.x = dragX
+        obj.y = dragY
+      })
+      obj.on('dragstart', () => {
+        obj.setAlpha(0.7)
+        this.input.setDefaultCursor('grabbing')
+      })
+      obj.on('dragend', () => {
+        obj.setAlpha(1)
+        this.input.setDefaultCursor('default')
+        const w = this.scale.width
+        const h = this.scale.height
+        const newXRatio = Math.max(0.02, Math.min(0.98, obj.x / w))
+        const newYRatio = Math.max(0.02, Math.min(0.98, obj.y / h))
+        eventBus.emit('furniture:moved', { uid: f.uid, xRatio: newXRatio, yRatio: newYRatio })
+      })
+
+      // 우클릭 = 제거
+      obj.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        const nativeButton = (pointer.event as MouseEvent | undefined)?.button
+        const isRightClick = nativeButton === 2 || pointer.rightButtonReleased()
+        if (isRightClick) {
+          eventBus.emit('furniture:removed', { uid: f.uid })
+        }
+      })
+
+      // hover cursor
+      obj.on('pointerover', () => this.input.setDefaultCursor('grab'))
+      obj.on('pointerout', () => this.input.setDefaultCursor('default'))
+
+      this.placedFurnitureObjects.set(f.uid, obj)
+    }
+
+    // UI 카메라가 placed furniture를 무시 (월드 카메라에만 보임)
+    this.ignoreWorldOnUiCamera(Array.from(this.placedFurnitureObjects.values()))
   }
 
   /** 시침·분침 위치 갱신 — PC 시간 기준 (P1 #10) */
@@ -1396,6 +1594,9 @@ export class OfficeScene extends Phaser.Scene {
     newWorld.push(...this.teamLabels)
     newWorld.push(...this.partitions)
     this.ignoreWorldOnUiCamera(newWorld)
+
+    // Day 11+ C — 빈 자리는 hireMode 또는 이동 모드일 때만 visible
+    this.setEmptySeatsVisibility(this.hireMode || !!this.movingEmployeeId)
   }
 
   // ============================================================
@@ -1971,6 +2172,8 @@ export class OfficeScene extends Phaser.Scene {
     // 이동 모드 동안 빈 자리 hover zone 비활성화 — 회전+드래그 시 채용 hint 충돌 방지 (P0 #3)
     for (const z of this.hireZones) z.disableInteractive()
     eventBus.emit('seat:hover-empty', null)
+    // 자리 이동 모드 중엔 빈 자리 강제 표시 (Day 11+ C)
+    this.setEmptySeatsVisibility(true)
 
     // [debug] activeTeams 상태 — 동적 정렬이 잘못된 base 쓸 때 진단 (Day 11)
     console.log('[enterMoveMode] activeTeams:', [...this.activeTeams], 'workstations:',
@@ -2046,6 +2249,8 @@ export class OfficeScene extends Phaser.Scene {
     this.dropTargetHighlights = []
     // 빈 자리 hover zone 재활성화 (P0 #3) — success 시엔 rebuild가 새 zone 만들어주므로 중복 OK
     for (const z of this.hireZones) z.setInteractive()
+    // 이동 모드 종료 — hireMode 상태에 따라 빈 자리 visibility 복원 (Day 11+ C)
+    this.setEmptySeatsVisibility(this.hireMode)
 
     if (success || !movingId) return
 

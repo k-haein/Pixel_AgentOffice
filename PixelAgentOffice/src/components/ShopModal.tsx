@@ -254,23 +254,43 @@ export function ShopModal({ onClose }: Props) {
             ))}
           </div>
 
-          <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 (예정)</h3>
+          <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 (P2 #25 — 일부 활성화)</h3>
           <div className="shop-notice">
-            ⚠️ <strong>지금은 카탈로그 미리보기</strong> 단계입니다. 구매 + 배치(드래그앤드롭)는 다음 업데이트에서 활성화됩니다.
+            ✅ <strong>8종 배치 가능</strong> — "사무실에 추가" 클릭 시 화면 중앙에 배치됩니다. 드래그로 이동, 우클릭으로 제거. 나머지는 다음 업데이트.
           </div>
 
           <div className="shop-grid">
-            {SHOP_CATALOG.map(item => (
-              <div key={item.id} className="shop-item">
-                <div className="shop-item-emoji">{item.emoji}</div>
-                <div className="shop-item-name">{item.name}</div>
-                <div className="shop-item-cat">{item.category}</div>
-                <div className="shop-item-desc">{item.desc}</div>
-                <button className="shop-item-btn" disabled title="다음 업데이트">
-                  곧 구매 가능
-                </button>
-              </div>
-            ))}
+            {SHOP_CATALOG.map(item => {
+              // FURNITURE_SPECS와 매칭되는 ID만 배치 가능 (8종)
+              const PLACEABLE_IDS = new Set([
+                'plant-large', 'bookshelf-tall', 'vending-soda',
+                'sofa', 'calendar', 'frame', 'trash-can', 'lounge-table',
+              ])
+              const isPlaceable = PLACEABLE_IDS.has(item.id)
+              return (
+                <div key={item.id} className="shop-item">
+                  <div className="shop-item-emoji">{item.emoji}</div>
+                  <div className="shop-item-name">{item.name}</div>
+                  <div className="shop-item-cat">{item.category}</div>
+                  <div className="shop-item-desc">{item.desc}</div>
+                  {isPlaceable ? (
+                    <button
+                      className="shop-item-btn"
+                      onClick={() => {
+                        // 화면 중앙에 배치 (xRatio 0.5, yRatio 0.5)
+                        eventBus.emit('furniture:placed', { itemId: item.id, xRatio: 0.5, yRatio: 0.5 })
+                      }}
+                    >
+                      🏢 사무실에 추가
+                    </button>
+                  ) : (
+                    <button className="shop-item-btn" disabled title="다음 업데이트">
+                      곧 구매 가능
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 

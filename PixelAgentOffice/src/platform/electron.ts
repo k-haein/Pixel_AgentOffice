@@ -20,6 +20,9 @@ declare global {
       updateEmployee: Platform['updateEmployee']
       removeEmployee: Platform['removeEmployee']
       updateSettings: Platform['updateSettings']
+      loadChatHistory: Platform['loadChatHistory']
+      saveChatHistory: Platform['saveChatHistory']
+      clearChatHistory: Platform['clearChatHistory']
       saveApiKey: Platform['saveApiKey']
       hasApiKey: Platform['hasApiKey']
       deleteApiKey: Platform['deleteApiKey']
@@ -43,6 +46,11 @@ export const electronPlatform: Platform = {
   updateEmployee: (id, patch) => window.api.updateEmployee(id, patch),
   removeEmployee: (id) => window.api.removeEmployee(id),
   updateSettings: (patch) => window.api.updateSettings(patch),
+
+  // === 채팅 이력 영구화 ===
+  loadChatHistory: (employeeId) => window.api.loadChatHistory(employeeId),
+  saveChatHistory: (employeeId, messages) => window.api.saveChatHistory(employeeId, messages),
+  clearChatHistory: (employeeId) => window.api.clearChatHistory(employeeId),
 
   // === API 키 ===
   saveApiKey: (provider, key) => window.api.saveApiKey(provider, key),

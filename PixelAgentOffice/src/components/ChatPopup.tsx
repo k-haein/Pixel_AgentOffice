@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { eventBus } from '../game/eventBus'
 import { platform } from '../platform'
-import type { Employee, Settings, UsageDisplayMode } from '../shared/types'
+import type { Employee, Settings, UsageDisplayMode, ChatMessage } from '../shared/types'
 import { MODEL_INFO, USD_TO_KRW } from '../shared/types'
 import type { RateLimitStatus } from '../platform'
 
-type Message = {
-  id: string
-  role: 'user' | 'agent' | 'system'
-  text: string
-  /** system 메시지에 부가 힌트 (작게, 약하게 표시) */
-  hint?: string
-  severity?: 'info' | 'warning' | 'error'
-  /** 디버그 단서 (예: HTTP 503) — 메시지 옆에 작게 표기 */
-  debugCode?: string
-}
+// ChatMessage를 Message로 alias — 기존 코드 호환
+type Message = ChatMessage
 
 /** Employee → 시스템 프롬프트 조립 (페르소나 정체 + 기본 지침 + 커스텀 지침) */
 function buildSystemPrompt(employee: Employee): string {
@@ -108,34 +100,49 @@ export function ChatPopup() {
   /** 채팅 영구화 (P1 #13) — employee별 메시지 보관. 같은 직원 채팅 다시 열면 복원. */
   const messagesByEmployeeRef = useRef<Record<string, Message[]>>({})
 
-  // 채팅 열기 이벤트
+  // 채팅 열기 이벤트 (Day 11+ 풀 스펙: store.ts 영속화 추가 — 앱 재시작 후도 이력 복원)
   useEffect(() => {
-    const onOpen = (payload: unknown) => {
+    const onOpen = async (payload: unknown) => {
       const e = payload as Employee
       setEmployee(e)
-      // 같은 직원 채팅 이력 복원 (P1 #13)
+      setInput('')
+      // 1) 메모리 ref에 있으면 즉시 표시
       const existing = messagesByEmployeeRef.current[e.id]
       if (existing && existing.length > 0) {
         setMessages(existing)
-      } else {
-        const initial: Message[] = [
-          {
-            id: 'sys-1',
-            role: 'system',
-            text: `${e.emoji}  ${e.name} (${e.role})와의 대화가 시작되었습니다.`,
-            severity: 'info',
-          },
-        ]
-        setMessages(initial)
-        messagesByEmployeeRef.current[e.id] = initial
+        return
       }
-      setInput('')
+      // 2) 영속 저장소에서 로드 (앱 재시작 후)
+      try {
+        const persisted = await platform.loadChatHistory(e.id)
+        if (persisted && persisted.length > 0) {
+          messagesByEmployeeRef.current[e.id] = persisted
+          setMessages(persisted)
+          return
+        }
+      } catch (err) {
+        console.error('채팅 이력 로드 실패:', err)
+      }
+      // 3) 신규 — 시작 system 메시지
+      const initial: Message[] = [
+        {
+          id: 'sys-1',
+          role: 'system',
+          text: `${e.emoji}  ${e.name} (${e.role})와의 대화가 시작되었습니다.`,
+          severity: 'info',
+        },
+      ]
+      setMessages(initial)
+      messagesByEmployeeRef.current[e.id] = initial
     }
     const onForceClose = (payload: unknown) => {
       const { agentId } = payload as { agentId: string }
       setEmployee(prev => (prev?.id === agentId ? null : prev))
-      // 해고 시 그 직원의 이력도 삭제
+      // 해고 시 그 직원의 이력도 삭제 (메모리 + 영속)
       delete messagesByEmployeeRef.current[agentId]
+      void platform.clearChatHistory(agentId).catch(err =>
+        console.error('채팅 이력 삭제 실패:', err)
+      )
     }
     eventBus.on('chat:open', onOpen)
     eventBus.on('chat:force-close', onForceClose)
@@ -145,10 +152,22 @@ export function ChatPopup() {
     }
   }, [])
 
-  // messages가 변경될 때마다 ref에도 반영 (P1 #13)
+  // messages 변경 시 메모리 ref 갱신 + 영속화 (debounced via setTimeout 300ms)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (employee) {
-      messagesByEmployeeRef.current[employee.id] = messages
+    if (!employee) return
+    messagesByEmployeeRef.current[employee.id] = messages
+    // 메시지가 1개(시작 system 메시지만)일 땐 굳이 영속화 안 함
+    if (messages.length <= 1) return
+    // debounce — 짧은 시간 안 여러 변경이 일어나면 마지막 한 번만 저장
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      void platform.saveChatHistory(employee.id, messages).catch(err =>
+        console.error('채팅 이력 저장 실패:', err)
+      )
+    }, 300)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
   }, [messages, employee])
 

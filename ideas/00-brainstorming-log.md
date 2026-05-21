@@ -2091,6 +2091,81 @@ CONVENTIONS §7 체크리스트:
 - ✅ FEATURES.md — Day 11 신규 기능 명세 + v2.5 시각 비활성화 메모
 - ✅ ideas/16-character-customization-v2.md — v2.5 (액세서리·소품·눈 표정) 섹션 추가, 그리드 확대 후 활성화 계획
 
+## 114. 🔬 그리드 확대 2번 시도 → 모두 실패
+
+다음 세션 진입 후 사용자: "**그리드 확대로 진행해줘**" — 16×14 PIXEL_SIZE 2 (32×28 px) 시도. Clawd 4종 + 액세서리 + 책상 소품 + EYE_EXPRESSION 모두 16×14 사이즈로 재디자인. 빌드 통과.
+
+→ 사용자: "**너무 못생겻어....**" + 레퍼런스 이미지(16 octopus)만큼 만들려면 더 키워야 하냐 질문.
+
+Claude 옵션 비교 후 사용자 "**32×24 (레퍼런스 수준)**" 선택. 캐릭터 64×48 px + 책상·의자·모니터 PIXEL_SIZE 3 (1.5배) + 모든 좌표 1.5배 재계산. 큰 작업.
+
+→ 결과 보고 사용자: "**걍 그리드 사이즈 키우는거 전체 원복하자....너무 못생겻다**"
+
+`git restore`로 `449fdbf` 커밋 시점 완전 원복. 12×12 PIXEL_SIZE 2로 복귀.
+
+**결론**: Claude의 픽셀 그리드 문자열 디자인 능력은 단순 마스코트(12×12 수준)가 한계. 레퍼런스 이미지 수준 디테일은 **PNG asset 도입 필수** (Aseprite/Piskel로 사용자 직접 그림). v2.5 액세서리·소품·눈 표정은 PNG 도입 시점까지 *시각 비활성화* 유지.
+
+**교훈**:
+- "Claude는 알고리즘·로직·구조는 잘 짜지만 시각 디자인은 한계"
+- "단순한 마스코트 외 디테일은 직접 그려야 함"
+- "그리드 확대는 *셀 수만 늘려도* 안 됨 — 디자인 직관이 따로 있어야"
+
+## 115. 🛠 G. HANDOFF 정리 + A. P2 #25 가구 배치 + B. 채팅 영구화 + C. 빈 자리 숨김
+
+사용자: "**그다음 뭐하지**" → Claude 옵션 비교 → 사용자 "**G 먼저 해서 정리하고, A,B,C 순서대로 해줘**"
+
+### G. HANDOFF 정리
+- Header / §1 30초 요약 / §3 cleanup에서 "🚨 그리드 확대 우선" 블록 제거
+- Day 11 후반 — 그리드 확대 시도 실패 회고 추가
+- 다음 작업 우선순위: P2 #25 → 채팅 영구화 → 빈 자리 숨김 → M5-d / Phase 3
+- "PNG asset 도입 시점에 v2.5 부활" 명시
+
+### A. P2 #25 가구 배치 드래그앤드롭 (8종)
+**범위 결정**: α/β/γ 옵션 중 사용자 **β** 선택 ("3종 + 단순 픽셀 3-5종 추가").
+
+**구현**:
+- `types.ts`: `FurnitureId` 8종 + `PlacedFurniture { uid, itemId, xRatio, yRatio }` + `Settings.placedFurniture?: PlacedFurniture[]`
+- `OfficeScene.ts`: 신규 픽셀 5종 (SOFA / CALENDAR / FRAME / TRASH_CAN / LOUNGE_TABLE) + `FURNITURE_SPECS` 매핑 + `drawPlacedFurniture()` 함수 (Phaser native draggable + dragstart 알파 0.7 + dragend → eventBus emit + 우클릭 제거 + hover cursor) + `setSettingsHandler`에서 placedFurniture 변경 감지 → 재렌더링
+- `App.tsx`: `furniture:placed` / `furniture:moved` / `furniture:removed` 이벤트 핸들러 → `platform.updateSettings({ placedFurniture })` → `office:settings` emit
+- `ShopModal.tsx`: SHOP_CATALOG 12종 중 8종에 "🏢 사무실에 추가" 버튼 활성화 (PLACEABLE_IDS Set으로 매칭)
+
+**UX**: 상점 → "사무실에 추가" → 화면 중앙(0.5, 0.5) 배치 → 드래그로 이동 → 우클릭으로 제거. 좌표는 xRatio/yRatio로 영속 저장.
+
+### B. 채팅 영구화 풀 스펙 (store.ts 영속화)
+**기존**: `messagesByEmployeeRef`로 메모리 only — 앱 재시작 시 사라짐.
+**풀 스펙**: app-data.json에 `chatHistories: Record<employeeId, ChatMessage[]>` 별도 키로 저장.
+
+**구현**:
+- `types.ts`: `ChatMessage` 타입 + `AppData.chatHistories?: Record<...>`
+- `electron/data/store.ts`: `loadChatHistory` / `saveChatHistory` / `clearChatHistory` 함수 + `removeEmployee` 시 자동 삭제
+- `electron/main.ts`: ipcMain handlers 3개 (`chat:load-history` / `chat:save-history` / `chat:clear-history`)
+- `electron/preload.ts`: contextBridge 노출
+- `src/platform/types.ts`·`electron.ts`·`mock.ts`: Platform 인터페이스 + 구현
+- `ChatPopup.tsx`: `onOpen`에서 메모리 ref → 영속 저장소 → 신규 system msg 순서로 로드. messages 변경 시 300ms debounce로 `saveChatHistory`. `chat:force-close`에서 영속 삭제
+
+### C. 빈 자리 평소 숨김
+**기존**: 빈 자리 (책상·의자·모니터)가 항상 visible — 사용자가 "화면 어수선" 피드백 가능성.
+**개선**: 채용 모달 열렸을 때 + 자리 이동 모드일 때만 빈 자리 표시. 평소엔 직원 있는 자리만.
+
+**구현**:
+- `App.tsx`: `hireOpen` 변경 시 `eventBus.emit('office:hire-mode', open)`
+- `OfficeScene.ts`: `hireMode` 멤버 + `hireModeHandler` + `setEmptySeatsVisibility(visible)` 메서드 (workstations 순회, employee null + team !== null 자리의 allObjects 토글). `enterMoveMode` 시 true, `exitMoveMode` 시 hireMode에 따라, `rebuildWorkstations` 끝에 동기화
+
+**의의**: 정적 UI 노이즈 제거. 사장석은 별도 plate가 있어 항상 visible 유지.
+
+## 116. 📦 세션 정리 + 커밋·푸시 (Day 11 후속 마무리)
+
+사용자: "**커밋하고 푸시해줘. 내일 검증할꼐**" → "**세션도 정리해줘**"
+
+CONVENTIONS §7 체크리스트:
+- ✅ brainstorming-log §114~116 추가
+- ✅ HANDOFF.md (이미 Step G에서 갱신 + 추가 보강 — Day 11 후속 전체 작업 반영)
+- ✅ FEATURES.md — P2 #25 가구 배치 / 채팅 영구화 풀 스펙 / 빈 자리 숨김 검증 명세
+- ✅ ideas/19-day11-grid-and-followup-retro.md — Day 11 회고 신규 (그리드 확대 실패 + G/A/B/C 작업 결정)
+- (해당 없음) ideas/06 (보류 결정) / portfolio (M 닫을 때만)
+
+작업 9개 파일 (HANDOFF + 11개 코드 + 3개 신규 문서) 한 번에 커밋·푸시. 다음 세션은 사용자 시각 검증부터.
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

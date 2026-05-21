@@ -21,6 +21,10 @@ function App() {
   /** 설정 모달 열 때 특정 섹션으로 스크롤 (다른 곳에서 우클릭으로 열 때) */
   const [settingsFocusSection, setSettingsFocusSection] = useState<string | undefined>(undefined)
   const [hireOpen, setHireOpen] = useState(false)
+  // 채용 모달 열고 닫을 때 빈 자리 visibility 동기 (Day 11+ — C)
+  useEffect(() => {
+    eventBus.emit('office:hire-mode', hireOpen)
+  }, [hireOpen])
   const [shopOpen, setShopOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
@@ -225,6 +229,46 @@ function App() {
     }
     eventBus.on('employee:hover-card', onHover)
     return () => eventBus.off('employee:hover-card', onHover)
+  }, [])
+
+  // P2 #25 — 가구 배치/이동/제거 이벤트 처리 (placedFurniture 갱신 → Settings 영속화)
+  useEffect(() => {
+    const onFurniturePlaced = async (payload: unknown) => {
+      const p = payload as { itemId: string; xRatio: number; yRatio: number }
+      const existing = settingsRef.current.placedFurniture ?? []
+      const uid = `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      const next = await platform.updateSettings({
+        placedFurniture: [...existing, { uid, itemId: p.itemId as never, xRatio: p.xRatio, yRatio: p.yRatio }],
+      })
+      setSettings(next)
+      eventBus.emit('office:settings', next)
+    }
+    const onFurnitureMoved = async (payload: unknown) => {
+      const p = payload as { uid: string; xRatio: number; yRatio: number }
+      const existing = settingsRef.current.placedFurniture ?? []
+      const updated = existing.map(f =>
+        f.uid === p.uid ? { ...f, xRatio: p.xRatio, yRatio: p.yRatio } : f,
+      )
+      const next = await platform.updateSettings({ placedFurniture: updated })
+      setSettings(next)
+      eventBus.emit('office:settings', next)
+    }
+    const onFurnitureRemoved = async (payload: unknown) => {
+      const p = payload as { uid: string }
+      const existing = settingsRef.current.placedFurniture ?? []
+      const updated = existing.filter(f => f.uid !== p.uid)
+      const next = await platform.updateSettings({ placedFurniture: updated })
+      setSettings(next)
+      eventBus.emit('office:settings', next)
+    }
+    eventBus.on('furniture:placed', onFurniturePlaced)
+    eventBus.on('furniture:moved', onFurnitureMoved)
+    eventBus.on('furniture:removed', onFurnitureRemoved)
+    return () => {
+      eventBus.off('furniture:placed', onFurniturePlaced)
+      eventBus.off('furniture:moved', onFurnitureMoved)
+      eventBus.off('furniture:removed', onFurnitureRemoved)
+    }
   }, [])
 
   // 상태바(F) — OfficeScene이 emit하는 사용량·시간대 받기

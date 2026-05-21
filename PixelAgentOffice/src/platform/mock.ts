@@ -10,12 +10,13 @@
  */
 
 import type { Platform } from './types'
-import type { AppData, Settings, Employee } from '../shared/types'
+import type { AppData, Settings, Employee, ChatMessage } from '../shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, TEMPLATES } from '../shared/types'
 
 // 메모리 상 가짜 저장소
 const mockEmployees: Employee[] = []
 const mockKeys = new Map<string, boolean>()
+const mockChatHistories = new Map<string, ChatMessage[]>()
 let mockSettings: Settings = { ...DEFAULT_SETTINGS }
 
 const FAKE_REPLIES = [
@@ -58,6 +59,14 @@ export const mockPlatform: Platform = {
   updateSettings: async (patch) => {
     mockSettings = { ...mockSettings, ...patch }
     return mockSettings
+  },
+
+  loadChatHistory: async (employeeId) => mockChatHistories.get(employeeId) ?? [],
+  saveChatHistory: async (employeeId, messages) => {
+    mockChatHistories.set(employeeId, messages)
+  },
+  clearChatHistory: async (employeeId) => {
+    mockChatHistories.delete(employeeId)
   },
 
   saveApiKey: async (provider) => {

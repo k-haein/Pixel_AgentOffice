@@ -7,6 +7,7 @@ import {
   type Settings,
   type Model,
   type SeatId,
+  type ChatMessage,
   TEMPLATES,
   DEFAULT_SETTINGS,
   DEFAULT_MAX_EMPLOYEES,
@@ -78,6 +79,7 @@ function createDefaultData(): AppData {
     employees,
     maxEmployees: DEFAULT_MAX_EMPLOYEES,
     settings: { ...DEFAULT_SETTINGS },
+    chatHistories: {},
   }
 }
 
@@ -153,6 +155,7 @@ export async function loadData(): Promise<AppData> {
       employees: migrateEmployees(parsed.employees ?? []),
       maxEmployees: parsed.maxEmployees ?? DEFAULT_MAX_EMPLOYEES,
       settings,
+      chatHistories: parsed.chatHistories ?? {},
     }
     // 마이그레이션 결과를 디스크에 다시 쓰기 (영구화)
     await saveData(data)
@@ -217,6 +220,10 @@ export async function removeEmployee(id: string): Promise<boolean> {
   const before = data.employees.length
   data.employees = data.employees.filter(e => e.id !== id)
   if (data.employees.length === before) return false
+  // 해고 시 채팅 이력도 같이 삭제 (Day 11+)
+  if (data.chatHistories) {
+    delete data.chatHistories[id]
+  }
   await saveData(data)
   return true
 }
@@ -226,4 +233,26 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
   data.settings = { ...data.settings, ...patch }
   await saveData(data)
   return data.settings
+}
+
+/** 특정 직원 채팅 이력 로드 (Day 11+ — 채팅 영구화 풀 스펙) */
+export async function loadChatHistory(employeeId: string): Promise<ChatMessage[]> {
+  const data = await loadData()
+  return data.chatHistories?.[employeeId] ?? []
+}
+
+/** 특정 직원 채팅 이력 저장 — 메시지 1개 추가마다 호출 가능 */
+export async function saveChatHistory(employeeId: string, messages: ChatMessage[]): Promise<void> {
+  const data = await loadData()
+  if (!data.chatHistories) data.chatHistories = {}
+  data.chatHistories[employeeId] = messages
+  await saveData(data)
+}
+
+/** 특정 직원 채팅 이력 삭제 — 해고 시 호출 */
+export async function clearChatHistory(employeeId: string): Promise<void> {
+  const data = await loadData()
+  if (!data.chatHistories) return
+  delete data.chatHistories[employeeId]
+  await saveData(data)
 }

@@ -180,6 +180,25 @@ export type AccessoryId = 'glasses' | 'sunglasses' | 'cap'
 /** 책상 위 소품 (Day 11 v2.5 D) — 캐릭터 옆 작은 디테일 */
 export type DeskItemId = 'mug' | 'plant' | 'laptop'
 
+/** 배치 가능한 가구 ID (P2 #25, Day 11 후속). 기존 3종 + 단순 픽셀 5종 = 8종 */
+export type FurnitureId =
+  | 'plant-large'      // 대형 화분 (PLANT 재사용)
+  | 'bookshelf-tall'   // 큰 책장 5단 (BOOKSHELF 재사용)
+  | 'vending-soda'     // 음료 자판기 (VENDING 재사용)
+  | 'sofa'             // 소파 (신규)
+  | 'calendar'         // 벽 캘린더 (신규)
+  | 'frame'            // 액자 (신규)
+  | 'trash-can'        // 휴지통 (신규)
+  | 'lounge-table'     // 탕비실 테이블 (신규)
+
+/** 사무실에 배치된 가구 인스턴스 — Settings에 배열로 저장. uid는 placed timestamp+rand */
+export type PlacedFurniture = {
+  uid: string          // 고유 ID (드래그·제거 식별)
+  itemId: FurnitureId  // 카탈로그 itemId
+  xRatio: number       // 0~1 (사무실 width 비율)
+  yRatio: number       // 0~1 (사무실 height 비율)
+}
+
 export type Settings = {
   defaultModel: Model
   defaultMemoryModel: Model
@@ -190,13 +209,29 @@ export type Settings = {
   teamNames: { A: string; B: string; C: string }
   /** 팀 팻말 디자인 — 전체 동일 (Day 11). 팀별 분리는 추후 확장 */
   teamPlateStyle?: TeamPlateStyle
+  /** 사무실에 배치한 가구 — 사용자 자유 위치 (P2 #25, Day 11 후속) */
+  placedFurniture?: PlacedFurniture[]
   // API 키는 safeStorage에 따로 저장
+}
+
+/** 채팅 메시지 (ChatPopup의 Message 타입 — shared로 이동, 영속화용) */
+export type ChatMessage = {
+  id: string
+  role: 'user' | 'agent' | 'system'
+  text: string
+  /** system 메시지에 부가 힌트 (작게, 약하게 표시) */
+  hint?: string
+  severity?: 'info' | 'warning' | 'error'
+  /** 디버그 단서 (예: HTTP 503) — 메시지 옆에 작게 표기 */
+  debugCode?: string
 }
 
 export type AppData = {
   employees: Employee[]
   maxEmployees: number
   settings: Settings
+  /** 채팅 이력 — employeeId → 메시지 배열 (P1 #13 풀 스펙, Day 11 후속) */
+  chatHistories?: Record<string, ChatMessage[]>
 }
 
 // 템플릿 정의 (UI에서 채용 시 기본값)
@@ -251,6 +286,7 @@ export const DEFAULT_SETTINGS: Settings = {
   usageDisplayMode: 'chips',
   teamNames: { A: '팀 A', B: '팀 B', C: '팀 C' },
   teamPlateStyle: 'wood',
+  placedFurniture: [],
 }
 
 /** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */

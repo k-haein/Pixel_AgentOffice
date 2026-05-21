@@ -732,7 +732,7 @@ PC에서 다음 순서로 빠른 검증:
 ## v2.5 액세서리·책상 소품·눈 표정 (Day 11 — 코드 유지, 시각 비활성화) ⚠️
 
 ### 무엇
-구현은 완료했으나 *그리드 사이즈 한계로 시각 비활성화* — 다음 세션 *그리드 확대 (캐릭터 20×12)* 후 활성화 예정:
+구현은 완료했으나 *그리드 사이즈 한계로 시각 비활성화*:
 
 - **액세서리** (`Employee.accessoryId`): glasses / sunglasses / cap — 캐릭터 머리 위 overlay
 - **책상 소품** (`Employee.deskItem`): mug / plant / laptop — 책상 좌측 작은 픽셀
@@ -744,13 +744,114 @@ PC에서 다음 순서로 빠른 검증:
 - `setBubbleEmotion` 안의 `setEyesByExpression` 호출은 *closed/normal만* 분기 (다른 overlay 안 그림)
 - `closed` (sleepy) 시 눈 감기는 *그대로 작동* (Day 10 기능)
 
-### 활성화 절차 (다음 세션)
-1. 캐릭터 그리드 12×12 → 20×12 + PIXEL_SIZE 2 → 3
-2. 책상·의자·모니터 비례 조정
-3. 자리 좌표·간격 재조정
-4. eyesClosed·EYE_EXPRESSION·ACCESSORY·DESK_ITEM 그리드 새 사이즈로 재디자인
-5. Clawd.ts accessory `if` 주석 해제 + OfficeScene deskItem `if` 주석 해제 + ShopModal `{false &&}` 해제 + setBubbleEmotion 분기 제거
-6. 시각 검증
+### Day 11 후속 — 그리드 확대 시도 2번 실패 → PNG asset 대기
+- 시도 1: 16×14 cells (32×28 px) → "너무 못생겻어"
+- 시도 2: 32×24 cells + 가구 PIXEL_SIZE 3 (64×48 px) → "너무 못생겻다"
+- `git restore`로 `449fdbf` 시점 완전 원복. 12×12 PIXEL_SIZE 2로 복귀
+- **결론**: Claude 픽셀 그리드 문자열 디자인 한계 — 단순 마스코트 이상은 PNG asset 필수
+
+### 활성화 절차 (사용자 PNG 도입 후)
+1. 사용자가 Aseprite/Piskel로 PNG 6종 (basic·headphones·jellyfish·custom + 액세서리·소품·눈 표정) 그림
+2. Phaser preload에서 PNG load + spritesheet animation
+3. Clawd.ts pixel 그리드를 PNG sprite로 교체
+4. Clawd.ts accessory `if` 주석 해제 + OfficeScene deskItem `if` 주석 해제 + ShopModal `{false &&}` 해제 + setBubbleEmotion 분기 제거
+5. 시각 검증
+
+---
+
+## P2 #25 가구 배치 드래그앤드롭 (Day 11 후속)
+
+### 무엇
+사무실 꾸미기 핵심 미구현 기능 — 상점에서 산 가구를 사무실에 자유 배치. 8종 가구 활성화.
+
+- 데이터 모델: `Settings.placedFurniture: PlacedFurniture[]` — uid / itemId / xRatio / yRatio
+- 8종 가구: 화분(대형) / 책장 / 자판기 (기존 3종) + 소파 / 캘린더 / 액자 / 휴지통 / 테이블 (신규 5종, 단순 픽셀)
+- Phaser native draggable로 자유 좌표 이동, 우클릭으로 제거
+- 영속 저장 — 앱 재시작 후도 위치·배치 유지
+
+### 사용 방법
+1. 상점 🛍 버튼 → "🪑 가구·꾸미기" 섹션
+2. 가구 아이템의 "🏢 사무실에 추가" 클릭 → 화면 중앙 (0.5, 0.5)에 배치
+3. 가구 위에 마우스 hover → cursor `grab` → 드래그로 이동 → release 시 위치 저장
+4. 가구 위에서 우클릭 → 제거
+
+### 기대 동작 ☐
+- [ ] 상점에서 8종 (plant-large / bookshelf-tall / vending-soda / sofa / calendar / frame / trash-can / lounge-table)에 "사무실에 추가" 버튼 활성화
+- [ ] 나머지 4종 (coffee-machine / plant-corner / desk-lamp-extra / partition-extra)은 "곧 구매 가능" disabled
+- [ ] 추가 클릭 시 화면 중앙에 가구 등장
+- [ ] 드래그 중 alpha 0.7로 흐려짐, dragend 후 알파 1 복귀
+- [ ] 우클릭 → 즉시 제거
+- [ ] 가구가 사무실 영역 안에서만 움직임 (xRatio/yRatio 0.02~0.98 clamp)
+- [ ] 캐릭터·책상보다 아래 depth (캐릭터 가림 방지)
+- [ ] 앱 재시작 후 가구 위치 그대로 유지
+
+### 알려진 한계
+- 자리(seat) 영역 충돌 검사 없음 — 사용자가 자유 배치 (책상 위에 가구 올릴 수 있음)
+- 그리드 스냅 없음 — 자유 좌표
+- 신규 픽셀 5종은 단순 형태 (8 wide 정도) — 디테일 부족하면 향후 PNG로 교체
+
+---
+
+## 채팅 영구화 풀 스펙 (Day 11 후속, P1 #13 완성)
+
+### 무엇
+*기존 (P1 #13 메모리 only)*: `messagesByEmployeeRef`로 직원별 채팅 이력 메모리 보관. 같은 직원 채팅 다시 열면 이력 복원. 하지만 **앱 재시작 시 모두 사라짐**.
+
+*풀 스펙*: app-data.json에 `chatHistories: Record<employeeId, ChatMessage[]>` 별도 키로 저장 — **앱 재시작 후도 이력 유지**.
+
+- 새 Platform 메서드: `loadChatHistory` / `saveChatHistory` / `clearChatHistory`
+- ChatPopup `onOpen` 시 1) 메모리 ref → 2) 영속 저장소 → 3) 신규 system msg 순서로 로드
+- messages 변경 시 **300ms debounce** 후 자동 저장 (짧은 연속 변경 시 마지막만)
+- 해고(`removeEmployee`) 시 채팅 이력도 자동 삭제 (store.ts에서 + chat:force-close 핸들러)
+
+### 사용 방법
+1. 직원 채팅창 열기 → 메시지 몇 개 보냄
+2. 채팅창 닫고 다시 열기 → 이력 복원 (기존 P1 #13)
+3. **앱 종료 → 재시작 → 같은 직원 채팅창 열기 → 이력 복원** ← 풀 스펙 핵심
+4. 직원 해고 → 채팅 이력 같이 삭제
+
+### 기대 동작 ☐
+- [ ] 채팅 1개 보내고 다시 열면 이력 복원 (P1 #13 회귀 OK)
+- [ ] 앱 재시작 후 채팅창 열면 이전 이력 복원 ← *풀 스펙 핵심*
+- [ ] 채팅 빠르게 여러 개 보내도 저장 안정 (300ms debounce)
+- [ ] 직원 해고 시 그 직원 채팅 이력 사라짐 (다른 직원은 영향 X)
+- [ ] 다른 직원 채팅창은 영향 없음 (employeeId별 분리)
+
+### 알려진 한계
+- 채팅 이력이 무한 누적 — 영구 저장이므로 옛 메시지 자동 삭제 안 함. 추후 *최대 N개* 또는 *오래된 것 자동 정리* 정책 필요
+
+---
+
+## 빈 자리 평소 숨김 (Day 11 후속, P1 잔여)
+
+### 무엇
+기존: 빈 자리(직원 없는 책상·의자·모니터)가 항상 visible → 화면 어수선.
+개선: **채용 모달 열렸을 때 + 자리 이동 모드일 때만** 빈 자리 표시. 평소엔 직원 있는 자리만 보임.
+
+- App.tsx에서 `hireOpen` 변경 시 `eventBus.emit('office:hire-mode', open)`
+- OfficeScene `setEmptySeatsVisibility(visible)` 메서드 — workstations 순회, `employee === null && team !== null` 자리 토글
+- `enterMoveMode` 시 강제 true / `exitMoveMode` 시 hireMode에 따라
+- `rebuildWorkstations` 끝에 동기 (새 자리 생성 시 즉시 적용)
+- 사장석은 별도 plate라 항상 visible 유지
+
+### 사용 방법
+1. 앱 실행 → 빈 자리 안 보임 (직원 있는 자리만)
+2. 좌상단 "+ 채용" 버튼 → 빈 자리 등장
+3. 채용 모달 닫기 → 빈 자리 사라짐
+4. 직원 우클릭 → "🚶 자리 이동" 선택 → 빈 자리 등장 (이동 가능 자리 표시)
+5. 이동 완료/취소 → 빈 자리 다시 사라짐
+
+### 기대 동작 ☐
+- [ ] 앱 시작 시 직원 있는 자리만 보임 (책상·의자·모니터·hireZone)
+- [ ] 사장석은 빈 상태여도 항상 visible (👑 사장석 plate)
+- [ ] "+ 채용" 클릭 → 빈 자리 모두 등장
+- [ ] 채용 모달 닫기 → 빈 자리 사라짐
+- [ ] 자리 이동 모드 → 빈 자리 등장 + 이동 완료 후 사라짐
+- [ ] 자리 이동 취소 (ESC) → 빈 자리 사라짐 (hireMode가 false면)
+- [ ] 채용 모달과 이동 모드 동시 트리거 — 둘 중 하나라도 활성이면 visible
+
+### 알려진 한계
+- 채용 모달 열려있는 동안에 자리 이동 모드 진입은 UI 흐름상 발생 안 함 — 둘 다 활성인 경우는 가정 안 함
 
 ---
 

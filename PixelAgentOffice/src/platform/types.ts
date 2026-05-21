@@ -9,7 +9,7 @@
  * 자세한 배경: ../../../../ideas/13-electron-and-mobile-strategy.md
  */
 
-import type { AppData, Employee, Settings, Model } from '../shared/types'
+import type { AppData, Employee, Settings, Model, ChatMessage } from '../shared/types'
 import type { ChatRequest } from '../../electron/llm/types'
 import type { ChatResult, RateLimitStatus } from '../../electron/preload'
 import type { ProviderName } from '../../electron/llm/types'
@@ -30,6 +30,14 @@ export interface Platform {
   removeEmployee(id: string): Promise<boolean>
   /** 설정 일부 필드 수정 */
   updateSettings(patch: Partial<Settings>): Promise<Settings>
+
+  // === 채팅 이력 영구화 (Day 11+ 풀 스펙) ===
+  /** 특정 직원의 채팅 이력 로드 — 채팅창 열 때 호출 */
+  loadChatHistory(employeeId: string): Promise<ChatMessage[]>
+  /** 특정 직원의 채팅 이력 저장 — 메시지 변경 시마다 호출 (debounce 권장) */
+  saveChatHistory(employeeId: string, messages: ChatMessage[]): Promise<void>
+  /** 특정 직원의 채팅 이력 삭제 — 해고 시 호출 */
+  clearChatHistory(employeeId: string): Promise<void>
 
   // === API 키 관리 (provider별) ===
   /** API 키 저장 (Electron=OS키체인 / Web=백엔드DB 등 환경별 구현) */
