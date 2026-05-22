@@ -11,7 +11,25 @@
     "preview": "vite preview",
     "test:e2e": "tsc -b && vite build && playwright test",
     "test:e2e:no-build": "playwright test",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "dist:exe": "pnpm build && pnpm exec electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.pixelagentoffice.app",
+    "productName": "PixelAgentOffice",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "artifactName": "PixelAgentOffice-${version}-portable.exe"
+    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
@@ -30,6 +48,7 @@
     "concurrently": "^9.2.1",
     "dotenv": "^17.4.2",
     "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
