@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화 + 이름 수정 모달 + 말풍선 12 emotion + v2.5 코드 보존(시각 비활성, PNG 대기). **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 (P2 #25 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김 + HANDOFF 정리). **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드(클릭 위치에 떨어짐) + 자리 이동 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. 다음: **사용자 시각 검증** → Day 12 진입.
+> 최종 갱신: **2026-05-22 (Day 12 §1)** — 감정 자동 트리거(LLM 응답에 `[emotion:xxx]` 태그 12종 강제 + 본문 파싱 후 말풍선 5초 변화) + idleEmotion(직원별 평소 표정 — MemoModal에서 12종 선택) + 가구 우클릭 컨텍스트 메뉴(옮기기/이 가구 삭제/전체 가구 삭제) + 배포 준비(`electron-builder` + `pnpm dist:exe` portable EXE). 다음: **사용자 시각 검증(Day 12 §1 3 커밋)** + portable EXE 빌드 1차.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 + 채팅 영구화 + 빈 자리 숨김 + **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성 |
-| **다음 작업** | **사용자 시각 검증** (Day 11 4 커밋 통합) → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석 |
-| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. **Day 11 후속 + 후속 +1 (19개 파일, 2개 커밋) — 사용자 검증 대기**: 가구 배치 드래그·드롭 / 상점 픽셀 미리보기 / 배치 모드 클릭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글 / 자리 이동 카메라 / 메모 외형 편집 비활성 / hover 카드 비활성 |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 + 채팅 영구화 + 빈 자리 숨김 + **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성 + **Day 12 §1**: 감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder dist:exe |
+| **다음 작업** | **사용자 시각 검증** (Day 11~Day 12 §1 통합) + portable EXE 빌드 1차 → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. **Day 12 §1**: 감정 시스템이 "있는데 안 쓰이던 상태" → 자동 태그 + idle 기본값 짝으로 살림. 가구 옮기기 (placement mode 재사용) + 전체 삭제. portable EXE 빌드 준비(electron-builder devDep + dist:exe 스크립트). |
+| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. **Day 11 후속 + 후속 +1 (19개 파일, 2개 커밋) + Day 12 §1 (7개 파일, 3개 커밋 예정) — 사용자 검증 대기**: 가구 배치 드래그·드롭 / 상점 픽셀 미리보기 / 배치 모드 클릭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글 / 자리 이동 카메라 / 메모 외형 편집 비활성 / hover 카드 비활성 / **감정 태그 자동 트리거(LLM 응답 마지막 줄)** / **MemoModal idle emotion 12종 선택** / **가구 우클릭 메뉴 3종** / **가구 옮기기 ghost** / **dist:exe portable EXE 빌드** |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -222,11 +222,39 @@
 - ✅ `b87a4b3` — UI 폴리시 4종 (A·B·C·D)
 - ✅ `d8f3015` — E·F + 세션 정리
 
+### **2026-05-22 (Day 12 §1) — 감정 자동 트리거 + 가구 컨텍스트 메뉴 + 배포 준비**
+
+#### 한 일
+
+1. **감정 자동 트리거** — LLM 응답에 `[emotion:xxx]` 태그(12종 화이트리스트) 강제. `parseEmotionTag`가 본문에서 태그 제거 + emotion 추출 → `agent:set-emotion` emit (5초). 5초 후 직원의 `idleEmotion`으로 복귀(없으면 thinking).
+2. **idleEmotion(직원별 평소 표정)** — `Employee.idleEmotion?: BubbleEmotion` 신규 옵셔널. MemoModal에 12 버튼 grid UI. 말풍선 초기 픽셀도 idleEmotion 반영.
+3. **타입 공유** — `BubbleEmotion`을 `OfficeScene.ts` → `shared/types.ts`로 이동. `EMOTION_LABELS` 라벨 맵 신규 (UI 노출용).
+4. **가구 우클릭 컨텍스트 메뉴** — 즉시 삭제 → 3종 메뉴 (🚚 옮기기 / 🗑 이 가구 삭제 / 🧹 전체 가구 삭제). React DOM 메뉴 (외부 클릭/ESC 닫기). 직원 메뉴와 동일 스타일.
+5. **가구 옮기기 모드** — `placementMode.moveUid` 옵셔널 추가. 옮기기 진입 시 원본 hide → 새 위치 클릭 시 `furniture:moved` emit. 취소 시 원본 복원.
+6. **전체 가구 삭제** — `furniture:clear-all` emit → `placedFurniture: []`로 갱신.
+7. **배포 준비** — `electron-builder@^26.8.1` devDep + `pnpm dist:exe` 스크립트 + `build` 박스 (Windows portable target).
+
+#### 왜 그렇게 결정했는지
+- **감정 시스템 살리기** — Day 11에 12 emotion 픽셀까지 만들고 트리거가 1개라 "있는데 안 쓰는" 상태였음. 자동 태그 + idle 기본값 짝으로 들어가야 캐릭터별 분위기가 생김.
+- **마지막 줄에 한 번 + 화이트리스트 12종** — Day 10 가드 문구 Gemini safety 충돌 교훈. 태그를 본문 *어디에 있든* 매칭하되, 모델 안전망은 줄임표 응답 가드는 주석 처리 유지.
+- **컨텍스트 메뉴로 묶기** — 옮기기/전체 삭제가 추가 필요 → 우클릭=즉시 삭제는 실수도 잦았음. 메뉴 형식이 직원 우클릭과 일관성 있음.
+- **placement mode 재사용** — Day 11 후속 +1 인프라(`ghost preview` + `hintText` + ESC/우클릭 취소) 그대로 + `moveUid` 한 가지 분기. 옮기기 추가 비용 거의 0.
+- **portable EXE 1차** — 데모 전달용. 자동 업데이트·코드 사인·아이콘은 후속.
+
+#### ⚠️ 시각 검증 상태
+- **❌ Day 12 §1 코드는 데스크탑(로컬 PC)에서 작성했지만 `pnpm dev` 시각 검증 미수행** — 사용자 측 검증 대기.
+- 검증 항목: §3 미커밋 표 + FEATURES.md "기대 동작 ☐" 체크리스트.
+
+#### 산출 커밋 (3개 예정)
+- C1 — Day 12 §1 코드 (감정 자동화 + 가구 컨텍스트 메뉴 + idleEmotion)
+- C2 — Day 12 §1 배포 준비 (electron-builder + dist:exe)
+- C3 — Day 12 §1 문서 동기화 (HANDOFF + FEATURES + brainstorming-log)
+
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 🎯 다음 작업 우선순위 (Day 11 후속)
+### 🎯 다음 작업 우선순위 (Day 12 §1)
 
 **Day 11 후반 — 그리드 확대 시도 실패 회고:**
 - 시도 1: 16×14 cells PIXEL_SIZE 2 (캐릭터 32×28 px) → "너무 못생겻어"
@@ -253,11 +281,23 @@
 | 메모 UI | **외형 편집 제거** — 최초 채용 시에만 변경 가능. JSX 주석으로 보존 | components/MemoModal.tsx |
 | 캐릭터 UI | **hover 명함 카드 주석** — 일단 비활성. 나중에 다른 위치 결정 | App.tsx |
 
+**Day 12 §1 — 감정 자동 트리거 + 가구 컨텍스트 메뉴 + 배포 준비 (커밋 3개 예정):**
+| 영역 | 작업 | 파일 |
+|---|---|---|
+| 감정 자동 트리거 | LLM system prompt에 `[emotion:xxx]` 태그 12종 강제. `parseEmotionTag` 본문 정리 + emotion 5초 시각화. 자동 복귀처 idle로 | components/ChatPopup.tsx / game/OfficeScene.ts |
+| idleEmotion | `Employee.idleEmotion` 신규 + MemoModal 12 버튼 선택 grid | shared/types.ts / components/MemoModal.tsx |
+| 타입 공유 | `BubbleEmotion` + `EMOTION_LABELS` shared/types.ts로 이동 | shared/types.ts / game/OfficeScene.ts / components/* |
+| 가구 컨텍스트 메뉴 | 우클릭 = 메뉴 3종 (🚚 옮기기 / 🗑 이 가구 삭제 / 🧹 전체 가구 삭제). 외부 클릭/ESC 닫기 | App.tsx / game/OfficeScene.ts |
+| 가구 옮기기 모드 | placement mode `moveUid` 확장. 원본 hide → 새 위치 클릭 = furniture:moved emit. 취소 시 원본 복원 | game/OfficeScene.ts |
+| 전체 가구 삭제 | `furniture:clear-all` → placedFurniture: [] | App.tsx |
+| 배포 준비 | electron-builder devDep + `pnpm dist:exe` (Windows portable EXE) | PixelAgentOffice/package.json / pnpm-lock.yaml |
+
 **다음 작업 (검증 후):**
-1. **시각 검증** — 사용자 PC `pnpm dev` 실행. Day 11 4 커밋 통합 검증 (FEATURES.md "기대 동작 ☐" 체크리스트)
-2. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
-3. **Phase 3 백엔드 셋업** (모바일 진입)
-4. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)
+1. **시각 검증** — 사용자 PC `pnpm dev` 실행. Day 11~12 §1 통합 검증 (FEATURES.md "기대 동작 ☐" 체크리스트)
+2. **portable EXE 1차 빌드** — `pnpm dist:exe` → `release/PixelAgentOffice-x.y.z-portable.exe`. 다른 PC에서 더블클릭 실행 확인
+3. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
+4. **Phase 3 백엔드 셋업** (모바일 진입)
+5. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)
 
 ### 보류 cleanup (변동 없음)
 - **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). PNG asset 도입 시 같이 확인

@@ -2254,6 +2254,105 @@ CONVENTIONS §7 체크리스트:
 - Phase 3 백엔드 셋업 (모바일 진입)
 - PNG asset 도입 (사용자가 직접 그림 그리기 결정 시 → v2.5 부활)
 
+## 119. 🎭 Day 12 §1 — 감정 자동 트리거 + 가구 컨텍스트 메뉴 + 배포 준비
+
+작업일: 2026-05-22 (Day 12 첫 작업). 환경: 데스크탑(로컬 PC). 코드 주석은 작업 시점 기준 "Day 11 후속 +2"로 표기됨(연속 작업 흐름 보존). brainstorming-log·HANDOFF·FEATURES는 사용자 결정에 따라 Day 12로 기록.
+
+### 발단
+
+Day 11 마무리 후 사용자가 4가지 큰 보강을 한 번에 요청:
+
+1. **말풍선 감정**이 채팅 응답에 따라 자동으로 변하면 좋겠다. Day 11에 12종 감정 픽셀 + `agent:set-emotion` 이벤트는 이미 있는데, 트리거는 "응답 도착=happy" 1가지뿐 — *살아 있는 사무실* 느낌이 약함.
+2. 직원마다 **평소 표정**(idle emotion)을 정해두고 싶다. 모두 thinking으로 통일되니 캐릭터 개성이 안 보임.
+3. Day 11 후속 +1에 가구 배치 + 우클릭 삭제까지 추가했는데, **옮기기 기능**이 없어서 한 번 잘못 놓으면 지우고 다시 사야 하는 게 어색. **전체 가구 한 번에 치우기**도 있으면 좋겠다.
+4. 곧 **portable .exe**로 사용자에게 직접 전달해보고 싶음 → 빌드 준비 미리.
+
+### 1) 감정 자동 트리거 (LLM 응답 → 말풍선 5초)
+
+#### 시스템 프롬프트에 감정 태그 강제 — `ChatPopup.tsx buildSystemPrompt`
+- "# 응답 마지막의 감정 태그 (필수)" 섹션 추가. 12종 키 (thinking/happy/surprised/sleepy/confused/idea/love/angry/sad/sweat/music/wow) + 형식 `[emotion:키]` + 평범 응답 = thinking 규칙.
+- 키 12종은 OfficeScene.ts의 `BUBBLE_INNER_PIXELS`와 동기 유지. 변경 시 두 파일 같이.
+
+#### 응답 파싱 → 본문 정리 + 말풍선 5초 — `parseEmotionTag`
+- 정규식 `/\[emotion:(\w+)\]/i`로 응답 어디에 있든 매칭(모델이 마지막에 안 둘 수도 있음).
+- 본문에서 태그 제거 + 빈 줄 3개↑ → 2개로 압축.
+- 결과: `{ cleanText, emotion }`. 채팅 메시지엔 cleanText만 표시.
+- emotion 있으면 `agent:set-emotion` emit (`expireMs: 5000`) → OfficeScene이 말풍선 픽셀 교체.
+
+#### 자동 복귀를 idle로 — `OfficeScene.setBubbleEmotion`
+- 기존: `expireMs > 0 && emotion !== 'thinking'` → 5초 후 thinking으로 복귀
+- 신규: `expireMs > 0 && emotion !== idle` → 5초 후 직원의 `idleEmotion`(없으면 thinking)으로 복귀.
+- 초기 생성 시도 `BUBBLE_INNER_PIXELS.thinking` → `BUBBLE_INNER_PIXELS[employee.idleEmotion ?? 'thinking']`로 변경.
+
+### 2) idleEmotion — Employee 필드 + MemoModal UI
+
+#### 타입 — `shared/types.ts`
+- `BubbleEmotion` 타입을 `OfficeScene.ts` 내부 → `shared/types.ts`로 이동 (OfficeScene·MemoModal·ChatPopup 모두 import 가능하게).
+- `EMOTION_LABELS: Record<BubbleEmotion, { emoji, name }>` 신규 — UI 노출용 (⋯=생각 중, ◡=기쁨, ‼=놀람, Z=졸음, ?=혼란, 💡=아이디어, ♥=사랑, ✗=화남, 💧=슬픔, 💦=땀, ♪=음악, ✨=와우).
+- `Employee.idleEmotion?: BubbleEmotion` 신규 옵셔널 필드. 기본 fallback = `'thinking'`.
+
+#### MemoModal — `🎭 기본 감정 (말풍선)` 섹션
+- 12 버튼 grid (`repeat(auto-fill, minmax(80px, 1fr))`). 각 버튼: 이모지 18px + 한글 라벨 11px. 선택 시 갈색 테두리(2px solid #8a5a2a) + 노란 배경(#fff2b8).
+- 저장 시 `updateEmployee({ ..., idleEmotion })`.
+
+### 3) 가구 컨텍스트 메뉴 — 옮기기 / 삭제 / 전체 삭제
+
+#### OfficeScene 우클릭 — `furniture:context-menu` emit
+- 기존: 우클릭 = `furniture:removed` 즉시 emit
+- 신규: 우클릭 = `furniture:context-menu` emit (`{ uid, itemId, x: clientX, y: clientY }`) → React가 위치에 메뉴 띄움.
+
+#### App.tsx 가구 컨텍스트 메뉴 (React DOM)
+- `furnitureContextMenu` state (uid·itemId·x·y).
+- 메뉴 3개:
+  - 🚚 옮기기 → `furniture:start-placement` emit (`{ itemId, moveUid: uid }`)
+  - 🗑 이 가구 삭제 → `furniture:removed` emit
+  - 🧹 전체 가구 삭제 → `window.confirm()` 후 `furniture:clear-all` emit
+- 외부 클릭 / ESC로 닫힘 (`window.addEventListener('click'|'keydown', onClose)`).
+- 메뉴 표시 패턴은 직원 우클릭 메뉴와 동일 (`employee-context-menu` 클래스 재사용).
+
+#### 옮기기 모드 — placement mode 확장
+- `enterPlacementMode(itemId, moveUid?)`. moveUid 있으면:
+  - 원본 가구 객체 `setVisible(false)` (ghost가 대신 표시)
+  - 안내 텍스트 "🚚 새 위치를 클릭하세요" (신규/옮기기 구분)
+  - `confirmPlacement` 시 `furniture:placed` 대신 `furniture:moved` emit (`{ uid, xRatio, yRatio }`)
+- `exitPlacementMode`에서 moveUid 있으면 원본 다시 `setVisible(true)` (취소 시 원위치 복원).
+
+#### 전체 삭제 — App.tsx 핸들러
+- `furniture:clear-all` → `platform.updateSettings({ placedFurniture: [] })` → `office:settings` emit → OfficeScene 자동 재렌더링.
+
+### 4) 배포 준비 — electron-builder + portable EXE
+
+#### `PixelAgentOffice/package.json`
+- devDep: `electron-builder@^26.8.1`
+- 신규 스크립트: `"dist:exe": "pnpm build && pnpm exec electron-builder --win portable"`
+- `build` 박스:
+  - `appId: com.pixelagentoffice.app` / `productName: PixelAgentOffice`
+  - `directories.output: release`
+  - `files: ["dist/**/*", "dist-electron/**/*"]`
+  - `win.target: portable` + `portable.artifactName: PixelAgentOffice-${version}-portable.exe`
+
+#### 결과물
+- `pnpm dist:exe` 한 번에 → `release/PixelAgentOffice-x.y.z-portable.exe` 생성. 설치 없이 더블클릭 실행.
+- 아직 자동 업데이트 / 코드 사인 / 아이콘은 미설정. 데모 전달용 1차.
+
+### 의의
+
+- **감정 시스템이 살아남** — Day 11에 12 emotion 픽셀까지 만들어두고 트리거가 1개여서 "있는데 안 쓰는" 상태였음. 자동 태그 + idle 기본값 둘이 짝으로 들어가니까 캐릭터별 분위기가 잡힘.
+- **가구 UX 완성** — Day 11 후속 +1의 배치 모드 인프라(`placementMode` 확장)를 재사용해서 옮기기 추가 비용이 적음. moveUid 한 줄 추가로 신규/옮기기 분기.
+- **시스템 프롬프트 강제 패턴** — Day 10에서 가드 문구가 Gemini safety filter와 충돌했던 교훈 → 감정 태그도 *마지막 줄*에 한 번, 12종 화이트리스트, 모델이 자유롭게 둘 수 있게 유연 매칭. Gemini safety 충돌 회피.
+
+### CONVENTIONS §7 체크리스트 (Day 12 §1)
+
+- ✅ brainstorming-log §119 추가 (이 섹션)
+- ✅ HANDOFF.md — Day 12 헤더 + §1 30초 요약 + §2 Day 12 타임라인 + §3 미커밋 정리
+- ✅ FEATURES.md — 감정 자동 트리거 / idleEmotion 선택 / 가구 컨텍스트 메뉴 / dist:exe 검증 명세 추가
+- (해당 없음) ideas/06 / ideas/NN-신규 / portfolio
+
+### 산출 커밋 (예정 3개)
+- C1 — Day 12 §1 코드 (감정 자동화 + 가구 컨텍스트 메뉴 + idleEmotion)
+- C2 — Day 12 §1 배포 준비 (electron-builder + dist:exe)
+- C3 — Day 12 §1 문서 동기화 (HANDOFF + FEATURES + brainstorming-log)
+
 ---
 
 ## 결정 진화 요약 (M5 시점)
