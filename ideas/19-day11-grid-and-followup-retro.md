@@ -126,9 +126,67 @@
 
 ---
 
-## 5. 다음 우선순위 (HANDOFF §3 갱신됨)
+## 5. Day 11 후속 +1 — 상점 픽셀 미리보기 + 배치 모드 + UX 정리 5종
 
-1. **시각 검증** (사용자 PC에서 pnpm dev) — Day 11 후속 12개 파일
+사용자가 시각 검증 *시작 전* 4가지 피드백 + 추가 UX 요청을 한꺼번에 보냄:
+
+### 사용자 피드백
+1. "**상점 아이콘들도 내가 붙여넣는 것이랑 이미지가 동일했으면 좋겠어**"
+2. "**중앙에 바로 붙여넣어지는게 아니라 어느 위치에 붙여넣을지 선택하게 하고 그 위치에 붙여넣게 해줘.**" + "**그 위치에 클릭하면 거기에 떨어져야해**"
+3. "**상점에 있는 물건들이 좀 크기가 작고 구분하기 어려워. 좀 더 다른 디자인으로 고도화해줘.**"
+4. (스크린샷 첨부) **자리 이동 시 줌 줄이면 안내·드롭 박스가 2개씩** + **메모에서 외형 편집 비활성** + **캐릭터 hover 명함 카드 주석**
+
+### 구현 — 5가지 작업
+
+#### a) 상점 디자인 고도화 — 픽셀 미리보기 통합
+- 신규 `src/shared/furnitureCatalog.ts` — 가구 8종 픽셀 정의를 OfficeScene에서 *순수 데이터*로 분리 (Phaser 의존 X)
+  - FURNITURE_CATALOG (8종) + renderFurnitureToCanvas (Canvas 2D) + getFurnitureSize
+- 신규 `src/components/FurniturePreview.tsx` — React 컴포넌트. Canvas에 픽셀 그림. `imageRendering: 'pixelated'`로 픽셀 선명
+- ShopModal.tsx — 가구 카드에 `<FurniturePreview itemId={itemId} scale={2} />` 통합. 실제 사무실 배치 이미지와 100% 동일
+- ShopModal.css — `shop-grid-furniture` (minmax 200px) + `shop-item-furniture` (큰 카드) + `shop-item-pixel-preview` (체크무늬 배경, 80px 높이)
+- OfficeScene 중복 픽셀 정의 145줄 제거 (FURNITURE_CATALOG 단일 출처)
+
+#### b) 배치 모드 (placement mode)
+- ShopModal "🏢 사무실에 배치" → `furniture:start-placement` emit → 모달 자동 닫힘
+- OfficeScene `enterPlacementMode`:
+  - Ghost preview (drawPixelGrid, alpha 0.55, depth 50)
+  - 안내 텍스트 "🪑 원하는 위치를 클릭하세요 (ESC 또는 우클릭 = 취소)" 화면 상단 고정 (main 카메라 ignore)
+  - cursor: crosshair
+- pointermove → ghost가 pointer.worldX/Y 추적 (줌·패닝 반영)
+- 좌클릭 → confirmPlacement (xRatio/yRatio 0.02~0.98 clamp) → emit
+- ESC / 우클릭 → exitPlacementMode (ghost·hint destroy)
+
+#### c) 자리 이동 안내·드롭 박스 중복 표시 버그 fix
+- 사용자 스크린샷: 안내 텍스트와 빈 자리 박스가 각각 2개씩 보임 (main 카메라 + uiCamera 동시 렌더링)
+- 원인: `moveModeHint`, `dropTargetHighlights` 생성 시 카메라 ignore 처리 누락
+- 수정:
+  - `moveModeHint`: `this.cameras.main.ignore()` → uiCamera only → 화면 고정
+  - `dropTargetHighlights`: `this.uiCamera?.ignore(hi)` → main only → 책상 좌표 따라감
+
+#### d) MemoModal 외형 편집 제거
+- 외형 편집 JSX 섹션 (색 / 무늬) 전체 주석 — 코드 보존
+- customColor/pattern state를 useState → const read-only (저장 시 기존 값 전달)
+- 미사용 import 4개 정리
+
+#### e) 캐릭터 hover 명함 카드 주석
+- state·이벤트 핸들러·JSX 렌더링 모두 주석 (코드 보존)
+- 미사용 import MODEL_INFO 제거
+- 향후 다른 위치(예: 우측 사이드 패널)에 다시 보일지 결정
+
+### 푸시
+- 커밋: `3f5a3c8` Day 11 후속 +1 — 7 files changed (571 insertions, 145 deletions)
+
+### 교훈 — Day 11 후속 +1
+- 사용자 피드백을 *시각 검증 시작 전*에 한 번에 받아 처리 → 검증 부담 감소
+- **카메라 분리 패턴 정착**: Phaser 멀티 카메라에서 객체별로 *어느 카메라에 보일지* 명확히 결정해야 (양쪽 다 보이면 중복 표시 버그)
+- **데이터 단일 출처**: 가구 픽셀 정의를 ShopModal·OfficeScene·preview가 같이 import → 향후 확장 안정
+- **코드 보존 + UI 숨김 패턴**: hover 카드·외형 편집·v2.5 시각 — 향후 재활성화 위해 주석으로 보존
+
+---
+
+## 6. 다음 우선순위 (HANDOFF §3 갱신됨)
+
+1. **시각 검증** (사용자 PC에서 pnpm dev) — Day 11 전체 4 커밋 (b3b3205 / 449fdbf / 2f527bb / 3f5a3c8)
 2. **M5-d 성격 시스템** (MBTI 보류 결정 답변 필요)
 3. **Phase 3 백엔드 셋업** (모바일 진입)
 4. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)

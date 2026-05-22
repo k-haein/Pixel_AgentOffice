@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화·3종 스타일·이름 수정 모달 + 말풍선 12 emotion + v2.5 (액세서리·소품·눈 표정) 시도→그리드 한계로 시각 비활성화 (코드 유지). **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → **G/A/B/C 4작업 완료** (HANDOFF 정리 + P2 #25 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김). 다음: **사용자 시각 검증**.
+> 최종 갱신: **2026-05-21 (Day 11)** — 팀 동적 중앙 정렬 + 팻말 시각화 + 이름 수정 모달 + 말풍선 12 emotion + v2.5 코드 보존(시각 비활성, PNG 대기). **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 (P2 #25 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김 + HANDOFF 정리). **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드(클릭 위치에 떨어짐) + 자리 이동 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. 다음: **사용자 시각 검증** → Day 12 진입.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 (8종) + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김 |
-| **다음 작업** | **사용자 시각 검증** (Day 11 후속 12개 파일) → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 우클릭 컨텍스트 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 시각 비활성화. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료 (HANDOFF 정리 + 가구 배치 8종 + 채팅 영구화 풀 스펙 + 빈 자리 숨김) |
-| **검증 상태** | Day 11 전반(팻말·이름 수정·팀 중앙·자리 간격·12 emotion) 검증 완료. v2.5는 시각 비활성. **Day 11 후속 12개 파일 — 사용자 검증 대기** (P2 #25 가구 드래그·드롭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글) |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 + 채팅 영구화 + 빈 자리 숨김 + **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성 |
+| **다음 작업** | **사용자 시각 검증** (Day 11 4 커밋 통합) → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석 |
+| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. **Day 11 후속 + 후속 +1 (19개 파일, 2개 커밋) — 사용자 검증 대기**: 가구 배치 드래그·드롭 / 상점 픽셀 미리보기 / 배치 모드 클릭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글 / 자리 이동 카메라 / 메모 외형 편집 비활성 / hover 카드 비활성 |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -236,7 +236,7 @@
 - v2.5 액세서리/소품/눈 표정 코드는 모두 보존 (`@ts-expect-error unused`로 마킹). PNG 도입 시 부활
 - 상세 회고: [`ideas/19-day11-grid-and-followup-retro.md`](ideas/19-day11-grid-and-followup-retro.md)
 
-**Day 11 후반 — G/A/B/C 4개 작업 완료:**
+**Day 11 후반 — G/A/B/C 4개 작업 완료 (커밋 `2f527bb`):**
 | 단계 | 작업 | 파일 |
 |---|---|---|
 | G | HANDOFF 정리 — 그리드 확대 결정 반영 | HANDOFF.md |
@@ -244,8 +244,17 @@
 | B | **채팅 영구화 풀 스펙** (store.ts 영속화) | types.ts / store.ts / main.ts / preload.ts / platform/*  / ChatPopup.tsx |
 | C | **빈 자리 평소 숨김** (채용 모달·이동 모드 한정) | App.tsx / OfficeScene.ts |
 
+**Day 11 후속 +1 — 사용자 피드백 4건 한 번에 (커밋 `3f5a3c8`):**
+| 영역 | 작업 | 파일 |
+|---|---|---|
+| 상점 디자인 | **픽셀 미리보기** — emoji 대신 실제 사무실 가구와 동일한 픽셀 이미지. 카드 크게. FURNITURE_CATALOG 단일 출처 | shared/furnitureCatalog.ts (신규) / components/FurniturePreview.tsx (신규) / ShopModal.tsx / ShopModal.css / OfficeScene.ts |
+| 가구 배치 | **배치 모드** — 클릭 위치에 가구 떨어짐. ghost preview 마우스 따라감. ESC/우클릭 취소 | OfficeScene.ts |
+| 자리 이동 | **카메라 분리 버그 fix** — 안내 텍스트·드롭 박스가 두 카메라에 중복 표시되던 문제 | OfficeScene.ts |
+| 메모 UI | **외형 편집 제거** — 최초 채용 시에만 변경 가능. JSX 주석으로 보존 | components/MemoModal.tsx |
+| 캐릭터 UI | **hover 명함 카드 주석** — 일단 비활성. 나중에 다른 위치 결정 | App.tsx |
+
 **다음 작업 (검증 후):**
-1. **시각 검증** — 사용자 PC `pnpm dev` 실행. P2 #25 가구 배치 / 채팅 영구화 / 빈 자리 숨김 3종 (FEATURES.md "기대 동작 ☐" 체크리스트)
+1. **시각 검증** — 사용자 PC `pnpm dev` 실행. Day 11 4 커밋 통합 검증 (FEATURES.md "기대 동작 ☐" 체크리스트)
 2. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
 3. **Phase 3 백엔드 셋업** (모바일 진입)
 4. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)

@@ -2166,6 +2166,94 @@ CONVENTIONS §7 체크리스트:
 
 작업 9개 파일 (HANDOFF + 11개 코드 + 3개 신규 문서) 한 번에 커밋·푸시. 다음 세션은 사용자 시각 검증부터.
 
+## 117. 🎨 Day 11 후속 +1 — 상점 픽셀 미리보기 + 배치 모드 + UX 정리 5종
+
+사용자 피드백 (4가지 요구사항):
+1. "**상점 아이콘들도 내가 붙여넣는 것이랑 이미지가 동일했으면 좋겠어**" — 픽셀 가구와 매칭
+2. "**중앙에 바로 붙여넣어지는게 아니라 어느 위치에 붙여넣을지 선택하게**" + "**그 위치에 클릭하면 거기에 떨어져야해**" — placement mode
+3. "**상점에 있는 물건들이 좀 크기가 작고 구분하기 어려워. 좀 더 다른 디자인으로 고도화**" — 카드 크게
+4. (사용자 스크린샷) **자리 이동 시 줌 줄이면 안내·드롭 박스가 2개씩** + **메모에서 외형 편집 비활성** + **캐릭터 hover 명함 카드 주석**
+
+### 상점 디자인 고도화 — 픽셀 미리보기
+- 신규: `src/shared/furnitureCatalog.ts` — 가구 8종 픽셀 정의를 OfficeScene에서 *순수 데이터*로 분리 (Phaser 의존 X)
+  - `FURNITURE_CATALOG: Record<FurnitureId, FurnitureSpec>` — pixels / palette / pixelSize / displayName / desc / category
+  - `renderFurnitureToCanvas(ctx, spec, scale, centerX, centerY)` — Canvas 2D context 렌더 함수
+  - `getFurnitureSize(spec, scale)` — 캔버스 크기 계산
+- 신규: `src/components/FurniturePreview.tsx` — React 컴포넌트. useRef + useEffect로 Canvas에 픽셀 그림. `imageRendering: 'pixelated'` + antialias off → 픽셀 선명
+- ShopModal.tsx: 가구 8종에 `<FurniturePreview itemId={itemId} scale={2} />` 통합. 실제 사무실 배치 이미지와 100% 동일
+- ShopModal.css: `shop-grid-furniture` (minmax 200px) + `shop-item-furniture` (큰 카드) + `shop-item-pixel-preview` (체크무늬 배경, 80px 높이) 추가. 픽셀 영역과 카드 영역 명확히 구분
+
+### 배치 모드 (placement mode) — 클릭한 위치에 떨어짐
+- ShopModal "🏢 사무실에 배치" 클릭 → `eventBus.emit('furniture:start-placement', { itemId })` → `onClose()` (모달 자동 닫힘)
+- OfficeScene `startPlacementHandler` → `enterPlacementMode`:
+  - Ghost preview = drawPixelGrid로 실제 가구 그린 후 알파 0.55, depth 50 (캐릭터·다른 가구보다 위)
+  - 안내 텍스트 "🪑 원하는 위치를 클릭하세요 (ESC 또는 우클릭 = 취소)" — 화면 상단 고정 (`cameras.main.ignore` → uiCamera only)
+  - `cursor: 'crosshair'`
+- pointermove → ghost가 `pointer.worldX/Y` 추적 (줌·패닝 반영)
+- pointerdown 좌클릭 → `confirmPlacement(pointer)`:
+  - xRatio/yRatio 0.02~0.98 clamp (사무실 밖 배치 방지)
+  - `furniture:placed` emit → App.tsx 핸들러 → platform.updateSettings → office:settings emit → 자동 재렌더링
+- ESC 키 (`escKey.on('down')`) 또는 우클릭 → `exitPlacementMode` (ghost·hint destroy, cursor 복원)
+- cleanup에서 placement mode·ESC 키 정리
+
+### 자리 이동 안내·드롭 박스 중복 표시 버그 fix (사용자 스크린샷)
+- 사용자 스크린샷: 좌상단에 "🪑 빈 자리로 드래그하세요"가 줌 화면에 1개 + main 카메라에 1개 = 2개 동시 표시. 빈 자리 박스도 같은 문제
+- 원인: `moveModeHint`와 `dropTargetHighlights` 생성 시 카메라 ignore 처리 누락
+- 수정:
+  - `moveModeHint`: `this.cameras.main.ignore(this.moveModeHint)` → uiCamera only → 화면 고정 (zoom 영향 X)
+  - `dropTargetHighlights` (각 박스): `this.uiCamera?.ignore(hi)` → main only → 책상 좌표 따라감 (zoom 시 같이 움직임)
+
+### MemoModal 외형 편집 제거 (사용자: "최초에 변경할 수 있는거지 메모에서 변경할 수 없어야해")
+- 외형 편집 섹션 (색 / 무늬) JSX 전체를 `{/* ... */}` 주석 — 코드 보존
+- `customColor` / `pattern` state를 `useState` → `const` read-only로 변경 (저장 시 employee.customColor / employee.pattern 그대로 전달)
+- 미사용된 import (`CharacterPalette`, `CharacterPattern`, `CHARACTER_PALETTE`, `CHARACTER_PATTERN_LABELS`) 제거
+
+### 캐릭터 hover 명함 카드 주석 (사용자: "일단 주석처리 해 나중에 어디에 보이게 할지 고민해볼께")
+- App.tsx의 hoverCard state 주석 (`useState<{...}>` 통째로)
+- 이벤트 핸들러 `eventBus.on('employee:hover-card', onHover)` useEffect 주석
+- JSX 렌더링 `{hoverCard && <div ...>}` 주석
+- 미사용 import `MODEL_INFO` 제거
+- 모든 코드 보존 — 향후 다른 위치(예: 우측 사이드 패널) 재활성화 시 주석 해제
+
+### 의의
+- 사용자가 시각 검증 *시작 전*에 보낸 4가지 피드백을 한 번에 처리
+- 카메라 분리 버그는 Phaser 멀티 카메라 패턴 이해도 보강 (객체별 정확한 ignore 방향성 결정)
+- 픽셀 미리보기 = 상점·사무실 *데이터 단일 출처* (FURNITURE_CATALOG 1곳). OfficeScene의 중복 정의 145줄 제거
+
+### 푸시
+- 커밋: `3f5a3c8` Day 11 후속 +1 — 7 files changed (571 insertions, 145 deletions)
+- 신규 2개: furnitureCatalog.ts, FurniturePreview.tsx
+- 수정 5개: App.tsx, MemoModal.tsx, ShopModal.css, ShopModal.tsx, OfficeScene.ts
+
+## 118. 📦 Day 11 마무리 + Day 12 진입
+
+사용자: "**11일에 뭐뭐 했는지 브리핑해줘**" → "**세션 정리해 11일차 마무리하고 12일차 가자**"
+
+### Day 11 전체 커밋 4개 (브리핑)
+| # | 커밋 | 내용 |
+|---|---|---|
+| 1 | b3b3205 | 팀 동적 중앙 정렬 + 사장석·팀라벨 야간 어두움 + 디버그 로그 정리 |
+| 2 | 449fdbf | 팻말 시각화 3종 + 이름 수정 모달 + 12 emotion + v2.5 코드 보존(시각 비활성) |
+| 3 | 2f527bb | Day 11 후속: P2 #25 가구 배치 + 채팅 영구화 풀 스펙 + 빈 자리 평소 숨김 |
+| 4 | 3f5a3c8 | Day 11 후속 +1: 상점 픽셀 미리보기 + 배치 모드 + UX 정리 5종 |
+
+### Day 11 의미 있는 시도/실패
+- 그리드 확대 2번 (16×14 → 32×24) 모두 실패 → 원복 → Claude 픽셀 디자인 한계 인정 → PNG asset 도입 시까지 v2.5 시각 비활성 유지
+- v2.5 코드 (액세서리·소품·눈 표정 5종) 모두 보존 (`@ts-expect-error unused` + 주석)
+
+### CONVENTIONS §7 체크리스트 (Day 11 마무리)
+- ✅ brainstorming-log §117~118 추가 (이 섹션)
+- ✅ HANDOFF.md — Day 11 후속 +1 반영 (헤더 / §1 / §3)
+- ✅ FEATURES.md — 상점 픽셀 미리보기 / 배치 모드 / 카메라 fix / MemoModal·hover 비활성 검증 명세 추가
+- ✅ ideas/19 — "Day 11 후속 +1" 섹션 추가 (5종 작업 회고)
+- (해당 없음) ideas/06 (보류 결정) / portfolio (M 닫을 때만)
+
+### Day 12 진입 — 다음 작업 후보
+- 사용자 PC에서 Day 11 전체(4 커밋) 시각 검증
+- M5-d 성격 시스템 (MBTI 보류 결정 답변 먼저)
+- Phase 3 백엔드 셋업 (모바일 진입)
+- PNG asset 도입 (사용자가 직접 그림 그리기 결정 시 → v2.5 부활)
+
 ---
 
 ## 결정 진화 요약 (M5 시점)
