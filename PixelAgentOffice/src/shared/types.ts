@@ -159,6 +159,8 @@ export type Employee = {
   accessoryId?: AccessoryId
   /** 책상 위 소품 (Day 11 v2.5 D) — 머그컵·화분·노트북. null이면 기본 (메모만) */
   deskItem?: DeskItemId
+  /** 기본 idle emotion (Day 11 후속 +2) — 평소 말풍선에 표시. LLM 응답 시 일시 변경 후 복귀. 기본 'thinking' */
+  idleEmotion?: BubbleEmotion
   // 진급 추적
   totalMessages: number
   totalMemoryUpdates: number
@@ -179,6 +181,28 @@ export type AccessoryId = 'glasses' | 'sunglasses' | 'cap'
 
 /** 책상 위 소품 (Day 11 v2.5 D) — 캐릭터 옆 작은 디테일 */
 export type DeskItemId = 'mug' | 'plant' | 'laptop'
+
+/** 말풍선 안 emotion (Day 11 v2.5 A, Day 11 후속 +2 shared로 이동).
+ *  12종 — OfficeScene.BUBBLE_INNER_PIXELS와 동기 유지. Employee.idleEmotion에서 사용. */
+export type BubbleEmotion =
+  | 'thinking' | 'happy' | 'surprised' | 'sleepy' | 'confused'
+  | 'idea' | 'love' | 'angry' | 'sad' | 'sweat' | 'music' | 'wow'
+
+/** 사용자 노출용 emotion 라벨 (MemoModal 선택 UI 등) */
+export const EMOTION_LABELS: Record<BubbleEmotion, { emoji: string; name: string }> = {
+  thinking:  { emoji: '⋯',  name: '생각 중 (기본)' },
+  happy:     { emoji: '◡',  name: '기쁨' },
+  surprised: { emoji: '‼',  name: '놀람' },
+  sleepy:    { emoji: 'Z',  name: '졸음' },
+  confused:  { emoji: '?',  name: '혼란' },
+  idea:      { emoji: '💡', name: '아이디어' },
+  love:      { emoji: '♥',  name: '사랑' },
+  angry:     { emoji: '✗',  name: '화남' },
+  sad:       { emoji: '💧', name: '슬픔' },
+  sweat:     { emoji: '💦', name: '땀' },
+  music:     { emoji: '♪',  name: '음악' },
+  wow:       { emoji: '✨', name: '와우' },
+}
 
 /** 배치 가능한 가구 ID (P2 #25, Day 11 후속). 기존 3종 + 단순 픽셀 5종 = 8종 */
 export type FurnitureId =

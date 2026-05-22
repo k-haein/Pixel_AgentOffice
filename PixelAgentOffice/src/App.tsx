@@ -261,15 +261,54 @@ function App() {
       setSettings(next)
       eventBus.emit('office:settings', next)
     }
+    // 전체 가구 삭제 (Day 11 후속 +2)
+    const onFurnitureClearAll = async () => {
+      const next = await platform.updateSettings({ placedFurniture: [] })
+      setSettings(next)
+      eventBus.emit('office:settings', next)
+    }
     eventBus.on('furniture:placed', onFurniturePlaced)
     eventBus.on('furniture:moved', onFurnitureMoved)
     eventBus.on('furniture:removed', onFurnitureRemoved)
+    eventBus.on('furniture:clear-all', onFurnitureClearAll)
     return () => {
       eventBus.off('furniture:placed', onFurniturePlaced)
       eventBus.off('furniture:moved', onFurnitureMoved)
       eventBus.off('furniture:removed', onFurnitureRemoved)
+      eventBus.off('furniture:clear-all', onFurnitureClearAll)
     }
   }, [])
+
+  // 가구 우클릭 컨텍스트 메뉴 (Day 11 후속 +2)
+  const [furnitureContextMenu, setFurnitureContextMenu] = useState<{
+    uid: string
+    itemId: string
+    x: number
+    y: number
+  } | null>(null)
+  useEffect(() => {
+    const onFurnitureCtx = (payload: unknown) => {
+      const p = payload as { uid: string; itemId: string; x: number; y: number }
+      setFurnitureContextMenu(null)
+      setTimeout(() => setFurnitureContextMenu(p), 0)
+    }
+    eventBus.on('furniture:context-menu', onFurnitureCtx)
+    return () => eventBus.off('furniture:context-menu', onFurnitureCtx)
+  }, [])
+  // 메뉴 외부 클릭·ESC 닫기
+  useEffect(() => {
+    if (!furnitureContextMenu) return
+    const onClose = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      setFurnitureContextMenu(null)
+    }
+    window.addEventListener('click', onClose)
+    window.addEventListener('keydown', onClose)
+    return () => {
+      window.removeEventListener('click', onClose)
+      window.removeEventListener('keydown', onClose)
+    }
+  }, [furnitureContextMenu])
 
   // 상태바(F) — OfficeScene이 emit하는 사용량·시간대 받기
   useEffect(() => {
@@ -509,6 +548,53 @@ function App() {
             onClick={() => openRenameModal(teamContextMenu.team, teamContextMenu.currentName)}
           >
             ✏️ 이름 수정
+          </button>
+        </div>
+      )}
+
+      {/* 가구 컨텍스트 메뉴 (Day 11 후속 +2) — 가구 우클릭 시 */}
+      {furnitureContextMenu && (
+        <div
+          className="employee-context-menu"
+          style={{ position: 'fixed', left: furnitureContextMenu.x, top: furnitureContextMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="context-menu-header">
+            🪑 가구 옵션
+          </div>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              // 옮기기 모드 진입 — placement mode 재진입 (moveUid 전달)
+              eventBus.emit('furniture:start-placement', {
+                itemId: furnitureContextMenu.itemId,
+                moveUid: furnitureContextMenu.uid,
+              })
+              setFurnitureContextMenu(null)
+            }}
+          >
+            🚚 옮기기
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              eventBus.emit('furniture:removed', { uid: furnitureContextMenu.uid })
+              setFurnitureContextMenu(null)
+            }}
+          >
+            🗑 이 가구 삭제
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              if (window.confirm('사무실의 모든 가구를 삭제하시겠습니까?')) {
+                eventBus.emit('furniture:clear-all', null)
+              }
+              setFurnitureContextMenu(null)
+            }}
+            style={{ color: '#c83838' }}
+          >
+            🧹 전체 가구 삭제
           </button>
         </div>
       )}

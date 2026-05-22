@@ -3,7 +3,7 @@ import { eventBus } from './eventBus'
 import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, type PlacedFurniture, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, type PlacedFurniture, type BubbleEmotion, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
 import { FURNITURE_CATALOG } from '../shared/furnitureCatalog'
 import { ALL_SEATS, type SeatMeta, getDynamicSeatX, getDynamicTeamX } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
@@ -237,7 +237,7 @@ const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
     '..O..',
   ],
 }
-export type BubbleEmotion = keyof typeof BUBBLE_INNER_PIXELS
+// BubbleEmotion 타입은 shared/types.ts로 이동 (Day 11 후속 +2 — Employee.idleEmotion에서 사용)
 
 // === 눈 표정 overlay (Day 11 v2.5 B) === 캐릭터 양 눈 자리에 그리는 표정 픽셀
 // 사이즈 14×3 (PIXEL_SIZE 2 → 화면 28×6), local (0, -6) 중심. Clawd 양 눈 영역 덮음.
@@ -476,11 +476,13 @@ export class OfficeScene extends Phaser.Scene {
   /** placedFurniture를 그려낸 Phaser 객체들 — 재렌더링 시 destroy + 재생성 */
   private placedFurnitureObjects: Map<string, Phaser.GameObjects.Container> = new Map()
 
-  /** 배치 모드 (Day 11 후속 +1) — 상점에서 "배치" 클릭 시 진입. 클릭한 위치에 배치 */
+  /** 배치 모드 (Day 11 후속 +1) — 상점에서 "배치" 또는 가구 우클릭 → "옮기기" 시 진입.
+   *  moveUid가 있으면 기존 가구 위치 이동(furniture:moved), 없으면 신규 추가(furniture:placed). */
   private placementMode: {
     itemId: PlacedFurniture['itemId']
     ghost: Phaser.GameObjects.Container
     hintText?: Phaser.GameObjects.Text
+    moveUid?: string
   } | null = null
   /** ESC 키 — 배치 모드 취소 */
   private escKey?: Phaser.Input.Keyboard.Key
@@ -690,12 +692,13 @@ export class OfficeScene extends Phaser.Scene {
   /** 배치 모드 진입 (Day 11 후속 +1) — 상점에서 "배치" 클릭 시 */
   private startPlacementHandler = (payload: unknown) => {
     if (this.isShutdown) return
-    const p = payload as { itemId: PlacedFurniture['itemId'] }
-    this.enterPlacementMode(p.itemId)
+    const p = payload as { itemId: PlacedFurniture['itemId']; moveUid?: string }
+    this.enterPlacementMode(p.itemId, p.moveUid)
   }
 
-  /** 배치 모드 진입 — ghost preview 생성 + 마우스 따라가게 */
-  private enterPlacementMode(itemId: PlacedFurniture['itemId']) {
+  /** 배치 모드 진입 — ghost preview 생성 + 마우스 따라가게.
+   *  moveUid 있으면 기존 가구 이동(furniture:moved), 없으면 신규 추가(furniture:placed). */
+  private enterPlacementMode(itemId: PlacedFurniture['itemId'], moveUid?: string) {
     // 기존 모드 정리
     if (this.placementMode) this.exitPlacementMode()
     const spec = FURNITURE_CATALOG[itemId]
@@ -709,9 +712,18 @@ export class OfficeScene extends Phaser.Scene {
     ghost.setAlpha(0.55)
     ghost.setDepth(50) // 캐릭터·가구보다 위로 (배치 중 잘 보이게)
 
+    // 옮기기 모드 — 원본 가구 임시 hide (ghost로 대신 표시)
+    if (moveUid) {
+      const orig = this.placedFurnitureObjects.get(moveUid)
+      orig?.setVisible(false)
+    }
+
     // 안내 텍스트 — 화면 상단 중앙. uiCamera에만 보이게 (줌·panning 영향 X)
+    const hintMsg = moveUid
+      ? '🚚 새 위치를 클릭하세요 (ESC 또는 우클릭 = 취소)'
+      : '🪑 원하는 위치를 클릭하세요 (ESC 또는 우클릭 = 취소)'
     const hintText = this.add
-      .text(this.scale.width / 2, 80, '🪑 원하는 위치를 클릭하세요 (ESC 또는 우클릭 = 취소)', {
+      .text(this.scale.width / 2, 80, hintMsg, {
         fontFamily: '"Courier New", monospace',
         fontSize: '14px',
         color: '#ffe8a0',
@@ -721,35 +733,43 @@ export class OfficeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(51)
       .setPadding({ left: 12, right: 12, top: 6, bottom: 6 })
-    // main 카메라 무시 → uiCamera에만 보임 → 줌·패닝 시 화면 고정
     this.cameras.main.ignore(hintText)
 
-    this.placementMode = { itemId, ghost, hintText }
+    this.placementMode = { itemId, ghost, hintText, moveUid }
     this.input.setDefaultCursor('crosshair')
-    // ghost는 main world 카메라에만 — uiCamera ignore (사무실 좌표 따라감)
     this.ignoreWorldOnUiCamera([ghost])
   }
 
-  /** 배치 모드 종료 — ghost / hint 제거 + cursor 복원 */
+  /** 배치 모드 종료 — ghost / hint 제거 + cursor 복원 (옮기기 취소 시 원본 가구 다시 표시) */
   private exitPlacementMode() {
     if (!this.placementMode) return
+    // 옮기기 취소 — 원본 가구 다시 visible
+    if (this.placementMode.moveUid) {
+      const orig = this.placedFurnitureObjects.get(this.placementMode.moveUid)
+      orig?.setVisible(true)
+    }
     this.placementMode.ghost.destroy()
     this.placementMode.hintText?.destroy()
     this.placementMode = null
     this.input.setDefaultCursor('default')
   }
 
-  /** 배치 모드 확정 — pointer 위치에 가구 배치 + Settings 갱신 emit */
+  /** 배치 모드 확정 — pointer 위치에 가구 배치/이동 + Settings 갱신 emit */
   private confirmPlacement(pointer: Phaser.Input.Pointer) {
     if (!this.placementMode) return
-    const itemId = this.placementMode.itemId
+    const { itemId, moveUid } = this.placementMode
     const w = this.scale.width
     const h = this.scale.height
-    // pointer.worldX/Y = 줌·panning 반영된 월드 좌표
     const xRatio = Math.max(0.02, Math.min(0.98, pointer.worldX / w))
     const yRatio = Math.max(0.02, Math.min(0.98, pointer.worldY / h))
     this.exitPlacementMode()
-    eventBus.emit('furniture:placed', { itemId, xRatio, yRatio })
+    if (moveUid) {
+      // 옮기기 — 기존 uid의 가구 위치 갱신
+      eventBus.emit('furniture:moved', { uid: moveUid, xRatio, yRatio })
+    } else {
+      // 신규 추가
+      eventBus.emit('furniture:placed', { itemId, xRatio, yRatio })
+    }
   }
 
   /** 채용 모달 열림 상태 동기 (Day 11+ C) — true일 때만 빈 자리 visible */
@@ -1371,13 +1391,20 @@ export class OfficeScene extends Phaser.Scene {
         eventBus.emit('furniture:moved', { uid: f.uid, xRatio: newXRatio, yRatio: newYRatio })
       })
 
-      // 우클릭 = 제거
+      // 우클릭 = 컨텍스트 메뉴 (옮기기 / 삭제 / 전체 삭제) — Day 11 후속 +2
       obj.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         const nativeButton = (pointer.event as MouseEvent | undefined)?.button
         const isRightClick = nativeButton === 2 || pointer.rightButtonReleased()
-        if (isRightClick) {
-          eventBus.emit('furniture:removed', { uid: f.uid })
-        }
+        if (!isRightClick) return
+        const native = pointer.event as MouseEvent | TouchEvent | undefined
+        const clientX = native && 'clientX' in native ? native.clientX : pointer.x
+        const clientY = native && 'clientY' in native ? native.clientY : pointer.y
+        eventBus.emit('furniture:context-menu', {
+          uid: f.uid,
+          itemId: f.itemId,
+          x: clientX,
+          y: clientY,
+        })
       })
 
       // hover cursor
@@ -1654,11 +1681,14 @@ export class OfficeScene extends Phaser.Scene {
       this.setEyesByExpression(target, expr)
     }
 
-    // 자동 복귀 — expireMs 후 thinking으로
-    if (expireMs > 0 && emotion !== 'thinking') {
-      this.time.delayedCall(expireMs, () => {
-        this.setBubbleEmotion(employeeId, 'thinking', 0)
-      })
+    // 자동 복귀 — expireMs 후 직원의 idleEmotion으로 (Day 11 후속 +2)
+    if (expireMs > 0) {
+      const idle: BubbleEmotion = target.employee?.idleEmotion ?? 'thinking'
+      if (emotion !== idle) {
+        this.time.delayedCall(expireMs, () => {
+          this.setBubbleEmotion(employeeId, idle, 0)
+        })
+      }
     }
   }
 
@@ -2020,12 +2050,12 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Bubble inner pixels (Day 10) — chatBubble의 *자식*으로 들어가서 트윈 자동 동기화.
-    // 흰 영역 중앙 local 좌표 (0, -3) — chatBubble 중심 기준 1픽셀(PIXEL_SIZE 3) 위.
-    // inner PIXEL_SIZE 2 → 5×5×2=10×10 화면, 흰 영역(21×15) 안 여유.
+    // Bubble inner pixels (Day 10, Day 11 후속 +2: idleEmotion 반영) — chatBubble 자식
+    // 흰 영역 중앙 local 좌표 (0, -3). PIXEL_SIZE 2.
+    const initialEmotion: BubbleEmotion = employee.idleEmotion ?? 'thinking'
     const workingBubble = drawPixelGrid(
       this,
-      BUBBLE_INNER_PIXELS.thinking,
+      BUBBLE_INNER_PIXELS[initialEmotion],
       BUBBLE_INNER_PALETTE,
       0,  // local x (chatBubble 안)
       -3, // local y (흰 영역 중앙)

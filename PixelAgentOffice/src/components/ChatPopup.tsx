@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { eventBus } from '../game/eventBus'
 import { platform } from '../platform'
-import type { Employee, Settings, UsageDisplayMode, ChatMessage } from '../shared/types'
+import type { Employee, Settings, UsageDisplayMode, ChatMessage, BubbleEmotion } from '../shared/types'
 import { MODEL_INFO, USD_TO_KRW } from '../shared/types'
 import type { RateLimitStatus } from '../platform'
 
@@ -29,15 +29,58 @@ ${employee.baseInstructions.trim()}`
   if (employee.customInstructions.trim()) {
     prompt += '\n\n# 추가 규칙 (사용자가 추가한 지침)\n' + employee.customInstructions.trim()
   }
+
+  // Day 11 후속 +2 — 감정 표현 자동 트리거 지침
+  prompt += `
+
+# 응답 마지막의 감정 태그 (필수)
+당신의 응답 *맨 마지막 줄에만* 다음 형식으로 한 번 감정 태그를 붙이세요. 그 외에는 절대 사용하지 마세요.
+
+형식: [emotion:키]
+
+선택 가능한 키 (12종):
+- thinking — 평소·생각 중 (확실치 않을 때)
+- happy — 기쁨, 즐거움, 칭찬 받음
+- surprised — 놀람, 의외
+- sleepy — 졸림, 피곤
+- confused — 혼란, 질문이 모호함
+- idea — 좋은 아이디어 떠올림, 제안
+- love — 사랑, 감사, 깊은 호감
+- angry — 분노, 짜증
+- sad — 슬픔, 미안함, 사과
+- sweat — 당황, 식은땀, 어려움
+- music — 즐거운 분위기, 콧노래
+- wow — 감탄, 와우, 흥분
+
+예시:
+"좋은 질문이네요! 한번 알아볼게요.
+[emotion:idea]"
+
+규칙:
+- 매 응답마다 *정확히 한 줄* 태그를 마지막에 붙입니다 (위치: 응답 텍스트 마지막).
+- 키는 위 12종 중 정확히 하나만.
+- 평범한 응답에는 thinking으로.`
+
   // 부적절 콘텐츠 가드 (v2 #21) — 주석 처리. Gemini safety filter 충돌 가능성 + 채팅 테스트는 나중에.
-  // 활성화 시 system prompt에 가드 문구 추가 — 키워드는 Gemini가 unsafe로 인식 가능하니 신중히.
-  // prompt += `
-  //
-  // # 응답 가이드
-  // - 부적절하거나 안전 정책에 어긋나는 요청에는 정확히 "..." 한 줄로만 답하세요.
-  // - 일상 대화·업무 관련 정당한 요청에는 평소대로 응답합니다.`
   // 메모리는 M4에서 추가 예정
   return prompt
+}
+
+/** LLM 응답에서 [emotion:xxx] 태그 추출 — 본문에서 제거 후 emotion 키 반환 (Day 11 후속 +2) */
+function parseEmotionTag(text: string): { cleanText: string; emotion: BubbleEmotion | null } {
+  const validEmotions: BubbleEmotion[] = [
+    'thinking', 'happy', 'surprised', 'sleepy', 'confused',
+    'idea', 'love', 'angry', 'sad', 'sweat', 'music', 'wow',
+  ]
+  // [emotion:xxx] 패턴 매칭 — 응답 어디에 있든 잡음 (마지막 줄 지침이지만 모델이 어디에 둘지 모름)
+  const re = /\[emotion:(\w+)\]/i
+  const match = text.match(re)
+  if (!match) return { cleanText: text, emotion: null }
+  const key = match[1].toLowerCase() as BubbleEmotion
+  const emotion = validEmotions.includes(key) ? key : null
+  // 태그 제거 + 주변 공백/줄바꿈 정리
+  const cleanText = text.replace(re, '').trim().replace(/\n{3,}/g, '\n\n')
+  return { cleanText, emotion }
 }
 
 /** 남은 횟수에 따라 배지 색조 결정 */
@@ -325,18 +368,23 @@ export function ChatPopup() {
       setRateLimit(result.rateLimit)
 
       if (result.ok) {
+        // Day 11 후속 +2 — [emotion:xxx] 태그 파싱 → 본문 정리 + 말풍선 emotion 5초 트리거
+        const { cleanText, emotion } = parseEmotionTag(result.response.text)
         const reply: Message = {
           id: `a-${Date.now()}`,
           role: 'agent',
-          text: result.response.text,
+          text: cleanText,
         }
         setMessages(prev => [...prev, reply])
         // 채팅창 닫혀도 응답 보존 (P1 #13·#14) — closure empId로 ref 직접 갱신
         const empId = employee.id
         const prevPersisted = messagesByEmployeeRef.current[empId] ?? []
         messagesByEmployeeRef.current[empId] = [...prevPersisted, reply]
-        // 응답 도착 → 말풍선 happy 잠시 (Day 10)
+        // 응답 도착 → 말풍선 emotion 5초 (Day 11 후속 +2). 태그 없으면 기본 'happy' (Day 10 호환)
         eventBus.emit('agent:reply', { agentId: employee.id })
+        if (emotion) {
+          eventBus.emit('agent:set-emotion', { agentId: employee.id, emotion, expireMs: 5000 })
+        }
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly

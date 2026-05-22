@@ -4,8 +4,10 @@ import {
   type Employee,
   type MemoryMode,
   type Model,
+  type BubbleEmotion,
   MODEL_INFO,
   INSTRUCTIONS_PLACEHOLDER,
+  EMOTION_LABELS,
 } from '../shared/types'
 
 type Props = {
@@ -37,6 +39,8 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   // v2 #17·#18 — 외형 (Day 11 후속 +2: 메모에서 편집 비활성, 기존 값 read-only로 저장 시 전달)
   const customColor = employee.customColor
   const pattern = employee.pattern
+  // 기본 idle emotion (Day 11 후속 +2) — 평소 말풍선에 표시할 감정
+  const [idleEmotion, setIdleEmotion] = useState<BubbleEmotion>(employee.idleEmotion ?? 'thinking')
   const [saving, setSaving] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState(false)
 
@@ -54,6 +58,8 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
         // v2 — 외형 편집 (커스텀 템플릿만 색 저장)
         customColor: employee.template === 'custom' ? customColor : employee.customColor,
         pattern,
+        // Day 11 후속 +2 — 기본 idle emotion
+        idleEmotion,
       })
       if (updated) onUpdated(updated)
       setSavedFeedback(true)
@@ -237,6 +243,48 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
             </div>
           </section>
           */}
+
+          {/* 기본 감정 (Day 11 후속 +2) — 평소 말풍선에 표시. LLM 응답에 따라 일시 변화 후 복귀 */}
+          <section className="modal-section">
+            <h3>🎭 기본 감정 (말풍선)</h3>
+            <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
+              평소 이 직원의 말풍선에 표시될 감정입니다. 채팅 응답에 따라 잠깐 다른 감정이 떴다가 이 기본값으로 돌아옵니다.
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                gap: 6,
+              }}
+            >
+              {(Object.keys(EMOTION_LABELS) as BubbleEmotion[]).map(em => {
+                const { emoji, name } = EMOTION_LABELS[em]
+                const selected = idleEmotion === em
+                return (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setIdleEmotion(em)}
+                    style={{
+                      padding: '8px 4px',
+                      border: selected ? '2px solid #8a5a2a' : '1px solid #c8a878',
+                      borderRadius: 4,
+                      background: selected ? '#fff2b8' : '#fff8e0',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: 11,
+                      textAlign: 'center',
+                      lineHeight: 1.3,
+                    }}
+                    title={name}
+                  >
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>{emoji}</div>
+                    <div style={{ color: '#5a3a0f' }}>{name}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
           {/* Stats */}
           <section className="modal-section">
