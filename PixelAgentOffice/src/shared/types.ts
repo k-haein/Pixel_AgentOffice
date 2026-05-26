@@ -1,6 +1,6 @@
 // 공유 타입 — main process와 renderer 둘 다 사용
 
-export type Template = 'editor' | 'writer' | 'custom'
+export type Template = 'editor' | 'writer' | 'developer' | 'custom'
 
 /** 캐릭터 색 팔레트 (v2 — 커스텀 캐릭터 12색). hex 매핑은 CHARACTER_PALETTE에 */
 export type CharacterPalette =
@@ -381,11 +381,16 @@ export type AppData = {
 }
 
 // 템플릿 정의 (UI에서 채용 시 기본값)
+// Day 12 §3 +1: defaultCustomInstructions 추가 — 기본 캐릭터에 페르소나 미리 채움
+// Day 12 §3 +2: defaultCustomColor / defaultPattern — custom variant 캐릭터의 외형 미리 설정
 export const TEMPLATES: Record<Template, {
   emoji: string
   defaultName: string
   defaultRole: string
   baseInstructions: string
+  defaultCustomInstructions?: string
+  defaultCustomColor?: CharacterPalette
+  defaultPattern?: CharacterPattern
   variant: 'basic' | 'jellyfish' | 'custom'
   alpha?: number
 }> = {
@@ -396,6 +401,7 @@ export const TEMPLATES: Record<Template, {
     baseInstructions: `당신은 꼼꼼한 편집자입니다.
 사용자의 글을 받으면 짧고 또렷한 문장으로 다듬어 주세요.
 비유는 절제하고, 톤은 차분하게 유지합니다.`,
+    defaultCustomInstructions: '문장의 흐름과 일관성을 꼼꼼히 살피는 편집자입니다. 오타·맞춤법·어색한 표현을 잘 찾아 친절하게 제안합니다. 짧고 명확한 응답을 선호합니다.',
     variant: 'basic',
   },
   writer: {
@@ -405,8 +411,21 @@ export const TEMPLATES: Record<Template, {
     baseInstructions: `당신은 창의적인 작가입니다.
 바다와 별이 등장하는 비유를 즐겨 쓰며,
 글의 정서적 흐름을 가장 중요하게 봅니다.`,
+    defaultCustomInstructions: '사색과 바다를 사랑합니다. 항상 존댓말을 쓰며, 물결과 자연 풍경에서 영감을 얻어 시적인 표현을 즐깁니다.',
     variant: 'jellyfish',
     alpha: 0.85,
+  },
+  developer: {
+    emoji: '🤖',
+    defaultName: 'Cody',
+    defaultRole: '개발자',
+    baseInstructions: `당신은 개발자입니다.
+말이 적고 ...을 자주 씁니다.
+어려운 개발 용어를 자연스럽게 섞고, 코딩 개그·개발자 밈 드립을 즐깁니다.`,
+    defaultCustomInstructions: '말이 없고 ...을 많이 씁니다. 말마다 어려운 개발 용어를 쓰고 코딩 개그랑 개발자 밈 드립을 칩니다.',
+    variant: 'custom',
+    defaultCustomColor: 'gray',
+    defaultPattern: 'stripes',
   },
   custom: {
     emoji: '🐙',

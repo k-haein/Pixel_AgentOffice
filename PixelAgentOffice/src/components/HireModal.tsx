@@ -62,11 +62,13 @@ export function HireModal({
   onHired,
 }: Props) {
   // 컴포넌트가 마운트될 때 (모달 열림 시점) state가 초기화됨
-  // Day 12 §3 — name/role 초기값 ""로 (사용자가 placeholder 보고 직접 입력해야 함, 필수값)
+  // Day 12 §3 +1: 기본 캐릭터(editor/writer)는 defaultName/Role 자동 채움 (수정 가능),
+  // custom 템플릿만 비워둠 (사용자가 직접 입력해야 함).
   const [template, setTemplate] = useState<Template>('editor')
-  const [name, setName] = useState('')
-  const [role, setRole] = useState('')
-  const [customInstructions, setCustomInstructions] = useState('')
+  const [name, setName] = useState(TEMPLATES.editor.defaultName)
+  const [role, setRole] = useState(TEMPLATES.editor.defaultRole)
+  // 커스텀 지침 초기값 — editor 기본 페르소나 (Day 12 §3 +1)
+  const [customInstructions, setCustomInstructions] = useState(TEMPLATES.editor.defaultCustomInstructions ?? '')
   const [rank, setRank] = useState<Rank>('알바')
   const [promotionMode, setPromotionMode] = useState<PromotionMode>('time')
   const [model, setModel] = useState<Model>(defaultModel)
@@ -125,6 +127,10 @@ export function HireModal({
   // API key 보유 상태 (Day 12 §3) — 키 없으면 해당 provider 모델 비활성
   const [hasGoogleKey, setHasGoogleKey] = useState(true)
   const [hasAnthropicKey, setHasAnthropicKey] = useState(true)
+  // 알림 모달 메시지 (Day 12 §3 +1) — window.alert 대체. 중첩 모달로 띄움.
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // 빈 input 강조 (Day 12 §3 +1) — 검증 실패 시 해당 칸 빨간 테두리
+  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; role?: boolean }>({})
   useEffect(() => {
     void (async () => {
       const [g, a] = await Promise.all([
@@ -138,7 +144,21 @@ export function HireModal({
 
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
-    // Day 12 §3 — 자동 채움 제거. 사용자가 placeholder 보고 직접 입력
+    // Day 12 §3 +1: 기본 캐릭터 자동 채움 (이름·역할·커스텀 지침·색·무늬), custom만 비움
+    if (t === 'custom') {
+      setName('')
+      setRole('')
+      setCustomInstructions('')
+      setCustomColor('orange') // custom variant 기본
+      setPattern('solid')
+    } else {
+      setName(TEMPLATES[t].defaultName)
+      setRole(TEMPLATES[t].defaultRole)
+      setCustomInstructions(TEMPLATES[t].defaultCustomInstructions ?? '')
+      // Day 12 §3 +2: defaultCustomColor/defaultPattern 있으면 적용 (예: Cody = gray + stripes)
+      if (TEMPLATES[t].defaultCustomColor) setCustomColor(TEMPLATES[t].defaultCustomColor)
+      if (TEMPLATES[t].defaultPattern) setPattern(TEMPLATES[t].defaultPattern)
+    }
   }
 
   /** 자리 자동 결정 — 선택한 팀 안에서 과장 이상이면 빈 리더 자리 먼저, 아니면 빈 팀원 자리.
@@ -169,23 +189,26 @@ export function HireModal({
   }
 
   const handleHire = async () => {
+    setErrorMessage(null) // 새 시도 시 이전 에러 초기화
     if (!name.trim() || !role.trim()) {
-      alert('이름과 역할을 입력해주세요')
+      setFieldErrors({ name: !name.trim(), role: !role.trim() })
+      setErrorMessage('이름과 역할을 입력해주세요.')
       return
     }
+    setFieldErrors({}) // 통과 시 강조 clear
     // Day 12 §3 — 선택된 모델의 provider 키 확인
     const isGoogleModel = FREE_MODELS.includes(model)
     if (isGoogleModel && !hasGoogleKey) {
-      alert('Google API 키가 없습니다. 설정에서 키를 먼저 등록해주세요.')
+      setErrorMessage('Google API 키가 없습니다. ⚙ 설정에서 키를 먼저 등록해주세요.')
       return
     }
     if (!isGoogleModel && !hasAnthropicKey) {
-      alert('Anthropic API 키가 없습니다. 설정에서 키를 먼저 등록해주세요.')
+      setErrorMessage('Anthropic API 키가 없습니다. ⚙ 설정에서 키를 먼저 등록해주세요.')
       return
     }
     const seatRes = resolveSeatId()
     if (!seatRes.ok) {
-      alert(seatRes.reason)
+      setErrorMessage(seatRes.reason)
       return
     }
     setSubmitting(true)
@@ -206,8 +229,8 @@ export function HireModal({
         hiredAt: new Date().toISOString(),
         seatId: seatRes.seatId,
         deskOrientation: 'front',
-        // v2 #17·#18 — 커스텀 캐릭터일 때만 색 저장. 무늬는 모든 템플릿 적용
-        customColor: template === 'custom' ? customColor : undefined,
+        // v2 #17·#18 — variant가 'custom'일 때만 색 저장 (Cody의 'developer'도 custom variant)
+        customColor: TEMPLATES[template].variant === 'custom' ? customColor : undefined,
         pattern,
         // Day 12 §2 — MBTI 페르소나 (입력값이 16종 화이트리스트에 매칭될 때만 저장)
         mbti: mbti ?? undefined,
@@ -219,7 +242,7 @@ export function HireModal({
       onHired(saved)
       onClose()
     } catch (err) {
-      alert('채용 실패: ' + (err as Error).message)
+      setErrorMessage('채용 실패: ' + (err as Error).message)
     } finally {
       setSubmitting(false)
     }
@@ -302,25 +325,43 @@ export function HireModal({
             </div>
           </section>
 
-          {/* Identity — Day 12 §3: placeholder만 표시, 필수값 */}
+          {/* Identity — Day 12 §3 +1: 빈 칸 검증 시 빨간 테두리 + 옆 메시지 */}
           <section className="modal-section">
             <h3>🪪 정체성 <span style={{ color: '#c83838', fontSize: 12 }}>* 필수</span></h3>
             <label className="modal-label">이름</label>
             <input
               className="modal-input"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => {
+                setName(e.target.value)
+                if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: false }))
+              }}
               placeholder={`예: ${TEMPLATES[template].defaultName}`}
               required
+              style={fieldErrors.name ? { borderColor: '#c83838', boxShadow: '0 0 0 1px #c83838' } : undefined}
             />
+            {fieldErrors.name && (
+              <div style={{ color: '#c83838', fontSize: 11, marginTop: 4, fontWeight: 'bold' }}>
+                ⚠️ 이름을 입력하세요
+              </div>
+            )}
             <label className="modal-label">역할</label>
             <input
               className="modal-input"
               value={role}
-              onChange={e => setRole(e.target.value)}
+              onChange={e => {
+                setRole(e.target.value)
+                if (fieldErrors.role) setFieldErrors(p => ({ ...p, role: false }))
+              }}
               placeholder={`예: ${TEMPLATES[template].defaultRole}`}
               required
+              style={fieldErrors.role ? { borderColor: '#c83838', boxShadow: '0 0 0 1px #c83838' } : undefined}
             />
+            {fieldErrors.role && (
+              <div style={{ color: '#c83838', fontSize: 11, marginTop: 4, fontWeight: 'bold' }}>
+                ⚠️ 역할을 입력하세요
+              </div>
+            )}
             <details>
               <summary className="modal-summary">⚙️ 기본 지침 (자동 생성, 변경 가능 — 메모지에서)</summary>
               <pre className="modal-pre">{TEMPLATES[template].baseInstructions}</pre>
@@ -638,6 +679,41 @@ export function HireModal({
           </button>
         </div>
       </div>
+
+      {/* 알림 모달 (Day 12 §3 +1) — window.alert 대체. 필수값 누락·키 없음·채용 실패 등 */}
+      {errorMessage && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setErrorMessage(null)}
+          style={{ zIndex: 150 }}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: 360 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 style={{ color: '#c83838' }}>⚠️ 알림</h2>
+              <button className="modal-close" onClick={() => setErrorMessage(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: '#2a2118', margin: 0 }}>
+                {errorMessage}
+              </p>
+            </div>
+            <div className="modal-footer">
+              <div style={{ flex: 1 }} />
+              <button
+                className="btn-primary"
+                onClick={() => setErrorMessage(null)}
+                autoFocus
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MBTI 16종 설명 모달 (Day 12 §2) — ⓘ 아이콘 클릭 시 */}
       {showMbtiInfo && (
