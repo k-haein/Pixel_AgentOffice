@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { eventBus } from '../game/eventBus'
 import { platform } from '../platform'
 import type { Employee, Settings, UsageDisplayMode, ChatMessage, BubbleEmotion } from '../shared/types'
-import { MODEL_INFO, USD_TO_KRW } from '../shared/types'
+import { MODEL_INFO, USD_TO_KRW, MBTI_PROFILES } from '../shared/types'
 import type { RateLimitStatus } from '../platform'
 
 // ChatMessage를 Message로 alias — 기존 코드 호환
@@ -28,6 +28,24 @@ ${employee.baseInstructions.trim()}`
   let prompt = identity
   if (employee.customInstructions.trim()) {
     prompt += '\n\n# 추가 규칙 (사용자가 추가한 지침)\n' + employee.customInstructions.trim()
+  }
+
+  // Day 12 §2 — MBTI 페르소나 자동 주입 (employee.mbti 있을 때만)
+  if (employee.mbti && employee.mbti in MBTI_PROFILES) {
+    const p = MBTI_PROFILES[employee.mbti]
+    prompt += `
+
+# MBTI 페르소나: ${employee.mbti} (${p.nickname})
+
+당신의 성격과 응답 스타일은 다음 MBTI 유형을 따릅니다. 이 패턴을 자연스럽게 응답에 반영하세요.
+
+## 대답 방식
+${p.responseStyle}
+
+## 성향
+${p.trait}
+
+위 페르소나는 *대화 스타일과 분위기 가이드*입니다. 사용자의 실제 질문에는 정확하고 도움이 되는 답을 제공하되, 어조와 접근 방식에 페르소나를 녹이세요.`
   }
 
   // Day 11 후속 +2 — 감정 표현 자동 트리거 지침

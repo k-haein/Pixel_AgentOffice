@@ -2450,6 +2450,128 @@ Day 11 마무리 후 사용자가 4가지 큰 보강을 한 번에 요청:
 ### 산출 커밋 (예정 1개)
 - D1 — Day 12 §2 (빈 사무실 + .gitignore + 문서 동기화) → GitHub Release v0.0.1 + EXE 업로드
 
+## 121. 🎨 Day 12 §3 — 사용자 검증 피드백 14건 + MBTI 16종 + 말풍선 이모지 + EXE v0.0.1
+
+작업일: 2026-05-26 (Day 12 §2 EXE 배포 후 사용자가 직접 시각 검증 + 즉시 피드백 반영). 사용자 인식상 Day 12 계속.
+
+### 발단
+
+사용자가 v0.0.1 EXE 배포 직전 시각 검증 중 발견한 9개 + 보류 2개 = 11개 즉시 수정 요청 + 후속 추가 작업 (MBTI 시스템, 말풍선 이모지, timer fix).
+
+### 1) UX 정리 9개
+
+| # | 영역 | 변경 |
+|---|---|---|
+| 1 | 첫 페이지 안내 | "또는 사무실의 빈 자리를 클릭" 텍스트 제거 (P0 #6에서 빈 자리 클릭 채용 이미 비활성인데 안내문 남아있었음) |
+| 2 | + 채용 버튼 | 직원 0명일 때 `topbar-btn-pulse` 노란색 펄스 부활 (Day 8에 제거됐던 거 복구). 첫 사용자 유도 |
+| 3 | 캐릭터 템플릿 | 커스텀 카드 "🐙 직업 입력 / 새 직원" → "새 직원" 한 줄로 단순화 |
+| 4 | HireModal 정체성 | name/role 초기값 ""로 + placeholder 동적 (`예: ${TEMPLATES[t].defaultName}`) + required + "* 필수" 빨간 표시. defaultName 자동 채움 제거 (handleTemplateChange) |
+| 5 | 커스텀 지침 | placeholder "사색과 바다를 사랑합니다..." + ⓘ 아이콘 → "직업 : 특징" 형식 예시 tip 카드 (INSTRUCTIONS_PLACEHOLDER 보존) |
+| 6 | 리더 자격 | "과장 이상은 리더 자리에 앉을 수 있습니다" → `<strong style={{ color: '#c83838' }}>⭐ 과장 이상만 ...</strong>` 빨간 강조 |
+| 7 | 대화 모델 | hasApiKey 마운트 시 체크 (google/anthropic 둘 다). 키 없으면 해당 provider 모델 버튼 disabled + 빨간 안내 + "⚙ 설정 열기" 버튼 (onClose + emit('settings:open')). handleHire에서도 가드 |
+| 8 | 빈 자리 토글 | 채용 모달 트리거 제거. 모달이 화면 가려서 빈 자리 보일 필요 X → enterMoveMode 시만 표시 |
+| 9 | 기본 가구 | `drawFurniture()`의 PLANT/BOOKSHELF/VENDING 고정 배치 제거. worldFurniture = []. 사용자가 상점에서 직접 배치. PLANT/BOOKSHELF/VENDING 픽셀 정의는 furnitureCatalog로 일원화 |
+
+### 2) MBTI 16종 페르소나 시스템
+
+#### 데이터 — `shared/types.ts`
+- `MBTI` 타입 16종 (INTJ/INTP/.../ESFP)
+- `MBTIGroup` (NT/NF/SJ/SP) + `MBTI_GROUP_LABELS` (분석가/외교관/관리자/탐험가)
+- `MBTIProfile`: id / group / nickname / **emoji** / responseStyle / trait
+  - 말투 항목은 사용자 요청으로 *제외* (대답 방식 + 성향만)
+  - emoji는 각 MBTI별 고유 (🎯 INTJ / 🔬 INTP / 😎 ENTJ / 🦊 ENTP / 🌙 INFJ / 🌸 INFP / ✨ ENFJ / 🌈 ENFP / 📋 ISTJ / 🌿 ISFJ / 💼 ESTJ / 🤗 ESFJ / 🔧 ISTP / 🎵 ISFP / ⚡ ESTP / 🎤 ESFP)
+- `Employee.mbti?: MBTI` 옵셔널 필드
+
+#### UI — `HireModal`
+- 🧬 MBTI 입력 섹션 (외형 다음, 직급 앞)
+- 4자 input + 대문자 자동 변환 + maxLength 4
+- 자동 인식: `useMemo`로 16종 화이트리스트 매칭 → 매칭되면 `mbti: MBTI`, 아니면 null
+- **자동 tip 카드**: 매칭되면 즉시 employee-hover-card 스타일 카드 (position: static)로 emoji + nickname + 대답 방식 + 성향 표시
+- 잘못 입력 시 빨간 경고 ("16종 MBTI가 아닙니다")
+- **ⓘ 아이콘** 클릭 시 중첩 모달 (zIndex 100) — 4그룹별 16종 전체 카드 (베이지 박스)
+
+#### LLM 통합 — `ChatPopup buildSystemPrompt`
+- employee.mbti 있으면 시스템 프롬프트에 `# MBTI 페르소나: ${mbti} (${nickname})` 섹션 자동 주입
+- 대답 방식 + 성향 + "어조와 접근 방식에 페르소나 녹이세요" 가이드
+- 사용자 질문에는 정확한 답을 주되 페르소나를 어조로
+
+#### 별명 톤 결정 (Day 12 §3 보류 → 다음으로)
+- 16personalities 전형적 라벨 (전략가/논리학자/통솔자 등) 일단 적용
+- 사용자: "활동가/논리가 너무 딱딱. 같이 고민하자" → Day 13 이후
+
+### 3) 감정 미리보기 모달
+
+#### 발단
+ShopModal의 🎭 감정 갤러리 12종 — 클릭 시 *전체 직원에게 5초 emit*. 상점 모달이 화면 가려서 효과 못 봄. 사용자: "차라리 모달이 작게 뜨면서 기본 캐릭터가 표현하는 미리보기 창."
+
+#### 구현 — `EmotionPreviewModal.tsx` (신규)
+- 중첩 모달 (zIndex 200) 460px 폭
+- Canvas 280×220 — 베이지 격자 배경 + Clawd basic 캐릭터 + 말풍선 + emotion
+- 12종 버튼 grid → 클릭 시 즉시 캔버스 갱신
+- ESC / × / 닫기 버튼
+
+#### 픽셀 데이터 export
+- Clawd.ts: `PALETTE` → `CLAWD_PALETTE`, `PIXELS_BASIC` → `CLAWD_PIXELS_BASIC` (export)
+- OfficeScene.ts: `CHAT_BUBBLE`, `CHAT_BUBBLE_PALETTE`, `BUBBLE_INNER_PIXELS`, `BUBBLE_INNER_PALETTE` 모두 export
+
+#### ShopModal 단순화
+- emotion 카드 12개 grid 제거 → "🎭 감정 미리보기 열기" 버튼 1개
+- 사용자: "모달 안에서 12종 다 볼 수 있으면 굳이 카드 다 보일 필요 X"
+
+### 4) 눈 표정 시도·롤백·말풍선 이모지로 전환
+
+#### 4-1) 4픽셀 대각선 토글 시도 → 표현 한계
+- happy/sad 시 캐릭터 눈 4픽셀 중 대각선 2개만 visible (╱╲)
+- 사용자: "4칸으로는 ^_^ 표현 안 됨"
+
+#### 4-2) 3×3 눈 확장 시도 → 사용자 결과 보고 롤백
+- Clawd PIXELS 4종 모두 3×3 눈으로 재배치 (머리 위 row -1, 본체 row 4-5, 다리 4 rows 유지)
+- 9코너 (TL/T/TR/L/C/R/BL/B/BR) 토글 패턴 — happy ㅅ, sad ╲╱
+- 사용자: "걍 눈은 롤백하자. 3×3 자체를 롤백해."
+- → Clawd PIXELS 4종 원래 2×2로 복원. setEyesByExpression 단순화 (closed/normal만)
+
+#### 4-3) 말풍선 안 이모지로 전환 (해결안)
+- 사용자: "이모지를 넣을 수는 없을까?"
+- 12종 이모지 사용자가 직접 정함: thinking ⋯ / happy 😄 / surprised 😶 / sleepy 😴 / confused 🤔 / idea 💡 / love ❤️ / angry 😡 / sad 😭 / sweat 😅 / music 🎵 / wow 😮
+- 픽셀 grid (`BUBBLE_INNER_PIXELS`) → **Phaser Text 객체**로 교체
+- `Workstation.workingBubble` 타입 `Container | Text`로 일반화
+- `setBubbleEmotion` + 초기 workingBubble 생성 모두 Phaser Text
+- EmotionPreviewModal Canvas도 `ctx.fillText`
+- 폰트: `"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif` (14px / 캔버스 20px)
+
+#### 4-4) 이모지 짧게 사라지는 버그 fix
+- 사용자 EXE 첫 테스트 후 신고: "이모지가 잠깐만 표시되고 꺼짐"
+- 원인: `agent:reply` → `setBubbleEmotion('happy', 2000)` 2초 timer + `agent:set-emotion` → `setBubbleEmotion(emotion, 5000)` 5초 timer 충돌. 두 번째가 emoji 덮어쓰지만 첫 번째 2초 timer 살아있어 2초 후 idle 복귀
+- 해결: `Workstation.bubbleEmotionTimer?: Phaser.Time.TimerEvent` 필드 추가. setBubbleEmotion 시작 시 이전 timer `remove(false)`로 취소
+
+#### 4-5) thinking emoji ⋯ → … (Unicode 호환)
+- 사용자: "기본 ... 표시가 사라졌어"
+- 원인: ⋯ (U+22EF Midline horizontal ellipsis) Apple Color Emoji 폰트에 없음
+- 사용자 선택: C 옵션 (⋯ → … U+2026 Horizontal ellipsis). 모양 비슷, sans-serif 폰트 지원
+
+### 5) EXE v0.0.1 재빌드 + Release 파일 교체
+- `package.json version: "0.0.0" → "0.0.1"`
+- `pnpm dist:exe` → `release/PixelAgentOffice-0.0.1-portable.exe` (98 MB)
+- 사용자가 GitHub Release v0.0.1 Assets에서 기존 0.0.0 파일 삭제 + 새 0.0.1 업로드
+
+### 의의
+
+- **첫 외부 검증 즉시 반영** — 사용자가 EXE 직접 사용 → 14건 (UX 9 + 추가 5) 발견 → 즉시 fix → 재배포까지 하루 안에
+- **MBTI 시스템 도입** — 캐릭터 페르소나의 차별점. LLM 응답 다양화. 다만 별명 톤은 다음으로 보류 (게임형 vs 한국 밈 vs 직업 톤)
+- **이모지로 전환 결단** — 픽셀 5×5로는 ^_^ 표현 한계. 픽셀 그리드 → Phaser Text 전환. 게임 일관성 살짝 부조화지만 명확성 우선
+- **timer 버그** — 두 개 이벤트가 같은 함수 호출하며 timer 누적 → 짧은 게 긴 거 덮어쓰는 패턴. delayedCall 보관 + remove 패턴 적용
+
+### CONVENTIONS §7 체크리스트 (Day 12 §3)
+
+- ✅ brainstorming-log §121 추가 (이 섹션)
+- ✅ HANDOFF.md — Day 12 §3 반영
+- ✅ FEATURES.md — MBTI / 감정 미리보기 / 말풍선 이모지 / UX 9종 / timer fix 검증 명세
+- (해당 없음) ideas/06 / portfolio
+
+### 산출
+- E1 — Day 12 §3 코드 + 문서 (12개+ 파일)
+- GitHub Release v0.0.1 EXE 파일 교체 (0.0.0 → 0.0.1)
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

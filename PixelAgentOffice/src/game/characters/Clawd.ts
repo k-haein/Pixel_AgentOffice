@@ -37,8 +37,8 @@ const ACCESSORY_PIXELS: Record<AccessoryId, string[]> = {
   ],
 }
 
-// === Color palette ===
-const PALETTE: Record<string, number> = {
+// === Color palette === (Day 12 §3: export for Canvas preview)
+export const CLAWD_PALETTE: Record<string, number> = {
   // Common dark (orange Clawd outline/eye)
   X: 0x2a1408,
 
@@ -63,8 +63,8 @@ const PALETTE: Record<string, number> = {
 // === Pixel grids ===
 // Each char = 1 art pixel. '.' = transparent.
 
-// 12 wide × 12 tall (body 8 rows + legs 4 rows, orange legs)
-const PIXELS_BASIC: string[] = [
+// 12 wide × 12 tall (body 8 rows + legs 4 rows, orange legs) — exported for Canvas preview
+export const CLAWD_PIXELS_BASIC: string[] = [
   '..OOOOOOOO..',
   '.OOOOOOOOOO.',
   'OOXXOOOOXXOO',
@@ -112,17 +112,16 @@ const PIXELS_JELLYFISH: string[] = [
 ]
 
 // 커스텀 캐릭터 (v2 #17) — 그림자 진 문어. 베이스는 'C' = 커스텀 색.
-// 'X' 외곽/눈, 'S' 하이라이트 (speckled에서 사용), 'D' 그림자 (gradient에서 사용)
 const PIXELS_CUSTOM_OCTOPUS: string[] = [
   '..CCCCCCCC..',
   '.CCCCCCCCCC.',
-  'CCXXCCCCXXCC', // 큰 눈 2개
+  'CCXXCCCCXXCC',
   'CCXXCCCCXXCC',
   'CCCCCCCCCCCC',
   'CCCCCCCCCCCC',
   '.CCCCCCCCCC.',
   '..CCCCCCCC..',
-  '.CC.CC.CC.CC', // 8 다리 (4쌍)
+  '.CC.CC.CC.CC',
   '.CC.CC.CC.CC',
   '.CC.CC.CC.CC',
   '.CC.CC.CC.CC',
@@ -177,13 +176,13 @@ export function createClawd(
         ? PIXELS_JELLYFISH
         : variant === 'custom'
           ? PIXELS_CUSTOM_OCTOPUS
-          : PIXELS_BASIC
+          : CLAWD_PIXELS_BASIC
 
   // 무늬 적용 대상 = 'C'(custom) / 'O'(basic) / 'J'(jellyfish) (베이스 색 픽셀)
   const baseChar: string =
     variant === 'custom' ? 'C' : variant === 'jellyfish' ? 'J' : 'O'
   // 커스텀 색 적용 — palette의 'C' 키만 동적 변경
-  const palette: Record<string, number> = { ...PALETTE }
+  const palette: Record<string, number> = { ...CLAWD_PALETTE }
   if (variant === 'custom' && options?.customColor) {
     palette.C = CHARACTER_PALETTE[options.customColor]
   }

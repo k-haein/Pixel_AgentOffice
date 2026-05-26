@@ -21,10 +21,8 @@ function App() {
   /** 설정 모달 열 때 특정 섹션으로 스크롤 (다른 곳에서 우클릭으로 열 때) */
   const [settingsFocusSection, setSettingsFocusSection] = useState<string | undefined>(undefined)
   const [hireOpen, setHireOpen] = useState(false)
-  // 채용 모달 열고 닫을 때 빈 자리 visibility 동기 (Day 11+ — C)
-  useEffect(() => {
-    eventBus.emit('office:hire-mode', hireOpen)
-  }, [hireOpen])
+  // Day 12 §3 — 채용 모달 트리거 제거 (모달이 화면 가려서 빈 자리 보일 필요 X).
+  // 빈 자리는 *자리 이동 모드* 시에만 표시 (OfficeScene.enterMoveMode).
   const [shopOpen, setShopOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
@@ -385,7 +383,7 @@ function App() {
         </div>
         <div className="topbar-actions">
           <button
-            className="topbar-btn"
+            className={`topbar-btn ${employees.length === 0 ? 'topbar-btn-pulse' : ''}`}
             onClick={() => setHireOpen(true)}
             disabled={employees.length >= maxEmployees}
             title={employees.length >= maxEmployees ? '최대 인원 도달' : '새 직원 채용'}
@@ -427,7 +425,8 @@ function App() {
         >
           {zoomedIn ? '🔎−' : '🔎+'}
         </button>
-        {/* 온보딩 안내 (C) — 직원 0명일 때 화면 중앙 가이드 */}
+        {/* 온보딩 안내 (C) — 직원 0명일 때 화면 중앙 가이드.
+            Day 12 §3 — "또는 빈 자리 클릭" 안내 제거 (P0 #6에서 빈 자리 클릭 채용 기능도 이미 제거됨) */}
         {!loading && employees.length === 0 && (
           <div className="onboarding-overlay">
             <div className="onboarding-box">
@@ -436,7 +435,6 @@ function App() {
               <div className="onboarding-sub">
                 상단 <strong>+ 채용</strong> 버튼으로 첫 직원을 만나보세요
               </div>
-              <div className="onboarding-hint">또는 사무실의 빈 자리를 클릭</div>
             </div>
           </div>
         )}

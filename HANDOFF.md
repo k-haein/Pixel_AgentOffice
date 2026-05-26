@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-22 (Day 12 §2)** — Day 12 §1(감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder 셋업) 위에서 **EXE 실제 빌드 완료** (`release/PixelAgentOffice-0.0.0-portable.exe` 98 MB) + **빈 사무실 첫 실행**(Mary/Haewol 더미 제거) + `.gitignore` 정리(release / dist-electron) + **GitHub Releases v0.0.1** 배포. 다음: **외부 테스터 주말 피드백** → 수렴 + M5-d 성격 / Phase 3 백엔드 / PNG asset.
+> 최종 갱신: **2026-05-26 (Day 12 §3)** — 사용자 EXE 시각 검증 즉시 반영: **UX 14건 + MBTI 16종 페르소나 + 감정 미리보기 모달 + 말풍선 이모지 전환 + timer 버그 fix** → EXE v0.0.1 재빌드 (98 MB, Release 파일 교체). 눈 표정 4픽셀·3×3 확장 둘 다 시도 후 롤백. 다음: 외부 테스터 본격 배포 / MBTI 별명 톤 결정(보류) / M5-d 후속.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성, PNG 대기) + Day 11 후속(가구 배치 + 채팅 영구화 + 빈 자리 숨김) + Day 11 후속 +1(상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성) + Day 12 §1(감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder) + **Day 12 §2: portable EXE 98 MB 빌드 완료 + 빈 사무실 첫 실행 + GitHub Releases v0.0.1 배포** |
-| **다음 작업** | **외부 테스터 주말 피드백 수렴** (GitHub Release v0.0.1 EXE 직접 전달). 이후 피드백 반영 + M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. **Day 12 §1**: 감정 시스템 자동 태그 + idle 기본값. 가구 옮기기 + 전체 삭제. EXE 빌드 준비. **Day 12 §2**: Developer Mode/관리자 권한 path로 winCodeSign symlink 권한 우회 → portable EXE 98 MB 실제 생성. 첫 외부 배포 시 더미 직원(Mary/Haewol) 부적절 → 빈 사무실 시작으로 변경. EXE 배포는 git 본체 X(100MB 제한) → GitHub Releases. |
-| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. Day 11 후속~Day 12 §1 검증 대기. **Day 12 §2 (3개 파일, 1개 커밋 예정) — 외부 테스터 검증 대기**: 빈 사무실 첫 실행 / portable EXE 정상 실행 / SmartScreen 우회 / API key BYOK 입력 / 빈 사무실에서 + 채용 → 채팅 → 메모 → 자리 이동 → 상점 → 가구 배치까지 전체 흐름 |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성) + Day 11 후속/후속+1 + Day 12 §1/§2 + **Day 12 §3: UX 14건 + MBTI 16종 페르소나 + 감정 미리보기 모달 + 말풍선 이모지 전환 + EXE v0.0.1 재빌드(Release 파일 교체)** |
+| **다음 작업** | **외부 테스터 본격 배포** (Release v0.0.1 0.0.1 EXE). MBTI 별명 톤 결정(보류). 그 후 M5-d 후속 / Phase 3 백엔드 / PNG asset |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
+| **검증 상태** | Day 11~12 §2 검증 완료(사용자 시각). **Day 12 §3 — EXE 재배포 후 검증 진행 중**: 사용자가 timer 버그 + thinking emoji 누락 발견 → 두 건 모두 fix 완료. 이번 EXE는 그 fix 포함. 외부 테스터 본격 배포 대기. |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -271,7 +271,67 @@
 
 #### 산출 커밋 (1개 + Release)
 - D1 — Day 12 §2 (빈 사무실 + .gitignore + 문서 동기화)
-- GitHub Release v0.0.1 — `PixelAgentOffice-0.0.0-portable.exe` 98 MB
+- GitHub Release v0.0.1 — `PixelAgentOffice-0.0.0-portable.exe` 98 MB (Day 12 §3에서 0.0.1로 교체)
+
+### **2026-05-26 (Day 12 §3) — 사용자 검증 피드백 14건 + MBTI + 이모지 + EXE v0.0.1**
+
+#### 한 일
+
+**UX 9 (즉시 수정):**
+1. 첫 페이지 "또는 빈 자리 클릭" 안내 제거
+2. + 채용 버튼 펄스 부활 (직원 0명일 때 노란색 빛남)
+3. 커스텀 템플릿 카드 "새 직원" 한 줄로 단순화
+4. HireModal 정체성 placeholder + 필수값 검증 + "* 필수" 빨간 표시
+5. 커스텀 지침 placeholder + ⓘ tip 예시 카드
+6. "과장 이상 리더 자리" 빨간 강조 (⭐)
+7. 대화 모델 키 없으면 비활성 + 빨간 안내 + ⚙ 설정 자동 열기
+8. 빈 자리 토글 — 채용 모달 트리거 제거 (이동 모드만)
+9. 기본 가구 (화분/책장/자판기) 제거 — 완전히 빈 사무실 시작
+
+**MBTI 16종 페르소나 시스템:**
+- `shared/types.ts`: MBTI 타입 + MBTI_PROFILES (16종, emoji + responseStyle + trait) + Employee.mbti?
+- HireModal: 입력 + 자동 인식 tip + ⓘ 16종 설명 중첩 모달
+- ChatPopup buildSystemPrompt: employee.mbti 있으면 페르소나 지침 자동 주입
+- 별명 톤 결정 보류 (다음 세션 — 게임형/한국 밈/직업 톤 중)
+
+**감정 미리보기 모달 (8번):**
+- 신규 `EmotionPreviewModal.tsx` — 460px 중첩 모달, Canvas 280×220, 캐릭터 + 말풍선 + 이모지
+- 12종 버튼 grid로 즉시 전환
+- ShopModal 단순화: 12개 카드 grid → "감정 미리보기 열기" 버튼 1개
+
+**눈 표정 시도 → 롤백:**
+- 4픽셀 대각선 (╱╲) 시도 → "표현 한계"
+- 3×3 확장 시도 (Clawd 4종 픽셀 재배치) → "롤백하자"
+- 최종: Day 10 sleepy(closed)만 유지
+
+**말풍선 이모지 전환 (해결안):**
+- 픽셀 5×5 grid → Phaser Text + 이모지로 일원화
+- 사용자가 정한 12종: thinking … / happy 😄 / surprised 😶 / sleepy 😴 / confused 🤔 / idea 💡 / love ❤️ / angry 😡 / sad 😭 / sweat 😅 / music 🎵 / wow 😮
+- OfficeScene workingBubble + setBubbleEmotion + EmotionPreviewModal Canvas 모두 Text 기반
+
+**버그 fix 2건:**
+- timer 충돌: `agent:reply` 2초 + `agent:set-emotion` 5초 → 짧은 게 긴 거 덮어쓰는 문제. Workstation.bubbleEmotionTimer 보관 + setBubbleEmotion 시작 시 이전 timer remove
+- thinking emoji ⋯ → … (Apple Color Emoji 폰트에 ⋯ 없어서 안 보임 → Unicode U+2026으로 변경)
+
+**EXE 재빌드:**
+- package.json version 0.0.0 → 0.0.1
+- pnpm dist:exe → `release/PixelAgentOffice-0.0.1-portable.exe` (98 MB)
+- GitHub Release v0.0.1 Assets에서 기존 0.0.0 파일 삭제 + 새 0.0.1 업로드
+
+#### 왜 그렇게 결정했는지
+- **사용자 시각 검증 직후 피드백 즉시 반영** — 외부 테스터 본격 배포 전에 14건 fix
+- **MBTI 시스템 도입** — 캐릭터 페르소나의 차별점. LLM 응답 다양화
+- **이모지 전환** — 픽셀 5×5로 ^_^ 표현 한계 + 사용자 결단 "그냥 이모지로". 픽셀 게임 일관성 살짝 부조화지만 명확성 우선
+- **timer 보관 패턴** — 두 이벤트(`agent:reply` + `agent:set-emotion`)가 같은 함수 호출 시 누적 timer 충돌. delayedCall 보관 + remove로 해결
+- **눈 표정 롤백** — 4픽셀과 3×3 둘 다 시각 한계. 사용자 결단으로 sleepy만 유지
+
+#### ⚠️ 시각 검증 상태
+- **사용자 EXE 검증 → 14건 fix → 재빌드 → Release 파일 교체 완료**
+- **외부 테스터 본격 배포 대기**
+
+#### 산출
+- E1 — Day 12 §3 코드 + 문서 (12개+ 파일)
+- GitHub Release v0.0.1 EXE 0.0.0 → 0.0.1 교체
 
 ---
 
@@ -323,12 +383,25 @@
 | .gitignore 정리 | `release` / `dist-electron` 추가 (빌드 산출물 git 미추적) | .gitignore |
 | Releases 배포 | `gh release create v0.0.1` + EXE 첨부. 테스터 안내문 release notes | (GitHub Releases) |
 
+**Day 12 §3 — UX 14건 + MBTI + 이모지 + EXE v0.0.1 (커밋 1개 + Release 파일 교체):**
+| 영역 | 작업 | 파일 |
+|---|---|---|
+| UX 9건 | 안내 텍스트 제거 / 채용 펄스 / placeholder + 필수값 / 커스텀 지침 ⓘ tip / 리더 자격 빨간 강조 / 키 없으면 모델 비활성 / 빈 자리 토글 제거 / 기본 가구 제거 | App.tsx / HireModal.tsx / OfficeScene.ts |
+| **MBTI 16종 페르소나** | MBTI 타입 + emoji/responseStyle/trait + Employee.mbti + HireModal 입력·자동 인식 tip·ⓘ 16종 모달 + ChatPopup 시스템 프롬프트 자동 주입 | shared/types.ts / HireModal.tsx / ChatPopup.tsx |
+| **감정 미리보기 모달** | 작은 중첩 모달(460px) 안 Canvas에 캐릭터 + 말풍선 + 이모지 + 12종 버튼. ShopModal은 "열기" 버튼 1개로 단순화 | components/EmotionPreviewModal.tsx (신규) / Clawd.ts (export) / OfficeScene.ts (export) / ShopModal.tsx |
+| 눈 표정 시도·롤백 | 4픽셀 대각선 → 3×3 확장 → 사용자 결단으로 둘 다 롤백. Day 10 sleepy(closed)만 유지 | Clawd.ts / OfficeScene.ts |
+| **말풍선 이모지 전환** | BUBBLE_INNER_PIXELS 5×5 → Phaser Text + 사용자가 정한 12종 이모지. workingBubble 타입 일반화 | shared/types.ts (EMOTION_LABELS) / OfficeScene.ts / EmotionPreviewModal.tsx |
+| 버그 fix | timer 충돌 (agent:reply 2초 vs agent:set-emotion 5초) → Workstation.bubbleEmotionTimer 보관 + 이전 timer remove | OfficeScene.ts |
+| 버그 fix | thinking ⋯ → … (Apple Color Emoji 폰트 호환) | shared/types.ts |
+| EXE 재빌드 | package.json 0.0.0 → 0.0.1 + pnpm dist:exe → release/PixelAgentOffice-0.0.1-portable.exe (98 MB). 사용자가 Release Asset 파일 교체 | package.json (빌드 산출물 git 미추적) |
+
 **다음 작업:**
-1. **외부 테스터 주말 피드백 수렴** — Release v0.0.1 EXE 사용자가 직접 다운로드 후 테스터에게 전달 → 사용 후 피드백 수집
-2. **피드백 반영 v0.0.2** — 발견 이슈 fix + 재배포
-3. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
-4. **Phase 3 백엔드 셋업** (모바일 진입)
-5. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)
+1. **외부 테스터 본격 배포** — Release v0.0.1 (0.0.1 EXE) 사용자가 테스터들에게 직접 전달
+2. **MBTI 별명 톤 결정** (보류) — 게임형 / 한국 밈 / 직업 톤 / 동물 비유 등 검토 후 16종 일괄 갱신
+3. **피드백 반영 v0.0.2** — 발견 이슈 fix + 재배포
+4. **M5-d 성격 시스템 완성** (MBTI 시스템 기반 위에 사내연애·관계 등 layer 2)
+5. **Phase 3 백엔드 셋업** (모바일 진입)
+6. **PNG asset 도입** (v2.5 부활 — 사용자 그림 그리기 결정 시)
 
 ### 보류 cleanup (변동 없음)
 - **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). PNG asset 도입 시 같이 확인

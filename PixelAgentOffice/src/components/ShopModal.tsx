@@ -8,9 +8,10 @@
 import { platform } from '../platform'
 import { useEffect, useState } from 'react'
 import { eventBus } from '../game/eventBus'
-import type { Employee, Settings, TeamPlateStyle, AccessoryId, DeskItemId, FurnitureId } from '../shared/types'
+import type { Employee, Settings, TeamPlateStyle, AccessoryId, DeskItemId, FurnitureId, BubbleEmotion } from '../shared/types'
 import { FURNITURE_CATALOG } from '../shared/furnitureCatalog'
 import { FurniturePreview } from './FurniturePreview'
+import { EmotionPreviewModal } from './EmotionPreviewModal'
 import './ShopModal.css'
 
 type ShopItem = {
@@ -52,22 +53,8 @@ const DESK_ITEM_CATALOG: DeskItemEntry[] = [
   { id: 'laptop', emoji: '💻', name: '노트북' },
 ]
 
-// Day 11 v2.5 A — 말풍선 안 12 emotion 미리보기 갤러리
-type EmotionItem = { id: string; emoji: string; name: string }
-const EMOTION_GALLERY: EmotionItem[] = [
-  { id: 'thinking', emoji: '⋯', name: '생각' },
-  { id: 'happy', emoji: '◡', name: '기쁨' },
-  { id: 'surprised', emoji: '‼', name: '놀람' },
-  { id: 'sleepy', emoji: 'Z', name: '졸음' },
-  { id: 'confused', emoji: '?', name: '혼란' },
-  { id: 'idea', emoji: '💡', name: '아이디어' },
-  { id: 'love', emoji: '♥', name: '사랑' },
-  { id: 'angry', emoji: '✗', name: '화남' },
-  { id: 'sad', emoji: '💧', name: '슬픔' },
-  { id: 'sweat', emoji: '💦', name: '땀' },
-  { id: 'music', emoji: '♪', name: '음악' },
-  { id: 'wow', emoji: '✨', name: '와우' },
-]
+// Day 12 §3 — 감정 미리보기는 EmotionPreviewModal 하나로 일원화.
+// 기존 EMOTION_GALLERY 12종 grid는 모달 안으로 이동 (EMOTION_LABELS in shared/types).
 
 const SHOP_CATALOG: ShopItem[] = [
   { id: 'plant-large', emoji: '🪴', name: '대형 화분', desc: '코너에 두면 분위기 ↑', category: '꾸미기' },
@@ -91,6 +78,8 @@ type Props = {
 export function ShopModal({ onClose }: Props) {
   // 현재 팀 팻말 스타일 (Day 11)
   const [currentPlate, setCurrentPlate] = useState<TeamPlateStyle>('wood')
+  // 감정 미리보기 모달 (Day 12 §3) — 선택된 emotion 있으면 중첩 모달
+  const [previewEmotion, setPreviewEmotion] = useState<BubbleEmotion | null>(null)
   // 직원 목록 + 선택된 직원 (액세서리·소품 적용 대상)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedEmpId, setSelectedEmpId] = useState<string>('')
@@ -239,22 +228,15 @@ export function ShopModal({ onClose }: Props) {
           {/* 감정 미리보기 갤러리 (Day 11 v2.5 A) */}
           <h3 style={{ marginTop: 16 }}>🎭 감정 표현 미리보기 (12종)</h3>
           <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
-            클릭하면 모든 직원 말풍선에 5초간 표시. 트리거 매핑은 나중에 결정.
+            미리보기 창에서 캐릭터가 12가지 감정을 어떻게 표현하는지 확인할 수 있습니다.
           </p>
-          <div className="shop-grid">
-            {EMOTION_GALLERY.map(em => (
-              <div key={em.id} className="shop-item" style={{ minHeight: 'auto' }}>
-                <div className="shop-item-emoji" style={{ fontSize: 24 }}>{em.emoji}</div>
-                <div className="shop-item-name">{em.name}</div>
-                <button
-                  className="shop-item-btn"
-                  onClick={() => eventBus.emit('agent:set-emotion', { agentId: '*', emotion: em.id, expireMs: 5000 })}
-                >
-                  미리보기
-                </button>
-              </div>
-            ))}
-          </div>
+          <button
+            className="btn-primary"
+            onClick={() => setPreviewEmotion('thinking')}
+            style={{ marginTop: 4 }}
+          >
+            🎭 감정 미리보기 열기
+          </button>
 
           <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 — 배치 가능 (8종)</h3>
           <div className="shop-notice">
@@ -310,6 +292,14 @@ export function ShopModal({ onClose }: Props) {
           <button className="btn-secondary" onClick={onClose}>닫기</button>
         </div>
       </div>
+
+      {/* 감정 미리보기 중첩 모달 (Day 12 §3) */}
+      {previewEmotion && (
+        <EmotionPreviewModal
+          initialEmotion={previewEmotion}
+          onClose={() => setPreviewEmotion(null)}
+        />
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { eventBus } from './eventBus'
 import { platform } from '../platform'
 import { createClawd, type ClawdVariant } from './characters/Clawd'
 import { drawPixelGrid } from './pixelArt'
-import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, type PlacedFurniture, type BubbleEmotion, MODEL_INFO, TEMPLATES, canBeTeamLeader, canBeBoss } from '../shared/types'
+import { type Employee, type SeatId, type DeskOrientation, type Settings, type Model, type PlacedFurniture, type BubbleEmotion, MODEL_INFO, TEMPLATES, EMOTION_LABELS, canBeTeamLeader, canBeBoss } from '../shared/types'
 import { FURNITURE_CATALOG } from '../shared/furnitureCatalog'
 import { ALL_SEATS, type SeatMeta, getDynamicSeatX, getDynamicTeamX } from '../shared/seats'
 import { TIME_PALETTES, getTimeOfDay, msUntilNextTransition, type TimeOfDay } from './timeOfDay'
@@ -133,8 +133,8 @@ const MEMO = [
 ]
 
 // 💬 채팅 말풍선 — 캐릭터 머리 위, 클릭하면 채팅 (P1 #15: 안쪽 비움, 채팅 중엔 위에 점선 텍스트 오버레이)
-const CHAT_BUBBLE_PALETTE = { O: 0x2a1408, W: 0xfafafa }
-const CHAT_BUBBLE = [
+export const CHAT_BUBBLE_PALETTE = { O: 0x2a1408, W: 0xfafafa }
+export const CHAT_BUBBLE = [
   '.OOOOOOO.',
   'OWWWWWWWO',
   'OWWWWWWWO',
@@ -150,8 +150,8 @@ const CHAT_BUBBLE = [
 // CHAT_BUBBLE 내부 흰 영역(7×5)에 들어가도록 좌·우 1px 여백.
 // 색은 검정(O)만. 추후 다른 색 추가 가능 (예: 분노=빨강).
 // Day 11 v2.5 A: 5종 → 12종 (idea·love·angry·sad·sweat·music·wow 추가)
-const BUBBLE_INNER_PALETTE = { O: 0x2a1408 }
-const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
+export const BUBBLE_INNER_PALETTE = { O: 0x2a1408 }
+export const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
   thinking: [   // ··· 점 3개
     '.....',
     '.....',
@@ -159,11 +159,11 @@ const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
     '.....',
     '.....',
   ],
-  happy: [      // ◡◡ 휘어진 눈 두 개
+  happy: [      // ^ ^ 양 눈만
     '.....',
-    'O...O',
-    'O...O',
     '.O.O.',
+    'O...O',
+    '.....',
     '.....',
   ],
   surprised: [  // !? 수직 직선 두 개 + 아래 점
@@ -239,10 +239,13 @@ const BUBBLE_INNER_PIXELS: Record<string, string[]> = {
 }
 // BubbleEmotion 타입은 shared/types.ts로 이동 (Day 11 후속 +2 — Employee.idleEmotion에서 사용)
 
-// === 눈 표정 overlay (Day 11 v2.5 B) === 캐릭터 양 눈 자리에 그리는 표정 픽셀
+// === 눈 표정 overlay (Day 11 v2.5 B, Day 12 §3에 4픽셀 코너 toggle로 대체) ===
+// 코드 보존 — PNG asset 도입 시 다시 활용 가능.
 // 사이즈 14×3 (PIXEL_SIZE 2 → 화면 28×6), local (0, -6) 중심. Clawd 양 눈 영역 덮음.
 // 색: O 검정, R 빨강(love), Y 노랑(wow)
+// @ts-expect-error unused — Day 12 §3에서 4픽셀 코너 toggle로 대체. 보존용
 const EYE_EXPRESSION_PALETTE = { O: 0x2a1408, R: 0xd03048, Y: 0xffd040 }
+// @ts-expect-error unused — Day 12 §3에서 4픽셀 코너 toggle로 대체. 보존용
 const EYE_EXPRESSION_PIXELS: Record<string, string[]> = {
   closed: [      // --  -- 가로 줄 (sleepy)
     '..............',
@@ -270,7 +273,8 @@ const EYE_EXPRESSION_PIXELS: Record<string, string[]> = {
     'YYYYY....YYYYY',
   ],
 }
-export type EyeExpression = 'normal' | keyof typeof EYE_EXPRESSION_PIXELS
+// Day 12 §3 — 눈 표정 happy/sad 시도 후 롤백. sleepy(closed)만 시각화 (Day 10 패턴 유지).
+export type EyeExpression = 'normal' | 'closed'
 
 const CLOUD_PALETTE = { W: 0xffffff, H: 0xe0eaf0 }
 const CLOUD_SMALL = [
@@ -319,57 +323,9 @@ const MOUNTAIN = [
   'SMMMMMMMMS',
 ]
 
-// === 가구 (꾸미기 Lv1) — 사무실 분위기 살리기 ===
-const PLANT_PALETTE = { L: 0x2a5a2a, G: 0x4a8a4a, S: 0x7ac87a, P: 0x6a4030, D: 0x4a2818 }
-const PLANT = [
-  '..LLLLL..',
-  '.LGGGGGL.',
-  'LGSGGGSGL',
-  'LGGGGGGGL',
-  '.LGGGGGL.',
-  '..LGGGL..',
-  '...PPP...',
-  '..PPPPP..',
-  '.PPPPPPP.',
-  '.PDDDDDP.',
-  '.PPPPPPP.',
-  '..PPPPP..',
-]
-
-const BOOKSHELF_PALETTE = { O: 0x3a2008, R: 0xa83838, Y: 0xc8b048, B: 0x3868a8, G: 0x488a48, W: 0xc8a070 }
-const BOOKSHELF = [
-  'OOOOOOOOOO',
-  'ORYBRYBRYO',
-  'OYRBYRBYRO',
-  'OOOOOOOOOO',
-  'OWWWWWWWWO',
-  'OBYGRBYGRO',
-  'OYRBGYBRRO',
-  'OOOOOOOOOO',
-  'OWWWWWWWWO',
-  'OGYBRRYBYO',
-  'OYBBRGYRBO',
-  'OOOOOOOOOO',
-]
-
-const VENDING_PALETTE = { O: 0x2a1a04, K: 0x101010, W: 0x484858, R: 0xc83030, B: 0x3060c8, Y: 0xc8b030, P: 0x5a4030, S: 0xa87830 }
-const VENDING = [
-  'OOOOOOOOO',
-  'OKKKKKKKO',
-  'OKWWWWWKO',
-  'OKWRBYRWKO',
-  'OKWRBYRWKO',
-  'OKWRBYRWKO',
-  'OKKKKKKKO',
-  'OPPPPPPPO',
-  'OPSPSPSPO',
-  'OPPPPPPPO',
-  'OOOOOOOOO',
-  'OOO...OOO',
-]
-
-// === 추가 가구 5종은 src/shared/furnitureCatalog.ts로 이동 (Day 11 후속 +1) ===
-// FURNITURE_CATALOG에서 가져옴 — ShopModal과 공유
+// === 가구 픽셀 정의는 src/shared/furnitureCatalog.ts로 일원화 (Day 11 후속 +1, Day 12 §3) ===
+// PLANT/BOOKSHELF/VENDING/SOFA/CALENDAR/FRAME/TRASH_CAN/LOUNGE_TABLE — FURNITURE_CATALOG에서 import.
+// Day 12 §3 — 고정 기본 가구 제거. 사용자가 상점에서 직접 배치하는 placedFurniture만 그림.
 
 // 시계 face (P1 #10) — 시침·분침 픽셀 제거. 시침·분침은 graphics로 동적 그리기 (실시간 시간 반영)
 const CLOCK_PALETTE = { O: 0x2a1a04, W: 0xf8f0d0 }
@@ -400,7 +356,10 @@ type Workstation = {
   seatMeta: SeatMeta
   employee: Employee | null
   clawd?: Phaser.GameObjects.Container
-  workingBubble?: Phaser.GameObjects.Container
+  // Day 12 §3 — 픽셀 grid → Phaser Text(이모지)로 변경. 타입 일반화.
+  workingBubble?: Phaser.GameObjects.Container | Phaser.GameObjects.Text
+  /** setBubbleEmotion의 자동 복귀 timer (Day 12 §3 +1) — 새 emotion 호출 시 이전 timer 취소용 */
+  bubbleEmotionTimer?: Phaser.Time.TimerEvent
   isWorking?: boolean // chat working 상태 추적 (deskLamp 판단용, Day 10 — workingBubble.visible 의존 제거)
   /** sleepy 시 양쪽 눈 감은 가로줄 overlay (Day 10, B 통합 시 폐기 예정) */
   eyesClosed?: Phaser.GameObjects.GameObject[]
@@ -606,53 +565,34 @@ export class OfficeScene extends Phaser.Scene {
     this.setEyesByExpression(ws, sleepy ? 'closed' : 'normal')
   }
 
-  /** 눈 표정 변경 (Day 11 v2.5 B) — emotion에 따라 자동 호출. closed/happy/love/surprised/star 또는 normal */
+  /** 눈 표정 변경 — sleepy(closed) 시만 4픽셀 hide + 가로선 show. 나머지는 평소 눈.
+   *  Day 11 후속 +2 / Day 12 §3에서 happy/sad 표정 시도했다가 시각 한계로 롤백. */
   private setEyesByExpression(ws: Workstation, expression: EyeExpression) {
-    // 원래 눈 픽셀 (eye marker) toggle — normal일 때만 visible
-    if (ws.clawd) {
-      for (const child of ws.clawd.list) {
-        const obj = child as Phaser.GameObjects.Rectangle
-        if (obj.getData?.('eye') === true) {
-          obj.setVisible(expression === 'normal')
-        }
-      }
-    }
-    // 기존 표정 overlay 제거
+    if (!ws.clawd) return
     if (ws.eyeExpression) {
       ws.eyeExpression.destroy()
       ws.eyeExpression = undefined
     }
-    // normal이면 끝 (원래 눈만 보임)
-    if (expression === 'normal') {
-      // Day 10 eyesClosed 가로선 호환 — 같이 hide
-      if (ws.eyesClosed) {
-        for (const line of ws.eyesClosed) (line as Phaser.GameObjects.Rectangle).setVisible(false)
+    const isClosed = expression === 'closed'
+    // 눈 4픽셀 — closed일 때만 invisible
+    for (const child of ws.clawd.list) {
+      const obj = child as Phaser.GameObjects.Rectangle
+      if (obj.getData?.('eye') === true) {
+        obj.setVisible(!isClosed)
       }
-      return
     }
-    // closed는 기존 eyesClosed 사용 (Day 10 호환), 다른 표정은 새 overlay 그림
-    if (expression === 'closed' && ws.eyesClosed) {
-      for (const line of ws.eyesClosed) (line as Phaser.GameObjects.Rectangle).setVisible(true)
-      return
+    // 가로선 (Day 10) — closed일 때만 visible
+    if (ws.eyesClosed) {
+      for (const line of ws.eyesClosed) {
+        (line as Phaser.GameObjects.Rectangle).setVisible(isClosed)
+      }
     }
-    // closed가 아닌 표정: EYE_EXPRESSION_PIXELS 그리드를 clawd 자식으로 추가
-    const pixels = EYE_EXPRESSION_PIXELS[expression]
-    if (!pixels || !ws.clawd) return
-    const overlay = drawPixelGrid(this, pixels, EYE_EXPRESSION_PALETTE, 0, -6, 2)
-    ws.clawd.add(overlay)
-    ws.eyeExpression = overlay
   }
 
-  /** emotion → eye expression 매핑 (Day 11 v2.5 B) */
+  /** emotion → eye expression 매핑 — sleepy만 눈 감김. 나머지는 normal (말풍선만 변화) */
   private emotionToExpression(emotion: BubbleEmotion): EyeExpression {
-    switch (emotion) {
-      case 'sleepy': return 'closed'
-      case 'happy': return 'happy'
-      case 'love': return 'love'
-      case 'surprised': return 'surprised'
-      case 'wow': return 'star'
-      default: return 'normal' // thinking/confused/idea/angry/sad/sweat/music
-    }
+    if (emotion === 'sleepy') return 'closed'
+    return 'normal'
   }
 
   /** 외부에서 자리 이동 시작 트리거 (App.tsx 컨텍스트 메뉴 → 우리에게 emit) */
@@ -1295,24 +1235,11 @@ export class OfficeScene extends Phaser.Scene {
    *  화분/책장/자판기 = 월드 객체. 시계 = UI 객체 (벽에 액자처럼 — P1 #8 UI 카메라). */
   private drawFurniture() {
     const width = this.scale.width
-    const height = this.scale.height
 
-    // P2 #26 가구 크기 키움 (pixelSize 2 → 3)
-    // 화분 — 좌하 + 우하 코너 (월드)
-    const plant1 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.06 * width, 0.85 * height, 3)
-    plant1.setDepth(3)
-    const plant2 = drawPixelGrid(this, PLANT, PLANT_PALETTE, 0.94 * width, 0.85 * height, 3)
-    plant2.setDepth(3)
-
-    // 책장 — 좌측 벽 중간 (월드)
-    const bookshelf = drawPixelGrid(this, BOOKSHELF, BOOKSHELF_PALETTE, 0.05 * width, 0.55 * height, 3)
-    bookshelf.setDepth(2)
-
-    // 자판기 — 우측 벽 중간 (월드)
-    const vending = drawPixelGrid(this, VENDING, VENDING_PALETTE, 0.95 * width, 0.55 * height, 3)
-    vending.setDepth(2)
-
-    this.worldFurniture = [plant1, plant2, bookshelf, vending]
+    // Day 12 §3 — 고정 기본 가구(화분/책장/자판기) 제거.
+    // 이제 사무실은 *완전히 빈 상태*로 시작 → 사용자가 상점에서 직접 배치.
+    // 가구 카탈로그는 ShopModal·placedFurniture로만 접근.
+    this.worldFurniture = []
 
     // 사용자 배치 가구 (P2 #25) — Settings.placedFurniture 그리기
     this.drawPlacedFurniture()
@@ -1655,37 +1582,50 @@ export class OfficeScene extends Phaser.Scene {
   // ============================================================
   // 말풍선 안 emotion swap — 채팅 상황별로 표시 (Day 10)
   // ============================================================
-  /** 특정 직원의 말풍선 안 픽셀 심볼을 emotion으로 교체. expireMs > 0이면 자동 복귀(thinking) */
+  /** 특정 직원의 말풍선 안 이모지를 emotion으로 교체 (Day 12 §3 — 픽셀 grid → Phaser Text).
+   *  Day 12 §3 +1: 이전 자동 복귀 timer 자동 취소 (replyHandler 2초 + setEmotionHandler 5초 충돌 fix). */
   setBubbleEmotion(employeeId: string, emotion: BubbleEmotion, expireMs = 0) {
     let target: Workstation | undefined
     for (const ws of this.workstations.values()) {
       if (ws.employee?.id === employeeId) { target = ws; break }
     }
     if (!target || !target.workingBubble || !target.chatBubble) return
+
+    // 이전 자동 복귀 timer 취소 — 짧은 timer가 긴 emotion 덮어쓰는 버그 fix
+    if (target.bubbleEmotionTimer) {
+      target.bubbleEmotionTimer.remove(false)
+      target.bubbleEmotionTimer = undefined
+    }
+
     const old = target.workingBubble
     if (!old.active) return
     old.destroy()
-    // 새 emotion 그리드를 chatBubble 자식으로 생성 (local 좌표) — 트윈 자동 동기화
-    const newBubble = drawPixelGrid(this, BUBBLE_INNER_PIXELS[emotion], BUBBLE_INNER_PALETTE, 0, -3, 2)
-    newBubble.setDepth(20)
-    newBubble.setVisible(true)
+    // 새 이모지 텍스트를 chatBubble 자식으로 생성 — 트윈 자동 동기화
+    const newBubble = this.add
+      .text(0, -3, EMOTION_LABELS[emotion].emoji, {
+        fontSize: '14px',
+        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+      })
+      .setOrigin(0.5)
+      .setDepth(20)
     target.chatBubble.add(newBubble)
     target.workingBubble = newBubble
     target.allObjects.push(newBubble)
     this.uiCamera?.ignore(newBubble)
 
-    // Day 11 v2.5 B — emotion에 맞춰 눈 표정 자동 동기
-    // ⚠️ 부분 비활성화 (Day 11) — happy/love/surprised/star overlay는 깨짐. closed(sleepy)만 유지
+    // emotion에 맞춰 눈 표정 자동 동기 (현재 closed/normal만)
     const expr = this.emotionToExpression(emotion)
     if (expr === 'closed' || expr === 'normal') {
       this.setEyesByExpression(target, expr)
     }
 
-    // 자동 복귀 — expireMs 후 직원의 idleEmotion으로 (Day 11 후속 +2)
+    // 자동 복귀 — expireMs 후 직원의 idleEmotion으로. timer 보관해서 다음 호출 시 취소 가능
     if (expireMs > 0) {
       const idle: BubbleEmotion = target.employee?.idleEmotion ?? 'thinking'
       if (emotion !== idle) {
-        this.time.delayedCall(expireMs, () => {
+        const ws = target // closure 캡처
+        target.bubbleEmotionTimer = this.time.delayedCall(expireMs, () => {
+          ws.bubbleEmotionTimer = undefined
           this.setBubbleEmotion(employeeId, idle, 0)
         })
       }
@@ -2050,19 +1990,17 @@ export class OfficeScene extends Phaser.Scene {
     })
     allObjects.push(chatBubble)
 
-    // Bubble inner pixels (Day 10, Day 11 후속 +2: idleEmotion 반영) — chatBubble 자식
-    // 흰 영역 중앙 local 좌표 (0, -3). PIXEL_SIZE 2.
+    // Bubble inner emoji (Day 12 §3: 픽셀 → 이모지 Phaser Text) — chatBubble 자식
+    // 흰 영역 중앙 local 좌표 (0, -3). idleEmotion 초기 반영.
     const initialEmotion: BubbleEmotion = employee.idleEmotion ?? 'thinking'
-    const workingBubble = drawPixelGrid(
-      this,
-      BUBBLE_INNER_PIXELS[initialEmotion],
-      BUBBLE_INNER_PALETTE,
-      0,  // local x (chatBubble 안)
-      -3, // local y (흰 영역 중앙)
-      2,
-    )
-    workingBubble.setDepth(20)
-    workingBubble.setVisible(true)
+    const workingBubble = this.add
+      .text(0, -3, EMOTION_LABELS[initialEmotion].emoji, {
+        fontSize: '14px',
+        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+      })
+      .setOrigin(0.5)
+      .setDepth(20)
+      .setVisible(true)
     chatBubble.add(workingBubble) // chatBubble 자식 → 트윈 동기화
     // 점선 깜빡임 — 생각하는 느낌
     this.tweens.add({

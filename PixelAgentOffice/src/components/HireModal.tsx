@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { platform } from '../platform'
+import { eventBus } from '../game/eventBus'
 import {
   type Employee,
   type Model,
@@ -10,11 +11,15 @@ import {
   type TeamId,
   type CharacterPalette,
   type CharacterPattern,
+  type MBTI,
+  type MBTIGroup,
   TEMPLATES,
   MODEL_INFO,
   CHARACTER_PALETTE,
   CHARACTER_PATTERN_LABELS,
   INSTRUCTIONS_PLACEHOLDER,
+  MBTI_PROFILES,
+  MBTI_GROUP_LABELS,
   canBeTeamLeader,
 } from '../shared/types'
 import {
@@ -57,9 +62,10 @@ export function HireModal({
   onHired,
 }: Props) {
   // 컴포넌트가 마운트될 때 (모달 열림 시점) state가 초기화됨
+  // Day 12 §3 — name/role 초기값 ""로 (사용자가 placeholder 보고 직접 입력해야 함, 필수값)
   const [template, setTemplate] = useState<Template>('editor')
-  const [name, setName] = useState(TEMPLATES.editor.defaultName)
-  const [role, setRole] = useState(TEMPLATES.editor.defaultRole)
+  const [name, setName] = useState('')
+  const [role, setRole] = useState('')
   const [customInstructions, setCustomInstructions] = useState('')
   const [rank, setRank] = useState<Rank>('알바')
   const [promotionMode, setPromotionMode] = useState<PromotionMode>('time')
@@ -105,11 +111,34 @@ export function HireModal({
   // 커스텀 캐릭터 색 + 무늬 (v2 #17·#18)
   const [customColor, setCustomColor] = useState<CharacterPalette>('orange')
   const [pattern, setPattern] = useState<CharacterPattern>('solid')
+  // MBTI 페르소나 (Day 12 §2) — 빈 문자열 = 미설정 (LLM 프롬프트 주입 X)
+  const [mbtiInput, setMbtiInput] = useState<string>('')
+  /** MBTI 입력값을 정규화 — 대문자 + 16종 화이트리스트 매칭 (자동 인식) */
+  const mbti: MBTI | null = useMemo(() => {
+    const normalized = mbtiInput.trim().toUpperCase()
+    return normalized in MBTI_PROFILES ? (normalized as MBTI) : null
+  }, [mbtiInput])
+  // 16종 설명 모달
+  const [showMbtiInfo, setShowMbtiInfo] = useState(false)
+  // 커스텀 지침 예시 tip (Day 12 §3)
+  const [showInstructionsTip, setShowInstructionsTip] = useState(false)
+  // API key 보유 상태 (Day 12 §3) — 키 없으면 해당 provider 모델 비활성
+  const [hasGoogleKey, setHasGoogleKey] = useState(true)
+  const [hasAnthropicKey, setHasAnthropicKey] = useState(true)
+  useEffect(() => {
+    void (async () => {
+      const [g, a] = await Promise.all([
+        platform.hasApiKey('google'),
+        platform.hasApiKey('anthropic'),
+      ])
+      setHasGoogleKey(g)
+      setHasAnthropicKey(a)
+    })()
+  }, [])
 
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
-    setName(TEMPLATES[t].defaultName)
-    setRole(TEMPLATES[t].defaultRole)
+    // Day 12 §3 — 자동 채움 제거. 사용자가 placeholder 보고 직접 입력
   }
 
   /** 자리 자동 결정 — 선택한 팀 안에서 과장 이상이면 빈 리더 자리 먼저, 아니면 빈 팀원 자리.
@@ -144,6 +173,16 @@ export function HireModal({
       alert('이름과 역할을 입력해주세요')
       return
     }
+    // Day 12 §3 — 선택된 모델의 provider 키 확인
+    const isGoogleModel = FREE_MODELS.includes(model)
+    if (isGoogleModel && !hasGoogleKey) {
+      alert('Google API 키가 없습니다. 설정에서 키를 먼저 등록해주세요.')
+      return
+    }
+    if (!isGoogleModel && !hasAnthropicKey) {
+      alert('Anthropic API 키가 없습니다. 설정에서 키를 먼저 등록해주세요.')
+      return
+    }
     const seatRes = resolveSeatId()
     if (!seatRes.ok) {
       alert(seatRes.reason)
@@ -170,6 +209,8 @@ export function HireModal({
         // v2 #17·#18 — 커스텀 캐릭터일 때만 색 저장. 무늬는 모든 템플릿 적용
         customColor: template === 'custom' ? customColor : undefined,
         pattern,
+        // Day 12 §2 — MBTI 페르소나 (입력값이 16종 화이트리스트에 매칭될 때만 저장)
+        mbti: mbti ?? undefined,
         totalMessages: 0,
         totalMemoryUpdates: 0,
         totalPraises: 0,
@@ -199,12 +240,13 @@ export function HireModal({
             </div>
           )}
 
-          {/* Template */}
+          {/* Template — Day 12 §3: custom 카드는 "새 직원" 한 줄로 단순화 */}
           <section className="modal-section">
             <h3>👤 캐릭터 템플릿</h3>
             <div className="template-grid">
               {(Object.keys(TEMPLATES) as Template[]).map(t => {
                 const tpl = TEMPLATES[t]
+                const isCustom = t === 'custom'
                 return (
                   <label
                     key={t}
@@ -219,8 +261,14 @@ export function HireModal({
                       style={{ display: 'none' }}
                     />
                     <div className="template-emoji">{tpl.emoji}</div>
-                    <div className="template-name">{tpl.defaultRole}</div>
-                    <div className="template-desc">{tpl.defaultName}</div>
+                    {isCustom ? (
+                      <div className="template-name">새 직원</div>
+                    ) : (
+                      <>
+                        <div className="template-name">{tpl.defaultRole}</div>
+                        <div className="template-desc">{tpl.defaultName}</div>
+                      </>
+                    )}
                   </label>
                 )
               })}
@@ -254,35 +302,84 @@ export function HireModal({
             </div>
           </section>
 
-          {/* Identity */}
+          {/* Identity — Day 12 §3: placeholder만 표시, 필수값 */}
           <section className="modal-section">
-            <h3>🪪 정체성</h3>
+            <h3>🪪 정체성 <span style={{ color: '#c83838', fontSize: 12 }}>* 필수</span></h3>
             <label className="modal-label">이름</label>
             <input
               className="modal-input"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="예: Mary"
+              placeholder={`예: ${TEMPLATES[template].defaultName}`}
+              required
             />
             <label className="modal-label">역할</label>
             <input
               className="modal-input"
               value={role}
               onChange={e => setRole(e.target.value)}
-              placeholder="예: 편집자"
+              placeholder={`예: ${TEMPLATES[template].defaultRole}`}
+              required
             />
             <details>
               <summary className="modal-summary">⚙️ 기본 지침 (자동 생성, 변경 가능 — 메모지에서)</summary>
               <pre className="modal-pre">{TEMPLATES[template].baseInstructions}</pre>
             </details>
-            <label className="modal-label">커스텀 지침 (선택)</label>
+            <label className="modal-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              커스텀 지침 (선택)
+              <button
+                type="button"
+                onClick={() => setShowInstructionsTip(v => !v)}
+                title="작성 예시 보기"
+                style={{
+                  background: '#fff2b8',
+                  border: '1px solid #c8a878',
+                  borderRadius: '50%',
+                  width: 20,
+                  height: 20,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 11,
+                  color: '#5a3a0f',
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ⓘ
+              </button>
+            </label>
             <textarea
               className="modal-input"
               rows={6}
               value={customInstructions}
               onChange={e => setCustomInstructions(e.target.value)}
-              placeholder={INSTRUCTIONS_PLACEHOLDER}
+              placeholder="예) 사색과 바다를 사랑합니다. 항상 존댓말을 쓰며, 물결을 좋아합니다."
             />
+            {/* ⓘ 클릭 시 다른 형식 예시 tip 카드 */}
+            {showInstructionsTip && (
+              <div
+                className="employee-hover-card"
+                style={{
+                  position: 'static',
+                  marginTop: 8,
+                  maxWidth: '100%',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <div className="hover-card-name">💡 "직업 : 특징" 형식 예시</div>
+                <pre
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.55,
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {INSTRUCTIONS_PLACEHOLDER}
+                </pre>
+              </div>
+            )}
           </section>
 
           {/* 캐릭터 외형 (v2 #17·#18) — 커스텀 색 + 무늬 */}
@@ -328,6 +425,81 @@ export function HireModal({
             </div>
           </section>
 
+          {/* MBTI 페르소나 (Day 12 §2) — 16종 중 1 선택. LLM 시스템 프롬프트에 자동 주입 */}
+          <section className="modal-section">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              🧬 MBTI 페르소나 (선택)
+              <button
+                type="button"
+                onClick={() => setShowMbtiInfo(true)}
+                title="16종 MBTI 설명 보기"
+                style={{
+                  background: '#fff2b8',
+                  border: '1px solid #c8a878',
+                  borderRadius: '50%',
+                  width: 22,
+                  height: 22,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  color: '#5a3a0f',
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ⓘ
+              </button>
+            </h3>
+            <p className="modal-hint">
+              MBTI 4글자 입력 (예: INTP, ENFP) — 입력하면 LLM이 해당 페르소나로 응답합니다. 비워두면 페르소나 적용 X.
+            </p>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="modal-input"
+                value={mbtiInput}
+                onChange={e => setMbtiInput(e.target.value)}
+                placeholder="예: INTP (소문자 OK)"
+                maxLength={4}
+                style={{ textTransform: 'uppercase', width: 140 }}
+              />
+              {/* 자동 인식 tip — MBTI 매칭되면 옆에 카드로 대답 방식 표시. employee-hover-card 스타일 차용 */}
+              {mbti && (
+                <div
+                  className="employee-hover-card"
+                  style={{
+                    position: 'static',
+                    marginTop: 10,
+                    maxWidth: '100%',
+                    pointerEvents: 'auto',
+                  }}
+                >
+                  <div className="hover-card-name">
+                    {MBTI_PROFILES[mbti].emoji} {mbti} · {MBTI_PROFILES[mbti].nickname}
+                  </div>
+                  <div style={{ fontSize: 11, lineHeight: 1.55, marginTop: 4 }}>
+                    <div style={{ marginBottom: 6 }}>
+                      <span className="hover-card-label" style={{ display: 'block', marginBottom: 2 }}>
+                        대답 방식
+                      </span>
+                      {MBTI_PROFILES[mbti].responseStyle}
+                    </div>
+                    <div>
+                      <span className="hover-card-label" style={{ display: 'block', marginBottom: 2 }}>
+                        성향
+                      </span>
+                      {MBTI_PROFILES[mbti].trait}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {mbtiInput.trim() !== '' && !mbti && (
+                <p style={{ fontSize: 11, color: '#c83838', marginTop: 6 }}>
+                  ⚠ 16종 MBTI가 아닙니다. (INTJ/INTP/ENTJ/ENTP/INFJ/INFP/ENFJ/ENFP/ISTJ/ISFJ/ESTJ/ESFJ/ISTP/ISFP/ESTP/ESFP 중 하나)
+                </p>
+              )}
+            </div>
+          </section>
+
           {/* Rank */}
           <section className="modal-section">
             <h3>🏆 초기 직급</h3>
@@ -346,7 +518,7 @@ export function HireModal({
             <p className="modal-hint" style={{ marginTop: 6 }}>
               💡 자리는 자동 배치돼요. 채용 후 <b>캐릭터 우클릭 → 자리 이동</b>으로 드래그해서 옮길 수 있어요.
               <br />
-              과장 이상은 리더 자리에 앉을 수 있습니다.
+              <strong style={{ color: '#c83838' }}>⭐ 과장 이상만 리더 자리에 앉을 수 있습니다.</strong>
             </p>
           </section>
 
@@ -368,10 +540,54 @@ export function HireModal({
             </div>
           </section>
 
-          {/* Model */}
+          {/* Model — Day 12 §3: 키 없으면 비활성 + 빨간 안내 + 설정 열기 버튼 */}
           <section className="modal-section">
             <h3>🧠 대화 모델</h3>
-            <div className="modal-subhead">🆓 무료 (Google)</div>
+            {!hasGoogleKey && !hasAnthropicKey && (
+              <div
+                style={{
+                  background: '#ffe5e5',
+                  border: '1px solid #c83838',
+                  borderRadius: 4,
+                  padding: '8px 12px',
+                  marginBottom: 10,
+                  fontSize: 12,
+                  color: '#c83838',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <strong>⚠ API 키가 설정되지 않았습니다. 설정에서 키를 먼저 등록해주세요.</strong>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    eventBus.emit('settings:open', { focus: 'apiKeys' })
+                  }}
+                  style={{
+                    background: '#c83838',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⚙ 설정 열기
+                </button>
+              </div>
+            )}
+            <div className="modal-subhead">
+              🆓 무료 (Google){' '}
+              {!hasGoogleKey && (
+                <span style={{ color: '#c83838', fontSize: 11 }}>· 키 없음 (선택 불가)</span>
+              )}
+            </div>
             <div className="pill-row">
               {FREE_MODELS.map(m => (
                 <button
@@ -379,12 +595,20 @@ export function HireModal({
                   type="button"
                   className={`pill ${model === m ? 'selected' : ''}`}
                   onClick={() => setModel(m)}
+                  disabled={!hasGoogleKey}
+                  title={!hasGoogleKey ? 'Google API 키가 필요합니다' : undefined}
+                  style={!hasGoogleKey ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
                   {MODEL_INFO[m].label}
                 </button>
               ))}
             </div>
-            <div className="modal-subhead">💸 유료 (Anthropic)</div>
+            <div className="modal-subhead">
+              💸 유료 (Anthropic){' '}
+              {!hasAnthropicKey && (
+                <span style={{ color: '#c83838', fontSize: 11 }}>· 키 없음 (선택 불가)</span>
+              )}
+            </div>
             <div className="pill-row">
               {PAID_MODELS.map(m => (
                 <button
@@ -392,6 +616,9 @@ export function HireModal({
                   type="button"
                   className={`pill ${model === m ? 'selected' : ''}`}
                   onClick={() => setModel(m)}
+                  disabled={!hasAnthropicKey}
+                  title={!hasAnthropicKey ? 'Anthropic API 키가 필요합니다' : undefined}
+                  style={!hasAnthropicKey ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
                   {MODEL_INFO[m].label}
                 </button>
@@ -411,6 +638,85 @@ export function HireModal({
           </button>
         </div>
       </div>
+
+      {/* MBTI 16종 설명 모달 (Day 12 §2) — ⓘ 아이콘 클릭 시 */}
+      {showMbtiInfo && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowMbtiInfo(false)}
+          style={{ zIndex: 100 }}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: 720, maxHeight: '85vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>🧬 MBTI 16종 페르소나 설명</h2>
+              <button className="modal-close" onClick={() => setShowMbtiInfo(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-hint">
+                채용 시 MBTI 입력칸에 4글자를 적으면 해당 페르소나로 LLM이 응답합니다.
+              </p>
+              {(['NT', 'NF', 'SJ', 'SP'] as MBTIGroup[]).map(group => (
+                <section key={group} className="modal-section">
+                  <h3 style={{ marginBottom: 8 }}>
+                    {group === 'NT' && '🧠 '}
+                    {group === 'NF' && '💚 '}
+                    {group === 'SJ' && '🛡 '}
+                    {group === 'SP' && '🎨 '}
+                    {MBTI_GROUP_LABELS[group]} ({group})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(Object.keys(MBTI_PROFILES) as MBTI[])
+                      .filter(m => MBTI_PROFILES[m].group === group)
+                      .map(m => {
+                        const p = MBTI_PROFILES[m]
+                        return (
+                          <div
+                            key={m}
+                            style={{
+                              background: '#fff8e0',
+                              border: '1px solid #c8a878',
+                              borderRadius: 6,
+                              padding: '10px 14px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: 'bold',
+                                color: '#5a3a0f',
+                                fontSize: 13,
+                                marginBottom: 6,
+                              }}
+                            >
+                              {p.emoji} {m} · {p.nickname}
+                            </div>
+                            <div style={{ fontSize: 11, lineHeight: 1.55, color: '#2a2118' }}>
+                              <div style={{ marginBottom: 4 }}>
+                                <span style={{ color: '#6a5a3a', fontWeight: 'bold' }}>대답 방식</span>{' '}
+                                — {p.responseStyle}
+                              </div>
+                              <div>
+                                <span style={{ color: '#6a5a3a', fontWeight: 'bold' }}>성향</span>{' '}
+                                — {p.trait}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <div className="modal-footer">
+              <div style={{ flex: 1 }} />
+              <button className="btn-secondary" onClick={() => setShowMbtiInfo(false)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

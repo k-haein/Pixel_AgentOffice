@@ -1172,6 +1172,163 @@ pnpm dist:exe  # build + electron-builder --win portable
 - 앱 아이콘 추가 (.ico)
 - 자동 업데이트 (electron-updater)
 - 첫 실행 온보딩 안내 (튜토리얼)
+- MBTI 별명 톤 결정 (Day 12 §3 보류)
+
+---
+
+## MBTI 16종 페르소나 시스템 (Day 12 §3)
+
+### 무엇
+캐릭터마다 MBTI 16종 중 1을 부여 → LLM 응답이 해당 페르소나에 따라 변함. 16personalities 베이스 + 사용자 발견 컨셉 ("INTP는 패야 일함" 등).
+
+### 구성
+- `shared/types.ts`: `MBTI` 타입 (16종), `MBTIProfile` (id/group/nickname/emoji/responseStyle/trait), `MBTI_PROFILES` 카탈로그, `Employee.mbti?`
+- 16종: NT 분석가 (INTJ 🎯 / INTP 🔬 / ENTJ 😎 / ENTP 🦊) / NF 외교관 (INFJ 🌙 / INFP 🌸 / ENFJ ✨ / ENFP 🌈) / SJ 관리자 (ISTJ 📋 / ISFJ 🌿 / ESTJ 💼 / ESFJ 🤗) / SP 탐험가 (ISTP 🔧 / ISFP 🎵 / ESTP ⚡ / ESFP 🎤)
+
+### HireModal UI
+- 🧬 MBTI 페르소나 섹션 (외형 다음)
+- 4자 input, 자동 대문자 변환, maxLength 4
+- 자동 인식 → 매칭되면 tip 카드 (emoji + nickname + 대답 방식 + 성향)
+- 잘못 입력 시 빨간 경고
+- ⓘ 아이콘 → 중첩 모달 (4그룹별 16종 전체 카드)
+
+### LLM 통합
+- `ChatPopup buildSystemPrompt`: employee.mbti 있으면 시스템 프롬프트에 `# MBTI 페르소나: ${mbti} (${nickname})` 섹션 자동 주입
+- 대답 방식 + 성향 + "어조와 접근 방식에 페르소나 녹이세요" 가이드
+
+### 기대 동작 ☐
+- [ ] HireModal MBTI 칸에 `intp` 입력 → INTP 인식 → 옆에 tip 카드 (🔬 논리학자 + 대답 방식 + 성향)
+- [ ] 잘못된 4자 (예: `xxxx`) → 빨간 경고 메시지
+- [ ] ⓘ 아이콘 클릭 → 16종 전체 설명 중첩 모달
+- [ ] 채용 완료 → 직원에 `mbti: 'INTP'` 저장
+- [ ] 그 직원에게 채팅 → LLM이 INTP 페르소나로 응답 (이론적·분석적·약간 게으름)
+
+### 알려진 한계
+- 별명 톤 (논리학자/전략가 등) 딱딱함 → Day 12 §3 보류, 다음 세션 결정 (게임형 / 한국 밈 / 직업 톤)
+
+---
+
+## 감정 미리보기 모달 (Day 12 §3 — 8번 보류 사항 해결)
+
+### 무엇
+상점의 🎭 감정 갤러리 — 이전: 12개 카드 grid + 클릭 시 전체 직원에 5초 emit (상점 모달이 가려서 효과 못 봄). 변경: **작은 중첩 모달**로 캐릭터 + 말풍선 미리보기.
+
+### 구현
+- 신규 `src/components/EmotionPreviewModal.tsx` (460px 모달, zIndex 200)
+- Canvas 280×220 — 베이지 격자 배경 + Clawd basic 캐릭터 (Canvas 그림) + 말풍선 + 이모지 (Canvas fillText)
+- 12종 버튼 grid → 클릭 시 즉시 캔버스 갱신
+- ESC / × / 닫기
+
+### 사용 방법
+1. 🛍 상점 → "🎭 감정 미리보기 열기" 버튼 (12개 카드 grid는 제거됨, 버튼 하나로 단순화)
+2. 모달 안에서 12종 버튼 클릭 → 캐릭터 머리 위 말풍선이 그 이모지로 변경
+3. 시각 확인 후 닫기
+
+### 기대 동작 ☐
+- [ ] 🛍 상점 → "감정 미리보기 열기" 버튼 표시 (이전의 12개 카드 grid는 제거)
+- [ ] 클릭 시 작은 모달 등장 (zIndex 200, 상점 위에 표시)
+- [ ] 캐릭터 (Clawd basic) + 말풍선 + 이모지 캔버스 표시
+- [ ] 12종 버튼 (4×3 grid) 클릭 → 즉시 캔버스 갱신
+- [ ] 모달 헤더에 현재 emotion 라벨 표시 (예: "🎭 감정 미리보기 — 😄 기쁨")
+
+---
+
+## 말풍선 이모지 전환 (Day 12 §3)
+
+### 무엇
+이전: 말풍선 안 5×5 픽셀 grid로 emotion 표현 (BUBBLE_INNER_PIXELS)
+변경: Phaser Text + 사용자가 정한 12종 이모지
+
+### 이모지 매핑 (사용자 결정)
+- thinking … / happy 😄 / surprised 😶 / sleepy 😴 / confused 🤔 / idea 💡 / love ❤️ / angry 😡 / sad 😭 / sweat 😅 / music 🎵 / wow 😮
+
+### 구현
+- `EMOTION_LABELS` (shared/types.ts) 이모지 갱신
+- OfficeScene `workingBubble` 초기 생성 + `setBubbleEmotion`: drawPixelGrid → `this.add.text(...)` Phaser Text
+- `Workstation.workingBubble` 타입 `Container | Text`로 일반화
+- EmotionPreviewModal Canvas도 `ctx.fillText`
+- 폰트: `"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`
+
+### 기대 동작 ☐
+- [ ] 직원 채용 시 평소 말풍선 … (idleEmotion 기본 thinking)
+- [ ] LLM 응답 + `[emotion:happy]` → 말풍선이 😄로 5초 → … 복귀
+- [ ] 12종 모두 정상 렌더 (이모지 폰트 fallback OK)
+- [ ] 미리보기 모달에서도 동일
+
+### 알려진 한계
+- 픽셀 게임 일관성 살짝 부조화 (이모지 컬러 + 픽셀 배경)
+- 향후 PNG asset 도입 시 픽셀 emotion 부활 가능 (BUBBLE_INNER_PIXELS 보존)
+
+---
+
+## UX 정리 9건 (Day 12 §3)
+
+### 1. 첫 페이지 "빈 자리 클릭" 안내 제거
+P0 #6에서 빈 자리 클릭 채용은 이미 비활성. 안내문만 남아있던 거 제거.
+- [ ] 첫 실행 시 "또는 사무실의 빈 자리를 클릭" 텍스트 안 보임
+
+### 2. + 채용 버튼 펄스 부활
+Day 8에 제거됐던 펄스 애니메이션 복구. 직원 0명일 때 노란색 빛남.
+- [ ] 처음 실행 (직원 0명) → + 채용 버튼이 노란색으로 깜빡임
+- [ ] 첫 직원 채용 후 → 펄스 사라짐
+
+### 3. 커스텀 템플릿 카드 단순화
+이전: "🐙 / 직업 입력 / 새 직원" → 변경: "🐙 / 새 직원" 한 줄
+- [ ] 채용 모달 → 캐릭터 템플릿 → 커스텀 카드에 "새 직원"만 표시
+
+### 4. HireModal 정체성 필수값 + placeholder
+이전: name/role 초기값 "Mary"/"편집자" 들어가 있어 그대로 채용되면 그 이름. 변경: 초기값 ""로, placeholder만, required.
+- [ ] 채용 모달 처음 열 때 이름·역할 칸 비어있음 (placeholder만)
+- [ ] template 변경 시 placeholder만 변경 (예: editor → "예: Mary")
+- [ ] 이름·역할 빈 채로 채용 시도 → "이름과 역할을 입력해주세요" alert
+- [ ] 제목에 빨간색 "* 필수" 표시
+
+### 5. 커스텀 지침 placeholder + ⓘ tip
+이전: 4개 직업 예시 placeholder. 변경: 페르소나 예시 placeholder + ⓘ 클릭 시 직업 예시 tip 카드.
+- [ ] 커스텀 지침 placeholder "예) 사색과 바다를 사랑합니다. 항상 존댓말을 쓰며..."
+- [ ] 라벨 옆 ⓘ 아이콘 클릭 → "직업 : 특징" 형식 예시 tip 카드
+
+### 6. "과장 이상" 리더 자격 빨간 강조
+- [ ] 직급 섹션 안내문에 "⭐ 과장 이상만 리더 자리에 앉을 수 있습니다" 빨간 굵은 글씨
+
+### 7. 대화 모델 키 없으면 비활성
+- [ ] API key 없는 provider의 모델 버튼 disabled (회색·"키 없음" 라벨)
+- [ ] 둘 다 키 없으면 빨간 안내 박스 + "⚙ 설정 열기" 버튼 → 클릭 시 채용 모달 닫고 설정 모달 자동 열림
+- [ ] 키 없는 모델 선택 후 채용 시도 → "API 키가 없습니다" alert
+
+### 8. 빈 자리 토글 — 채용 모달 트리거 제거
+이전: 채용 모달 열면 빈 자리 표시 (모달이 화면 가려서 무의미). 변경: 자리 이동 모드에서만 표시.
+- [ ] + 채용 클릭해도 빈 자리 안 보임 (모달이 화면 가림)
+- [ ] 직원 우클릭 → 자리 이동 → 빈 자리 등장
+- [ ] 이동 완료/취소 → 빈 자리 사라짐
+
+### 9. 기본 가구 제거
+이전: 첫 실행 시 화분 2개·책장·자판기 고정 배치. 변경: 사무실 완전히 빈 상태로 시작.
+- [ ] 첫 실행 → 캐릭터·사장석·시계만 있고 가구 0개
+- [ ] 상점에서 직접 배치해야 가구 등장
+
+---
+
+## 이모지 timer 충돌 fix (Day 12 §3)
+
+### 무엇
+이모지가 5초 표시되어야 하는데 2초만 표시되고 사라지는 버그.
+
+### 원인
+응답 도착 시 두 이벤트 연속 발생:
+1. `agent:reply` → `replyHandler` → `setBubbleEmotion('happy', 2000)` (2초 timer 생성)
+2. `agent:set-emotion` → `setEmotionHandler` → `setBubbleEmotion(emotion, 5000)` (5초 timer 생성)
+
+두 번째 호출이 이모지 덮어쓰지만 **첫 번째의 2초 timer가 살아있어** 2초 후 idle로 복귀 → 이모지 짧게 사라짐.
+
+### 수정
+- `Workstation.bubbleEmotionTimer?: Phaser.Time.TimerEvent` 필드 추가
+- `setBubbleEmotion` 시작 시 이전 timer `remove(false)`로 취소
+- 새 timer는 `target.bubbleEmotionTimer`에 보관
+
+### 기대 동작 ☐
+- [ ] 직원에게 메시지 보냄 → 이모지가 **5초 동안** 표시 → idle로 복귀
+- [ ] 5초 도중 다른 emotion이 와도 정상 교체 (이전 timer 자동 취소)
 
 ---
 

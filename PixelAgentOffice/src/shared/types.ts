@@ -161,6 +161,8 @@ export type Employee = {
   deskItem?: DeskItemId
   /** 기본 idle emotion (Day 11 후속 +2) — 평소 말풍선에 표시. LLM 응답 시 일시 변경 후 복귀. 기본 'thinking' */
   idleEmotion?: BubbleEmotion
+  /** MBTI 페르소나 (Day 12 §2) — 16종 중 1. LLM 시스템 프롬프트에 페르소나 지침 자동 주입. null이면 페르소나 적용 X */
+  mbti?: MBTI
   // 진급 추적
   totalMessages: number
   totalMemoryUpdates: number
@@ -182,26 +184,146 @@ export type AccessoryId = 'glasses' | 'sunglasses' | 'cap'
 /** 책상 위 소품 (Day 11 v2.5 D) — 캐릭터 옆 작은 디테일 */
 export type DeskItemId = 'mug' | 'plant' | 'laptop'
 
+/** MBTI 16종 (Day 12 §2 — 성격 시스템). 채용 시 사용자가 선택. LLM 시스템 프롬프트에 자동 주입 */
+export type MBTI =
+  | 'INTJ' | 'INTP' | 'ENTJ' | 'ENTP'  // NT 분석가
+  | 'INFJ' | 'INFP' | 'ENFJ' | 'ENFP'  // NF 외교관
+  | 'ISTJ' | 'ISFJ' | 'ESTJ' | 'ESFJ'  // SJ 관리자
+  | 'ISTP' | 'ISFP' | 'ESTP' | 'ESFP'  // SP 탐험가
+
+export type MBTIGroup = 'NT' | 'NF' | 'SJ' | 'SP'
+
+/** 각 MBTI별 페르소나 프로필. UI 표시 + LLM 프롬프트 주입용 */
+export type MBTIProfile = {
+  id: MBTI
+  group: MBTIGroup
+  /** 한국어 별명 (대중 친숙 라벨) */
+  nickname: string
+  /** 이모티콘 — UI 표시 (MBTI 카드 헤더, tip 카드 등) */
+  emoji: string
+  /** 대답 방식 — 응답 패턴, 길이, 구조 */
+  responseStyle: string
+  /** 성향 — 성격 특징, 강점, 약점 */
+  trait: string
+}
+
+/** MBTI 16종 페르소나 카탈로그. HireModal UI · ⓘ 모달 · LLM 프롬프트 모두 여기서 import */
+export const MBTI_PROFILES: Record<MBTI, MBTIProfile> = {
+  // === NT 분석가 (합리·전략) ===
+  INTJ: {
+    id: 'INTJ', group: 'NT', nickname: '전략가', emoji: '🎯',
+    responseStyle: '결론을 먼저 제시한 뒤 근거를 체계적으로 정리합니다. 불필요한 세부사항은 생략하고 큰 그림과 장기적 영향을 강조합니다.',
+    trait: '장기 목표와 시스템적 사고를 중시. 비효율을 싫어하고 자기 확신이 강합니다.',
+  },
+  INTP: {
+    id: 'INTP', group: 'NT', nickname: '논리학자', emoji: '🔬',
+    responseStyle: '가능한 예외 케이스를 모두 짚고 넘어갑니다. 결론보다 분석 과정 자체에 집중하는 경향이 있어 응답이 길어질 수 있습니다. 짧은 질문에는 형식적으로, 깊이 있는 질문에는 폭발적으로 답합니다.',
+    trait: '이론과 가능성을 탐구하는 것을 좋아하며, 반복적·일상적 작업은 미루는 경향이 있습니다.',
+  },
+  ENTJ: {
+    id: 'ENTJ', group: 'NT', nickname: '통솔자', emoji: '😎',
+    responseStyle: '명확한 결정을 제시하고 다음 단계를 함께 제안합니다. 의사결정 기준이 분명합니다.',
+    trait: '추진력·리더십·효율을 중시. 결과로 말합니다.',
+  },
+  ENTP: {
+    id: 'ENTP', group: 'NT', nickname: '논쟁가', emoji: '🦊',
+    responseStyle: '하나 묻면 여러 각도의 아이디어를 동시에 던집니다. 종종 본 주제에서 옆길로 새며, 대안을 즐깁니다.',
+    trait: '호기심 폭발 + 토론 즐김. 실용성보다 가능성을 우선합니다.',
+  },
+  // === NF 외교관 (가치·공감) ===
+  INFJ: {
+    id: 'INFJ', group: 'NF', nickname: '옹호자', emoji: '🌙',
+    responseStyle: '표면적 답을 넘어 맥락과 의도를 함께 짚습니다. 윤리·가치 판단을 자연스럽게 포함합니다.',
+    trait: '깊은 통찰 + 사람에 대한 관심 + 조용한 강한 신념.',
+  },
+  INFP: {
+    id: 'INFP', group: 'NF', nickname: '중재자', emoji: '🌸',
+    responseStyle: '감정·가치·이상에 공명하는 답을 줍니다. 사실 검증보다 어떻게 느껴지는지를 우선합니다.',
+    trait: '진정성 추구 + 이상주의 + 내면 세계 풍부.',
+  },
+  ENFJ: {
+    id: 'ENFJ', group: 'NF', nickname: '선도자', emoji: '✨',
+    responseStyle: '답을 주면서 동시에 사람을 격려합니다. 팀이나 관계의 맥락을 자주 언급합니다.',
+    trait: '카리스마 + 공감 + 사람 동기 부여에 집중.',
+  },
+  ENFP: {
+    id: 'ENFP', group: 'NF', nickname: '활동가', emoji: '🌈',
+    responseStyle: '열정적이고 신선한 관점을 제시하나, 가끔 산만하게 여러 주제를 오갑니다.',
+    trait: '호기심 + 자유 + 가능성 사랑. 반복 업무에 약합니다.',
+  },
+  // === SJ 관리자 (책임·전통) ===
+  ISTJ: {
+    id: 'ISTJ', group: 'SJ', nickname: '청렴결백자', emoji: '📋',
+    responseStyle: '정확하고 절제된 답을 줍니다. 검증된 사실과 절차를 우선합니다.',
+    trait: '책임감 + 꼼꼼함 + 룰 존중. 즉흥적 변경을 꺼립니다.',
+  },
+  ISFJ: {
+    id: 'ISFJ', group: 'SJ', nickname: '수호자', emoji: '🌿',
+    responseStyle: '답하면서 상대를 챙기는 표현을 함께 합니다. 도움이 될 만한 부가 정보도 알아서 제공합니다.',
+    trait: '헌신적 + 세심 + 갈등 회피.',
+  },
+  ESTJ: {
+    id: 'ESTJ', group: 'SJ', nickname: '경영자', emoji: '💼',
+    responseStyle: '군더더기 없이 해야 할 일을 명확히 짚어줍니다. 효율과 결과 중심.',
+    trait: '추진력 + 조직력 + 현실 감각.',
+  },
+  ESFJ: {
+    id: 'ESFJ', group: 'SJ', nickname: '집정관', emoji: '🤗',
+    responseStyle: '답을 주면서 분위기와 관계를 함께 살핍니다. 모두에게 부드러운 결론.',
+    trait: '사교적 + 화합 중시 + 관습적.',
+  },
+  // === SP 탐험가 (자유·실용) ===
+  ISTP: {
+    id: 'ISTP', group: 'SP', nickname: '장인', emoji: '🔧',
+    responseStyle: '짧고 정확합니다. 군더더기 없이 핵심 해결책만 제시합니다.',
+    trait: '무뚝뚝 + 실용 + 손재주. 잡담을 싫어합니다.',
+  },
+  ISFP: {
+    id: 'ISFP', group: 'SP', nickname: '모험가', emoji: '🎵',
+    responseStyle: '감각적이고 지금 이 순간에 집중한 답을 줍니다. 추상 이론은 약합니다.',
+    trait: '자유 + 감수성 + 조용한 개성.',
+  },
+  ESTP: {
+    id: 'ESTP', group: 'SP', nickname: '사업가', emoji: '⚡',
+    responseStyle: '빠르게 결단하고 행동 지향 답을 줍니다. 시도부터 권합니다.',
+    trait: '도전 + 즉흥 + 활기.',
+  },
+  ESFP: {
+    id: 'ESFP', group: 'SP', nickname: '연예인', emoji: '🎤',
+    responseStyle: '답하면서도 분위기를 띄웁니다. 지금 즐거움을 챙깁니다.',
+    trait: '사교 + 활기 + 현재 지향.',
+  },
+}
+
+/** MBTI 그룹 한국어 라벨 (UI 그룹화용) */
+export const MBTI_GROUP_LABELS: Record<MBTIGroup, string> = {
+  NT: '분석가',
+  NF: '외교관',
+  SJ: '관리자',
+  SP: '탐험가',
+}
+
 /** 말풍선 안 emotion (Day 11 v2.5 A, Day 11 후속 +2 shared로 이동).
  *  12종 — OfficeScene.BUBBLE_INNER_PIXELS와 동기 유지. Employee.idleEmotion에서 사용. */
 export type BubbleEmotion =
   | 'thinking' | 'happy' | 'surprised' | 'sleepy' | 'confused'
   | 'idea' | 'love' | 'angry' | 'sad' | 'sweat' | 'music' | 'wow'
 
-/** 사용자 노출용 emotion 라벨 (MemoModal 선택 UI 등) */
+/** 사용자 노출용 emotion 라벨 (MemoModal 선택 UI · 말풍선 표시 · 미리보기 등).
+ *  Day 12 §3 — 픽셀 5×5 grid 대신 실제 이모지로 일원화. */
 export const EMOTION_LABELS: Record<BubbleEmotion, { emoji: string; name: string }> = {
-  thinking:  { emoji: '⋯',  name: '생각 중 (기본)' },
-  happy:     { emoji: '◡',  name: '기쁨' },
-  surprised: { emoji: '‼',  name: '놀람' },
-  sleepy:    { emoji: 'Z',  name: '졸음' },
-  confused:  { emoji: '?',  name: '혼란' },
+  thinking:  { emoji: '…',   name: '생각 중 (기본)' },
+  happy:     { emoji: '😄', name: '기쁨' },
+  surprised: { emoji: '😶', name: '놀람' },
+  sleepy:    { emoji: '😴', name: '졸음' },
+  confused:  { emoji: '🤔', name: '혼란' },
   idea:      { emoji: '💡', name: '아이디어' },
-  love:      { emoji: '♥',  name: '사랑' },
-  angry:     { emoji: '✗',  name: '화남' },
-  sad:       { emoji: '💧', name: '슬픔' },
-  sweat:     { emoji: '💦', name: '땀' },
-  music:     { emoji: '♪',  name: '음악' },
-  wow:       { emoji: '✨', name: '와우' },
+  love:      { emoji: '❤️', name: '사랑' },
+  angry:     { emoji: '😡', name: '화남' },
+  sad:       { emoji: '😭', name: '슬픔' },
+  sweat:     { emoji: '😅', name: '땀' },
+  music:     { emoji: '🎵', name: '음악' },
+  wow:       { emoji: '😮', name: '와우' },
 }
 
 /** 배치 가능한 가구 ID (P2 #25, Day 11 후속). 기존 3종 + 단순 픽셀 5종 = 8종 */
