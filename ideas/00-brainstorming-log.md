@@ -2353,6 +2353,103 @@ Day 11 마무리 후 사용자가 4가지 큰 보강을 한 번에 요청:
 - C2 — Day 12 §1 배포 준비 (electron-builder + dist:exe)
 - C3 — Day 12 §1 문서 동기화 (HANDOFF + FEATURES + brainstorming-log)
 
+## 120. 🚀 Day 12 §2 — EXE 빌드 실제 완료 + 빈 사무실 + GitHub Releases 배포
+
+작업일: 2026-05-22 후반(2026-05-26 세션 이어짐, 사용자 인식상 동일 Day 12). 데스크탑 작업.
+
+### 발단
+
+사용자: "이거 프로토타입으로 해서 exe로 하나 만들어서 내려보고 싶어. 주말에 실제 사람들한테 보내서 검증." — Day 12 §1에 셋업했던 `pnpm dist:exe`를 *실제 실행* 단계.
+
+### 1) Windows symlink 권한 이슈 — 발견과 해결
+
+#### 첫 시도: 일반 권한 PowerShell → 실패
+- 빌드 흐름: `tsc -b ✅ → vite build ✅ → electron 패키징 → winCodeSign 다운로드`
+- electron-builder가 winCodeSign(코드 사이닝 보조 도구) `.7z` 압축을 풀 때 *macOS용 심볼릭 링크*(`darwin/10.12/lib/libcrypto.dylib`, `libssl.dylib`)가 포함됨
+- Windows 일반 사용자 권한 → symlink 생성 권한 없음 → 7-Zip 압축 풀기 실패 → 전체 빌드 실패
+- 핵심 에러: `ERROR: Cannot create symbolic link : 클라이언트는 필요한 권한을 가지고 있지 않습니다`
+
+#### 사용자 결정: Windows Developer Mode 활성화
+- AskUserQuestion 답변에서 "A. Developer Mode 활성화" 선택했지만 실제 토글은 켜지 않은 상태였음 (오늘 확인 시 `HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock\AllowDevelopmentWithoutDevLicense` 값 없음).
+- Claude는 시스템 설정 직접 조작 불가 → 사용자 안내 → 사용자가 직접 켜야 함.
+
+#### 우회 — 관리자 권한 PowerShell로 한 번 빌드
+- 사용자가 PowerShell을 관리자 권한으로 실행 → `cd D:\myPrj\PixelAgentOffice` → `pnpm dist:exe`
+- 관리자 권한이 symlink 생성 허용 → winCodeSign 캐시 정상 생성 → 빌드 성공
+- 한 번 캐시 만들어지면 이후 일반 권한 PowerShell에서도 빌드 가능 (Claude가 후속 빌드 가능)
+- 사용자 안내 시 `→` 화살표를 명령어 구분자로 표기했더니 사용자가 그대로 복사해서 PowerShell 파싱 에러 — 단계별 줄바꿈으로 재안내했어야 했음(교훈)
+
+#### 결과
+- `release/PixelAgentOffice-0.0.0-portable.exe` — **98 MB 단일 portable EXE**
+- `release/win-unpacked/` — 빌드 중간 산출물 (451MB, 다음 빌드 때 재생성됨)
+- signtool.exe 자체 서명 됨(테스트용 자체 서명) — 정식 코드 사이닝 아님 → 테스터 PC에서 SmartScreen "확인되지 않은 게시자" 경고는 정상
+
+### 2) 빈 사무실 첫 실행 — 기본 직원(Mary/Haewol) 제거
+
+#### 발견
+사용자가 EXE 실행 후: "메리랑 해월이가 기본적으로 있는데? 그냥 아예 아무 캐릭터 없이 시작되어야하잖아"
+
+#### 원인
+- `electron/data/store.ts createDefaultData()`가 첫 실행 시 Mary(편집자, 팀A:0) + Haewol(작가, 팀A:1) 자동 생성
+- 데모 개발 초기에 *빈 사무실 무의미 방지*용 더미 데이터였음 → 배포 단계엔 부적절 (테스터가 "사용해본다" 느낌이 안 나옴)
+
+#### 수정 — `electron/data/store.ts`
+- `createDefaultData()`의 employees 배열을 빈 배열로:
+  ```typescript
+  const employees: Employee[] = []
+  return { employees, maxEmployees: DEFAULT_MAX_EMPLOYEES, settings: { ...DEFAULT_SETTINGS } }
+  ```
+- `now` 변수, `TEMPLATES` import 모두 unused → 제거 (`tsc -b` 통과 위해)
+- 첫 실행 → 사장석만 있는 텅 빈 사무실 → 테스터가 "+ 채용" 직접 시작
+
+#### 캐치
+- 사용자 PC에 기존 `app-data.json`이 남아있으면 여전히 Mary/Haewol 보임 → `%APPDATA%\PixelAgentOffice\` 폴더 삭제 안내 (FEATURES.md에도 추가)
+- 새로 받는 테스터는 데이터 없으므로 영향 X
+
+### 3) `.gitignore` 정리
+
+#### 추가 항목 (어제 Claude가 staged 상태로 만들어둔 거, 사용자 미확정)
+- `dist-electron` — vite-plugin-electron 출력 (어제까지 ignore 누락)
+- `release` — electron-builder 출력 (98MB+ EXE + 451MB win-unpacked)
+
+#### 의의
+- 빌드 산출물이 git에 안 들어가게 막음 (EXE는 GitHub Releases로 별도 배포)
+- 다른 PC clone 시 `.git` 폴더 비대 방지
+
+### 4) GitHub Releases 배포 결정
+
+#### Claude 추천 3가지 옵션
+| 방법 | 장단점 |
+|---|---|
+| Git 본체 커밋 | ⚠ 98MB GitHub 단일 파일 100MB 제한 빠듯, 클론 부담 ↑ |
+| **GitHub Releases** ✅ | 깔끔, 단일 파일 2GB까지, 버전 관리, 다운로드 링크 명확 |
+| Git LFS | 별도 셋업 필요, 클라이언트도 lfs 깔아야 |
+
+#### 사용자 결정
+"GitHub Releases + Claude CLI 업로드" 선택 → `gh release create v0.0.1` + EXE 첨부 Claude가 수행.
+
+#### 테스터 워크플로우 (Release notes에 적힐 안내)
+1. Releases 페이지에서 `PixelAgentOffice-0.0.0-portable.exe` 다운로드
+2. SmartScreen 경고 → "추가 정보" → "실행"
+3. 첫 실행 = 빈 사무실. ⚙ 설정 → API key 입력 (Gemini 무료 / Anthropic 유료)
+4. "+ 채용" → 직원 만들기 → 채팅·메모·자리이동·상점·가구 배치 등 자유 탐색
+
+### 의의
+
+- **첫 외부 배포** — 지금까지 사용자 PC에서만 실행되던 앱이 처음으로 외부 테스터 손에 들어감. M5 시그니처 폴리시 완성 + Day 10~12 폴리시까지 합쳐 "프로토타입 단계 완료" 마일스톤.
+- **빌드 파이프라인 정착** — `pnpm dist:exe` 한 줄로 portable EXE 생성. 향후 v0.0.2, v0.0.3 빠른 반복 가능.
+- **데모 상태 + 실데이터 상태 분리** — Mary/Haewol 더미 데이터는 dev 단계 용. 배포 빌드는 빈 사무실. *데모용 시드 데이터* 같은 향후 옵션은 별도 고민.
+
+### CONVENTIONS §7 체크리스트 (Day 12 §2)
+
+- ✅ brainstorming-log §120 추가 (이 섹션)
+- ✅ HANDOFF.md — Day 12 §2 반영 (헤더 / §1 30초 요약 / §3 cleanup)
+- ✅ FEATURES.md — 빈 사무실 첫 실행 + EXE 배포 가이드 추가
+- (해당 없음) ideas/06 / 신규 ideas / portfolio
+
+### 산출 커밋 (예정 1개)
+- D1 — Day 12 §2 (빈 사무실 + .gitignore + 문서 동기화) → GitHub Release v0.0.1 + EXE 업로드
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

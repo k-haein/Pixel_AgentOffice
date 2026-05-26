@@ -1105,6 +1105,76 @@ pnpm dist:exe  # build + electron-builder --win portable
 
 ---
 
+## 빈 사무실 첫 실행 (Day 12 §2 — 배포 빌드용)
+
+### 무엇
+이전: 첫 실행 시 더미 직원 Mary(편집자)·Haewol(작가)가 자동 생성. 개발 단계엔 빈 사무실 무의미 방지용이었음.
+변경: `createDefaultData()`의 employees를 빈 배열로 → 첫 실행 = 완전히 텅 빈 사무실. 테스터가 "+ 채용" 버튼으로 직접 시작.
+
+### 코드 변경
+- `electron/data/store.ts createDefaultData()` — Mary/Haewol 더미 직원 2명 제거 (빈 `Employee[]` 반환)
+- 미사용 import (`TEMPLATES`) 및 변수 (`now`) 같이 제거
+
+### 사용 방법 (테스터)
+1. 첫 실행 → 사장석만 있고 모든 멤버 자리 빈 상태
+2. ⚙ 설정 → API key 입력 (Gemini 무료 / Anthropic 유료)
+3. "+ 채용" → HireModal에서 이름·역할·이모지·외형·모델 설정 → 채용
+4. 캐릭터가 자리에 등장 → 우클릭으로 채팅·메모·자리이동 등
+
+### 기대 동작 ☐
+- [ ] 새 PC에서 EXE 실행 → 첫 화면이 빈 사무실 (사장석 plate 만 + 멤버 자리 16개 빈 상태)
+- [ ] "+ 채용" 클릭 시 모달 등장 + 채용 후 캐릭터가 첫 빈 자리에 등장
+- [ ] 기존 PC에 이전 데이터 (Mary/Haewol)가 남아있으면 그대로 보임 — 빈 사무실 보려면 `%APPDATA%\PixelAgentOffice\` 폴더 삭제 필요
+
+### 알려진 한계
+- 빈 사무실이 "처음 봤을 때 뭘 해야 할지 모름" 우려 있음 → 향후 온보딩 안내 (튜토리얼) 추가 검토. 지금은 "+ 채용" 버튼이 화면 좌상단에 명확히 보이는 것으로 충분히 유도된다고 판단
+
+---
+
+## EXE 배포 — GitHub Releases v0.0.1 (Day 12 §2)
+
+### 무엇
+첫 외부 테스터 배포. Portable EXE 단일 파일을 GitHub Releases에 첨부. 테스터는 다운로드 → 더블클릭 → 실행.
+
+### 배포 파일
+- `release/PixelAgentOffice-0.0.0-portable.exe` (98 MB, Windows 64-bit Portable)
+- GitHub Releases v0.0.1 첨부
+
+### 테스터 사용 가이드 (Release notes에 포함될 안내)
+1. `PixelAgentOffice-0.0.0-portable.exe` 다운로드
+2. 더블클릭 → SmartScreen 경고 "Windows에서 PC를 보호했습니다" 표시 → **"추가 정보"** 클릭 → **"실행"** 버튼 (코드 사이닝 없어서 정상 발생)
+3. Electron 창 실행 → 첫 화면 빈 사무실
+4. 좌상단 ⚙ → API key 입력
+   - **Gemini (무료)**: https://aistudio.google.com/apikey
+   - **Anthropic (유료)**: https://console.anthropic.com/
+5. "+ 채용" → 첫 직원 만들기 → 우클릭으로 채팅·메모 등 자유 사용
+6. 데이터 저장 위치: `%APPDATA%\PixelAgentOffice\` (제거 시 폴더 삭제)
+
+### 기대 동작 ☐ (테스터 측 검증)
+- [ ] EXE 다운로드 → 더블클릭 → SmartScreen "추가 정보 → 실행" → 정상 실행
+- [ ] 첫 화면 빈 사무실 + 좌상단 토큰보드 + 시계 + 창문 풍경 + ⚙ + 🛍 + + 채용 버튼 모두 정상 표시
+- [ ] ⚙ → API key 입력 → 저장
+- [ ] + 채용 → 직원 채용 → 캐릭터 자리에 등장
+- [ ] 직원 클릭 → 채팅 모달 → 메시지 보내고 LLM 응답 받기 (회사망 SSL 문제 없는 환경에서)
+- [ ] 응답 후 말풍선 emotion 5초 변화 → idle로 복귀
+- [ ] 직원 우클릭 → 메모/자리이동/회전/해고
+- [ ] 🛍 상점 → 가구 픽셀 미리보기 확인 + "사무실에 배치" → ghost 따라옴 → 클릭 위치에 배치
+- [ ] 배치된 가구 우클릭 → 옮기기 / 삭제 / 전체 삭제
+
+### 알려진 한계 / 우려
+- 코드 사이닝 없음 → SmartScreen 경고 (정상, 안내문 포함)
+- 회사망 PC에서는 SSL inspection으로 LLM 호출 실패 가능 (테스터에게는 *회사망 X* 환경 권장)
+- 자동 업데이트 없음 → v0.0.2 나오면 새 EXE 다시 다운받아야
+- macOS / Linux 미지원
+
+### 다음 버전 후보 (v0.0.2)
+- 코드 사이닝 인증서 도입 검토 (SmartScreen 우회)
+- 앱 아이콘 추가 (.ico)
+- 자동 업데이트 (electron-updater)
+- 첫 실행 온보딩 안내 (튜토리얼)
+
+---
+
 ## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)
 
 > Day 10 발견: 사용자 PC가 회사망에 있어 SSL inspection으로 Node fetch 차단. 임시 fix(`NODE_TLS_REJECT_UNAUTHORIZED=0`)는 dev 한정이지만 **배포 전 일반망 검증 필수**.

@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-22 (Day 12 §1)** — 감정 자동 트리거(LLM 응답에 `[emotion:xxx]` 태그 12종 강제 + 본문 파싱 후 말풍선 5초 변화) + idleEmotion(직원별 평소 표정 — MemoModal에서 12종 선택) + 가구 우클릭 컨텍스트 메뉴(옮기기/이 가구 삭제/전체 가구 삭제) + 배포 준비(`electron-builder` + `pnpm dist:exe` portable EXE). 다음: **사용자 시각 검증(Day 12 §1 3 커밋)** + portable EXE 빌드 1차.
+> 최종 갱신: **2026-05-22 (Day 12 §2)** — Day 12 §1(감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder 셋업) 위에서 **EXE 실제 빌드 완료** (`release/PixelAgentOffice-0.0.0-portable.exe` 98 MB) + **빈 사무실 첫 실행**(Mary/Haewol 더미 제거) + `.gitignore` 정리(release / dist-electron) + **GitHub Releases v0.0.1** 배포. 다음: **외부 테스터 주말 피드백** → 수렴 + M5-d 성격 / Phase 3 백엔드 / PNG asset.
 
 ---
 
@@ -33,10 +33,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10 layout + Day 11 팻말·팀 중앙·12 emotion·v2.5 코드(시각 비활성, PNG 대기) + **Day 11 후속**: P2 #25 가구 배치 + 채팅 영구화 + 빈 자리 숨김 + **Day 11 후속 +1**: 상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성 + **Day 12 §1**: 감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder dist:exe |
-| **다음 작업** | **사용자 시각 검증** (Day 11~Day 12 §1 통합) + portable EXE 빌드 1차 → M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. **Day 12 §1**: 감정 시스템이 "있는데 안 쓰이던 상태" → 자동 태그 + idle 기본값 짝으로 살림. 가구 옮기기 (placement mode 재사용) + 전체 삭제. portable EXE 빌드 준비(electron-builder devDep + dist:exe 스크립트). |
-| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. **Day 11 후속 + 후속 +1 (19개 파일, 2개 커밋) + Day 12 §1 (7개 파일, 3개 커밋 예정) — 사용자 검증 대기**: 가구 배치 드래그·드롭 / 상점 픽셀 미리보기 / 배치 모드 클릭 / 채팅 앱 재시작 후 이력 / 빈 자리 모달 토글 / 자리 이동 카메라 / 메모 외형 편집 비활성 / hover 카드 비활성 / **감정 태그 자동 트리거(LLM 응답 마지막 줄)** / **MemoModal idle emotion 12종 선택** / **가구 우클릭 메뉴 3종** / **가구 옮기기 ghost** / **dist:exe portable EXE 빌드** |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성, PNG 대기) + Day 11 후속(가구 배치 + 채팅 영구화 + 빈 자리 숨김) + Day 11 후속 +1(상점 픽셀 미리보기 + 배치 모드 + 카메라 fix + MemoModal·hover 비활성) + Day 12 §1(감정 자동 트리거 + idleEmotion + 가구 컨텍스트 메뉴 + electron-builder) + **Day 12 §2: portable EXE 98 MB 빌드 완료 + 빈 사무실 첫 실행 + GitHub Releases v0.0.1 배포** |
+| **다음 작업** | **외부 테스터 주말 피드백 수렴** (GitHub Release v0.0.1 EXE 직접 전달). 이후 피드백 반영 + M5-d 성격 / Phase 3 백엔드 / PNG asset 도입(사용자 그림 시) |
+| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**: 팀 동적 중앙 정렬 / 팻말 + 이름 수정 모달 / 말풍선 emotion 5→12종 / v2.5 시각 구림 → 코드 유지 + 비활성. **Day 11 후속**: 그리드 확대 2번 시도 실패 → 원복 → G/A/B/C 4작업 완료. **Day 11 후속 +1**: 사용자 피드백 4건 한꺼번에 — 상점 픽셀 미리보기 + 배치 모드 + 카메라 분리 버그 fix + MemoModal 외형 편집 제거 + hover 카드 주석. **Day 12 §1**: 감정 시스템 자동 태그 + idle 기본값. 가구 옮기기 + 전체 삭제. EXE 빌드 준비. **Day 12 §2**: Developer Mode/관리자 권한 path로 winCodeSign symlink 권한 우회 → portable EXE 98 MB 실제 생성. 첫 외부 배포 시 더미 직원(Mary/Haewol) 부적절 → 빈 사무실 시작으로 변경. EXE 배포는 git 본체 X(100MB 제한) → GitHub Releases. |
+| **검증 상태** | Day 11 전반 검증 완료. v2.5는 시각 비활성. Day 11 후속~Day 12 §1 검증 대기. **Day 12 §2 (3개 파일, 1개 커밋 예정) — 외부 테스터 검증 대기**: 빈 사무실 첫 실행 / portable EXE 정상 실행 / SmartScreen 우회 / API key BYOK 입력 / 빈 사무실에서 + 채용 → 채팅 → 메모 → 자리 이동 → 상점 → 가구 배치까지 전체 흐름 |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -250,6 +250,29 @@
 - C2 — Day 12 §1 배포 준비 (electron-builder + dist:exe)
 - C3 — Day 12 §1 문서 동기화 (HANDOFF + FEATURES + brainstorming-log)
 
+### **2026-05-22 (Day 12 §2) — EXE 빌드 완료 + 빈 사무실 + GitHub Releases**
+
+#### 한 일
+
+1. **portable EXE 실제 생성** — `pnpm dist:exe` 첫 실행에서 winCodeSign(코드 사이닝 도구) `.7z` 압축 내부의 macOS 심볼릭 링크가 Windows 일반 사용자 권한으로 풀리지 않아 실패 → 관리자 권한 PowerShell로 1회 실행 → 캐시 생성 → 이후 일반 권한 PowerShell에서도 빌드 OK. 최종 산출: `release/PixelAgentOffice-0.0.0-portable.exe` (98 MB).
+2. **빈 사무실 첫 실행** — `electron/data/store.ts createDefaultData()`의 Mary/Haewol 더미 직원 제거 → 빈 배열. 첫 외부 배포 직전 사용자가 "테스터는 빈 상태에서 시작해야" 결정. unused `TEMPLATES` import + `now` 변수 같이 제거.
+3. **`.gitignore` 정리** — `release` / `dist-electron` 추가. 빌드 산출물(98MB EXE + 451MB win-unpacked + 로그)이 git에 안 들어가게 차단.
+4. **GitHub Releases v0.0.1 배포** — git 본체에 EXE 직접 커밋(100MB 제한 빠듯) 대신 Releases 사용. `gh release create v0.0.1` + EXE 첨부 + 테스터 안내 release notes.
+
+#### 왜 그렇게 결정했는지
+- **EXE 한 줄 파일** — 테스터에게 가장 부담 적은 형태. Portable이라 설치 X. Code signing 인증서는 비용·인증 절차 부담이라 일단 자체 서명(테스트용) — SmartScreen 경고는 안내문에 포함.
+- **빈 사무실** — 더미 직원이 있으면 "데모" 느낌 + 테스터의 첫 채용 경험을 가로막음. 사용자 결정: "테스터는 빈 상태에서 직접 채용부터".
+- **GitHub Releases > git 본체 커밋** — 단일 파일 100MB 제한 빠듯(98MB), 향후 더 커지면 거부. Releases는 2GB까지. 클론 시 .git 부담 없음. 버전 관리도 깔끔.
+- **회사망 SSL fix는 영향 X** — `electron/main.ts`의 `!app.isPackaged` 가드로 production EXE에서는 비활성화. 코드 변경 없이 그대로 배포 가능.
+
+#### ⚠️ 시각 검증 상태
+- **❌ Day 12 §2 변경 (빈 사무실 + EXE 빌드) 시각 검증 미수행** — 외부 테스터 피드백 대기.
+- **추가 검증 필요** — 테스터의 다양한 환경(Windows 10/11, 다양한 해상도, AV 소프트웨어, 회사망 vs 일반망)에서 SmartScreen 우회 + EXE 첫 실행 + API key 입력 + 채용 흐름.
+
+#### 산출 커밋 (1개 + Release)
+- D1 — Day 12 §2 (빈 사무실 + .gitignore + 문서 동기화)
+- GitHub Release v0.0.1 — `PixelAgentOffice-0.0.0-portable.exe` 98 MB
+
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
@@ -292,9 +315,17 @@
 | 전체 가구 삭제 | `furniture:clear-all` → placedFurniture: [] | App.tsx |
 | 배포 준비 | electron-builder devDep + `pnpm dist:exe` (Windows portable EXE) | PixelAgentOffice/package.json / pnpm-lock.yaml |
 
-**다음 작업 (검증 후):**
-1. **시각 검증** — 사용자 PC `pnpm dev` 실행. Day 11~12 §1 통합 검증 (FEATURES.md "기대 동작 ☐" 체크리스트)
-2. **portable EXE 1차 빌드** — `pnpm dist:exe` → `release/PixelAgentOffice-x.y.z-portable.exe`. 다른 PC에서 더블클릭 실행 확인
+**Day 12 §2 — EXE 실제 빌드 + 빈 사무실 + GitHub Releases (커밋 1개 + Release v0.0.1):**
+| 영역 | 작업 | 파일 |
+|---|---|---|
+| EXE 빌드 | `pnpm dist:exe` 첫 실행 시 winCodeSign symlink 권한 문제 → 관리자 권한 PowerShell로 1회 → 캐시 생성 후 일반 권한 OK → `release/PixelAgentOffice-0.0.0-portable.exe` (98 MB) 생성 | (빌드 산출물, git 미추적) |
+| 빈 사무실 첫 실행 | `createDefaultData()`의 employees Mary/Haewol 더미 제거 → 빈 배열. unused import 정리 | electron/data/store.ts |
+| .gitignore 정리 | `release` / `dist-electron` 추가 (빌드 산출물 git 미추적) | .gitignore |
+| Releases 배포 | `gh release create v0.0.1` + EXE 첨부. 테스터 안내문 release notes | (GitHub Releases) |
+
+**다음 작업:**
+1. **외부 테스터 주말 피드백 수렴** — Release v0.0.1 EXE 사용자가 직접 다운로드 후 테스터에게 전달 → 사용 후 피드백 수집
+2. **피드백 반영 v0.0.2** — 발견 이슈 fix + 재배포
 3. **M5-d 성격 시스템** (MBTI 보류 결정 답변 먼저)
 4. **Phase 3 백엔드 셋업** (모바일 진입)
 5. **PNG asset 도입** (사용자가 그림 그리기 결정 시 → v2.5 부활)

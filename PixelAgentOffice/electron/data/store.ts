@@ -8,7 +8,6 @@ import {
   type Model,
   type SeatId,
   type ChatMessage,
-  TEMPLATES,
   DEFAULT_SETTINGS,
   DEFAULT_MAX_EMPLOYEES,
   DEPRECATED_MODELS,
@@ -30,51 +29,9 @@ function dataFilePath(): string {
   return path.join(app.getPath('userData'), DATA_FILE_NAME)
 }
 
-/** 첫 실행 시 기본 직원 2명 (Mary, Haewol) */
+/** 첫 실행 시 — 빈 사무실. 사용자가 + 채용 버튼으로 직접 직원 추가 (Day 12, 배포 빌드용) */
 function createDefaultData(): AppData {
-  const now = new Date().toISOString()
-  const employees: Employee[] = [
-    {
-      id: 'mary-001',
-      template: 'editor',
-      name: 'Mary',
-      role: '편집자',
-      emoji: TEMPLATES.editor.emoji,
-      baseInstructions: TEMPLATES.editor.baseInstructions,
-      customInstructions: '',
-      model: DEFAULT_SETTINGS.defaultModel,
-      memoryModel: DEFAULT_SETTINGS.defaultMemoryModel,
-      memoryMode: 'auto',
-      rank: '사원',
-      promotionMode: 'time',
-      hiredAt: now,
-      seatId: 'member:A:0',  // 팀 A 첫 자리
-      deskOrientation: 'front',
-      totalMessages: 0,
-      totalMemoryUpdates: 0,
-      totalPraises: 0,
-    },
-    {
-      id: 'haewol-001',
-      template: 'writer',
-      name: 'Haewol',
-      role: '작가',
-      emoji: TEMPLATES.writer.emoji,
-      baseInstructions: TEMPLATES.writer.baseInstructions,
-      customInstructions: '',
-      model: DEFAULT_SETTINGS.defaultModel,
-      memoryModel: DEFAULT_SETTINGS.defaultMemoryModel,
-      memoryMode: 'auto',
-      rank: '사원',
-      promotionMode: 'time',
-      hiredAt: now,
-      seatId: 'member:A:1',  // 팀 A 두 번째 자리
-      deskOrientation: 'front',
-      totalMessages: 0,
-      totalMemoryUpdates: 0,
-      totalPraises: 0,
-    },
-  ]
+  const employees: Employee[] = []
   return {
     employees,
     maxEmployees: DEFAULT_MAX_EMPLOYEES,
