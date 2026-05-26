@@ -2572,6 +2572,103 @@ ShopModal의 🎭 감정 갤러리 12종 — 클릭 시 *전체 직원에게 5�
 - E1 — Day 12 §3 코드 + 문서 (12개+ 파일)
 - GitHub Release v0.0.1 EXE 파일 교체 (0.0.0 → 0.0.1)
 
+## 122. 🛠 Day 12 §3 +1 — 알림 모달 + 빈 input 강조 + Cody 캐릭터 추가
+
+작업일: 2026-05-26 (Day 12 §3 EXE 재배포 직후 사용자 추가 검증 피드백). 사용자 인식상 Day 12 §3 연장.
+
+### 발단
+
+사용자가 v0.0.1 EXE 다시 사용 중 추가 피드백 4건 누적:
+1. 채용 모달에서 빈 칸으로 채용 시도 시 `window.alert` 디자인이 못생기고 alert 뜬 후 input 입력 막힘
+2. 빈 input 자체에 강조 표시도 있어야 (사용자: "맨 위 알림 박스 말고 알림용 모달 + 빈 input 표시")
+3. Mary/Haewol은 기본 캐릭터라 input·지침 자동 채워야 (사용자: "두 캐릭터만 기본값. 새 캐릭터만 자유도")
+4. 메인 캐릭터 한 명 더 추가 — 🤖 Cody (개발자, 회색 줄무늬)
+
+### 1) window.alert → 알림 모달
+
+#### 원인
+- Electron의 native `window.alert()`는 포커스 락 버그 — alert 뜬 후 모달 input에 입력 안 됨
+- 디자인도 Windows 기본 시스템 다이얼로그 (회색·시스템 폰트, 모달 디자인과 부조화)
+
+#### 1차 시도 — 인라인 빨간 박스 (modal-body 상단)
+- `errorMessage` state + 빨간 박스 inline 표시
+- 사용자 피드백: "맨 위 빨간 박스 말고 알림용 모달이 떠야"
+
+#### 2차 — 중첩 알림 모달
+- modal-backdrop + modal 디자인 차용 (베이지 + 갈색)
+- zIndex 150 (HireModal 위)
+- 헤더 "⚠️ 알림" 빨간색 + 메시지 + "확인" 버튼 (autoFocus, 엔터로 닫기)
+- 백드롭 클릭 / × / "확인" 모두 닫기
+- 5곳 `alert(...)` 모두 `setErrorMessage(...)`로 교체
+
+### 2) 빈 input 빨간 강조
+
+- `fieldErrors: { name?: boolean; role?: boolean }` state 추가
+- handleHire에서 빈 칸 검증 시 `setFieldErrors({ name: !name.trim(), role: !role.trim() })`
+- input에 동적 style — `fieldErrors.name`이면 `borderColor: '#c83838'` + box-shadow
+- input 아래 작은 빨간 메시지 ("⚠️ 이름을 입력하세요")
+- 사용자가 input에 글자 입력 시 → 해당 fieldError clear (onChange에서)
+- 검증 통과 시 → fieldErrors 전체 clear
+
+### 3) Mary/Haewol/Cody 기본값 자동 채움
+
+#### TEMPLATES 타입 확장
+- `defaultCustomInstructions?: string` — 커스텀 지침 기본값
+- `defaultCustomColor?: CharacterPalette` — 외형 색 (variant: 'custom' 전용)
+- `defaultPattern?: CharacterPattern` — 무늬
+
+#### Mary (editor) 페르소나
+- defaultCustomInstructions: "문장의 흐름과 일관성을 꼼꼼히 살피는 편집자입니다. 오타·맞춤법·어색한 표현을 잘 찾아 친절하게 제안합니다. 짧고 명확한 응답을 선호합니다."
+
+#### Haewol (writer) 페르소나
+- defaultCustomInstructions: "사색과 바다를 사랑합니다. 항상 존댓말을 쓰며, 물결과 자연 풍경에서 영감을 얻어 시적인 표현을 즐깁니다."
+
+#### Cody (developer) 페르소나 (사용자 지정)
+- defaultCustomInstructions: "말이 없고 ...을 많이 씁니다. 말마다 어려운 개발 용어를 쓰고 코딩 개그랑 개발자 밈 드립을 칩니다."
+
+#### HireModal handleTemplateChange 분기
+- editor/writer/developer 선택 시 → 이름·역할·지침·색·무늬 모두 자동 채움
+- custom 선택 시 → 모두 비움 (placeholder만)
+- 사용자가 자유 수정 가능
+
+### 4) 새 메인 캐릭터 — 🤖 Cody (개발자)
+
+- Template type: 'editor' | 'writer' | **'developer'** | 'custom'
+- TEMPLATES.developer:
+  - emoji 🤖
+  - defaultName 'Cody' (Claude 추천, 사용자 묵시적 OK)
+  - defaultRole '개발자'
+  - variant 'custom' (회색 + 줄무늬 위해)
+  - defaultCustomColor 'gray' (`#7a7a7a`)
+  - defaultPattern 'stripes'
+- HireModal 캐릭터 템플릿 grid에 4번째 카드 자동 노출 (Object.keys(TEMPLATES) iteration)
+- 채용 저장 조건 변경: `template === 'custom'` → `TEMPLATES[template].variant === 'custom'` (Cody의 'developer'도 custom variant라 색 저장됨)
+
+### 5) EXE v0.0.1 재빌드
+
+- package.json version 변경 없음 (이미 0.0.1)
+- `pnpm dist:exe` → `release/PixelAgentOffice-0.0.1-portable.exe` 갱신 (98 MB, 18:10)
+- 사용자가 GitHub Release Assets에서 파일 교체
+
+### 의의
+
+- **외부 테스터 배포 전 UX 디테일 완성** — alert 다이얼로그 + 빈 input 강조까지 일관된 디자인
+- **Cody 캐릭터 추가로 기본 라인업 3종** (Mary 편집자 / Haewol 작가 / Cody 개발자) + custom 자유도
+- **TEMPLATES 확장 패턴** — defaultCustomInstructions / Color / Pattern으로 향후 새 캐릭터 추가 비용 거의 0
+
+### CONVENTIONS §7 체크리스트 (Day 12 §3 +1)
+- ✅ brainstorming-log §122 추가 (이 섹션)
+- ✅ HANDOFF.md — Day 12 §3 +1 반영
+- ✅ FEATURES.md — 알림 모달 + 빈 input 강조 + 기본값 자동 채움 + Cody 검증 명세
+- (해당 없음) ideas/06 / portfolio
+
+### 산출 커밋
+- F1 (이미 푸시) `25c5a92` — HireModal + types.ts (2 files, 111+/16-)
+- F2 (이번 정리) — 문서 3종
+
+### 보류 (다음 단계)
+- 설정 화면 진입 시 채용 모달 닫지 말기 (사용자 신고: "키 설정 다녀오면 입력한 내용 다 지워짐. 채용 모달 그대로 두고 설정만 위에 띄우자")
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

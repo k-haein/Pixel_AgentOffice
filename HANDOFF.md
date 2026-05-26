@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-26 (Day 12 §3)** — 사용자 EXE 시각 검증 즉시 반영: **UX 14건 + MBTI 16종 페르소나 + 감정 미리보기 모달 + 말풍선 이모지 전환 + timer 버그 fix** → EXE v0.0.1 재빌드 (98 MB, Release 파일 교체). 눈 표정 4픽셀·3×3 확장 둘 다 시도 후 롤백. 다음: 외부 테스터 본격 배포 / MBTI 별명 톤 결정(보류) / M5-d 후속.
+> 최종 갱신: **2026-05-26 (Day 12 §3 +1)** — §3 EXE v0.0.1 배포 후 추가 검증: **알림 모달**(window.alert → 중첩 모달 + 빈 input 빨간 강조) + **기본 캐릭터 자동 채움**(Mary/Haewol/Cody 이름·역할·지침·색·무늬) + **🤖 Cody 메인 캐릭터 추가**(개발자, 회색 줄무늬). EXE v0.0.1 재빌드 (Release Asset 갱신). 다음: 설정 화면 중첩 표시(채용 모달 보존) / 외부 테스터 배포 / MBTI 별명 톤 결정.
 
 ---
 
@@ -33,8 +33,8 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성) + Day 11 후속/후속+1 + Day 12 §1/§2 + **Day 12 §3: UX 14건 + MBTI 16종 페르소나 + 감정 미리보기 모달 + 말풍선 이모지 전환 + EXE v0.0.1 재빌드(Release 파일 교체)** |
-| **다음 작업** | **외부 테스터 본격 배포** (Release v0.0.1 0.0.1 EXE). MBTI 별명 톤 결정(보류). 그 후 M5-d 후속 / Phase 3 백엔드 / PNG asset |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성) + Day 11 후속/후속+1 + Day 12 §1/§2 + Day 12 §3 + **Day 12 §3 +1: 알림 모달 + 빈 input 강조 + Mary/Haewol/Cody 기본값 자동 채움 + 🤖 Cody 메인 캐릭터(개발자, 회색 줄무늬) + EXE v0.0.1 재빌드** |
+| **다음 작업** | 설정 화면 중첩 표시(채용 모달 보존). 외부 테스터 본격 배포. MBTI 별명 톤 결정(보류). 그 후 M5-d 후속 / Phase 3 백엔드 / PNG asset |
 | **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
 | **검증 상태** | Day 11~12 §2 검증 완료(사용자 시각). **Day 12 §3 — EXE 재배포 후 검증 진행 중**: 사용자가 timer 버그 + thinking emoji 누락 발견 → 두 건 모두 fix 완료. 이번 EXE는 그 fix 포함. 외부 테스터 본격 배포 대기. |
 
@@ -333,6 +333,33 @@
 - E1 — Day 12 §3 코드 + 문서 (12개+ 파일)
 - GitHub Release v0.0.1 EXE 0.0.0 → 0.0.1 교체
 
+### **2026-05-26 (Day 12 §3 +1) — 알림 모달 + 빈 input 강조 + Cody 캐릭터**
+
+#### 한 일
+1. **window.alert → 중첩 알림 모달** — 5곳 alert 제거. modal-backdrop + modal 디자인 차용, zIndex 150, 헤더 "⚠️ 알림" 빨강 + "확인" autoFocus
+2. **빈 input 빨간 강조** — fieldErrors state, borderColor + box-shadow + 아래 메시지. 사용자 입력 시 자동 clear
+3. **기본 캐릭터 자동 채움** — TEMPLATES.defaultCustomInstructions/Color/Pattern 추가. Mary/Haewol/Cody 선택 시 이름·역할·지침·색·무늬 모두 자동
+4. **🤖 Cody 메인 캐릭터 추가** — Template 'developer' 신규. variant 'custom' + gray + stripes. 페르소나: 말 적고 ... 자주, 개발 용어 + 밈 드립
+5. **EXE v0.0.1 재빌드** — 변경 누적 반영
+
+#### 왜 그렇게 결정했는지
+- **alert 다이얼로그 디자인 + 포커스 락** 두 문제 동시 해결 → 중첩 모달로
+- **빈 input 강조** — 알림만으로는 어디 빈 칸인지 모름. 디자인 일관성 + 즉시 시각 단서
+- **TEMPLATES 확장 패턴** — defaultCustomInstructions/Color/Pattern 필드. 새 캐릭터 추가 시 코드 한 곳만 손대면 됨
+- **Cody 외형** — variant 'custom' + 색·무늬 활용 (별도 픽셀 정의 X). 사용자 자유 수정 가능
+- **EXE 재빌드는 점진적 배포** — 같은 v0.0.1 태그에 파일 교체 (외부 테스터 받기 전이라 OK)
+
+#### 시각 검증 상태
+- 사용자 EXE 사용 중 → 추가 신고: "설정 화면 다녀오면 채용 모달 입력 사라짐" → **다음 단계**
+
+#### 산출 커밋
+- F1 `25c5a92` — HireModal + types.ts (2 files, 111+/16-) ✅ 푸시
+- F2 (이번 정리) — 문서 3종
+
+#### 보류 (다음)
+- 설정 화면 중첩 표시 (채용 모달 닫지 말기)
+- MBTI 별명 톤 결정
+
 ---
 
 ## 🛠 3. 현재 위치 + 미커밋 작업
@@ -395,13 +422,23 @@
 | 버그 fix | thinking ⋯ → … (Apple Color Emoji 폰트 호환) | shared/types.ts |
 | EXE 재빌드 | package.json 0.0.0 → 0.0.1 + pnpm dist:exe → release/PixelAgentOffice-0.0.1-portable.exe (98 MB). 사용자가 Release Asset 파일 교체 | package.json (빌드 산출물 git 미추적) |
 
+**Day 12 §3 +1 — 알림 모달 + 빈 input 강조 + Cody (커밋 `25c5a92` + 문서):**
+| 영역 | 작업 | 파일 |
+|---|---|---|
+| 알림 모달 | window.alert (5곳) → 중첩 모달 (modal-backdrop, zIndex 150, ⚠️ 헤더). 1차 인라인 빨간 박스 → 사용자 요청으로 모달 형태로 변경 | HireModal.tsx |
+| 빈 input 강조 | fieldErrors state, borderColor + box-shadow + 아래 메시지. 사용자 입력 시 자동 clear | HireModal.tsx |
+| 기본 캐릭터 자동 채움 | TEMPLATES에 defaultCustomInstructions/Color/Pattern 필드 추가. Mary/Haewol/Cody 선택 시 이름·역할·지침·색·무늬 모두 자동. handleTemplateChange 분기 | shared/types.ts / HireModal.tsx |
+| **🤖 Cody 메인 캐릭터** | Template type 'developer' 추가. variant 'custom' + gray + stripes. 페르소나: 말 적고 ... 자주, 개발 용어 + 밈 드립 | shared/types.ts |
+| 채용 저장 조건 | template === 'custom' → TEMPLATES[template].variant === 'custom' (Cody 'developer'도 custom variant) | HireModal.tsx |
+| EXE 재빌드 | release/PixelAgentOffice-0.0.1-portable.exe 갱신 (98 MB, 18:10). Release Asset 파일 교체 | (빌드 산출물) |
+
 **다음 작업:**
-1. **외부 테스터 본격 배포** — Release v0.0.1 (0.0.1 EXE) 사용자가 테스터들에게 직접 전달
-2. **MBTI 별명 톤 결정** (보류) — 게임형 / 한국 밈 / 직업 톤 / 동물 비유 등 검토 후 16종 일괄 갱신
-3. **피드백 반영 v0.0.2** — 발견 이슈 fix + 재배포
-4. **M5-d 성격 시스템 완성** (MBTI 시스템 기반 위에 사내연애·관계 등 layer 2)
-5. **Phase 3 백엔드 셋업** (모바일 진입)
-6. **PNG asset 도입** (v2.5 부활 — 사용자 그림 그리기 결정 시)
+1. **설정 화면 중첩 표시** — 채용 모달에서 "⚙ 설정 열기" 클릭 시 onClose() 제거. 두 모달 동시 표시. 키 설정 후 채용 모달 입력 유지
+2. **외부 테스터 본격 배포** — Release v0.0.1 (0.0.1 EXE)
+3. **MBTI 별명 톤 결정** (보류) — 게임형 / 한국 밈 / 직업 톤 / 동물 비유
+4. **피드백 반영 v0.0.2** — 발견 이슈 fix + 재배포
+5. **M5-d 성격 시스템 완성** (MBTI 시스템 기반 + 사내연애·관계 layer 2)
+6. **Phase 3 백엔드 셋업** / **PNG asset 도입**
 
 ### 보류 cleanup (변동 없음)
 - **눈 감기 PC 검증** (Day 10) — 미검증 상태로 유지 결정 (Day 11에 디버그 로그 제거). PNG asset 도입 시 같이 확인

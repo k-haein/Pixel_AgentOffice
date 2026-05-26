@@ -1332,6 +1332,88 @@ Day 8에 제거됐던 펄스 애니메이션 복구. 직원 0명일 때 노란�
 
 ---
 
+## 알림 모달 + 빈 input 강조 (Day 12 §3 +1)
+
+### 무엇
+HireModal의 검증 알림 — `window.alert` 디자인이 어색 + 포커스 락 버그 → 모달 디자인 + input 강조로 교체.
+
+### 구성
+- **중첩 알림 모달** (modal-backdrop + modal, zIndex 150)
+  - 헤더: "⚠️ 알림" 빨간색
+  - 본문: 메시지 텍스트
+  - 푸터: "확인" 버튼 (autoFocus, 엔터로 닫기)
+  - 백드롭 클릭 / × / "확인" 모두 닫기
+- **빈 input 빨간 강조** — `fieldErrors: { name?, role? }` state
+  - 빈 칸으로 채용 시도 시 → 해당 input borderColor `#c83838` + box-shadow + 아래 빨간 메시지 ("⚠️ 이름을 입력하세요")
+  - 사용자가 input 입력 → 자동 clear (onChange에서)
+  - 검증 통과 시 → fieldErrors 전체 clear
+
+### 5곳 alert 교체
+- 이름·역할 필수값
+- Google API 키 없음
+- Anthropic API 키 없음
+- 자리 부족
+- 채용 실패
+
+### 기대 동작 ☐
+- [ ] 새 직원 선택 + 이름·역할 비운 채 "채용 완료" 클릭 → 알림 모달 등장 + 두 input 빨간 테두리 + 옆 메시지
+- [ ] 알림 모달 "확인" 클릭 → 모달 닫힘 (HireModal은 그대로, input 입력 가능)
+- [ ] 이름 입력 → 이름 input 강조 사라짐
+- [ ] 역할 입력 → 역할 input 강조 사라짐
+- [ ] 둘 다 입력 후 채용 → 정상 진행
+- [ ] API 키 없는 모델 선택 후 채용 → 알림 모달 등장 (input 강조는 X)
+
+### 알려진 한계
+- Electron의 `window.alert`는 시스템 다이얼로그라 디자인 통제 X
+- 다른 모달(MemoModal·ChatPopup)도 같은 패턴 적용 필요 시 별도 작업
+
+---
+
+## 기본 캐릭터 자동 채움 + 🤖 Cody 메인 캐릭터 (Day 12 §3 +1)
+
+### 무엇
+- TEMPLATES 4종에 *자동 채움 데이터* 추가 (Mary/Haewol/Cody) + 새 직원만 빈 칸
+- 새 메인 캐릭터 🤖 Cody (개발자) 추가
+
+### TEMPLATES 확장
+| 필드 | 용도 |
+|---|---|
+| defaultCustomInstructions | 커스텀 지침 기본값 (페르소나) |
+| defaultCustomColor | variant 'custom' 캐릭터 색 |
+| defaultPattern | variant 'custom' 캐릭터 무늬 |
+
+### 4종 캐릭터
+| Template | 이모지 | 이름 | 역할 | 외형 | 페르소나 (custom 지침) |
+|---|---|---|---|---|---|
+| editor (Mary) | ✍️ | Mary | 편집자 | basic orange | "문장의 흐름과 일관성을 꼼꼼히 살피는 편집자..." |
+| writer (Haewol) | 🪼 | Haewol | 작가 | jellyfish | "사색과 바다를 사랑합니다..." |
+| **developer (Cody)** | **🤖** | **Cody** | **개발자** | **custom + gray + stripes** | **"말이 없고 ...을 많이 씁니다. 어려운 개발 용어 + 코딩 밈 드립"** |
+| custom (새 직원) | 🐙 | (빈 칸) | (빈 칸) | custom (자유) | (빈 칸) |
+
+### 동작
+- HireModal 모달 열기 → editor(Mary) 기본 선택 → 이름·역할·지침·색·무늬 자동 채움
+- 다른 기본 캐릭터 클릭 → 해당 페르소나로 모든 칸 교체
+- 새 직원 클릭 → 모든 칸 비움 (placeholder만)
+- 사용자가 자유 수정 가능 (custom variant라 외형 편집 UI도 노출)
+
+### 채용 저장
+- `template === 'custom'` → `TEMPLATES[template].variant === 'custom'` 변경 (Cody의 'developer'도 custom variant이므로 색 저장됨)
+
+### 기대 동작 ☐
+- [ ] 채용 모달 열기 → 캐릭터 템플릿 grid에 4개 카드 (✍️ Mary / 🪼 Haewol / 🤖 Cody / 🐙 새 직원)
+- [ ] Mary 클릭 → 이름·역할·커스텀 지침 자동 채움
+- [ ] Haewol 클릭 → 바뀜
+- [ ] Cody 클릭 → 이름·역할·지침·**회색 줄무늬 외형** 자동
+- [ ] 새 직원 클릭 → 모든 칸 빈 칸
+- [ ] Cody 채용 완료 → 사무실에 **회색 줄무늬 문어** 등장
+- [ ] Cody에게 채팅 → 말 적고 ... 자주, 개발 용어 + 밈 드립 응답
+
+### 알려진 한계
+- Cody는 별도 픽셀 정의 없이 custom variant 재활용 (gray + stripes 적용된 문어)
+- 더 차별화된 외형 원하면 Clawd.ts에 'developer' variant 신규 추가 필요
+
+---
+
 ## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)
 
 > Day 10 발견: 사용자 PC가 회사망에 있어 SSL inspection으로 Node fetch 차단. 임시 fix(`NODE_TLS_REJECT_UNAUTHORIZED=0`)는 dev 한정이지만 **배포 전 일반망 검증 필수**.
