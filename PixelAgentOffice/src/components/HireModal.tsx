@@ -604,8 +604,9 @@ export function HireModal({
                 <button
                   type="button"
                   onClick={() => {
-                    onClose()
-                    eventBus.emit('settings:open', { focus: 'apiKeys' })
+                    // 채용 모달은 그대로 두고 설정 모달을 위에 중첩 (onClose 호출 X — 입력 보존).
+                    // 키 등록 후 설정 닫으면 채용 모달 입력이 유지됨.
+                    eventBus.emit('settings:open', { section: 'google-key' })
                   }}
                   style={{
                     background: '#c83838',

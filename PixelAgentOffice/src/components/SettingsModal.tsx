@@ -181,7 +181,11 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
   )
 
   return (
-    <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ zIndex: 300 }}
+    >
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>⚙️ 설정</h2>
