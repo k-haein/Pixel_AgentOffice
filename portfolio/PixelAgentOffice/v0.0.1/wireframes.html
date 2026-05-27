@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelAgentOffice — Wireframes v0.0.1</title>
+<style>
+  :root {
+    --ink:#2a2118; --line:#8a5a2a; --soft:#c8a878; --bg:#fdf6e3;
+    --panel:#fff8e0; --accent:#c83838; --ok:#3a8a3a; --muted:#9b8a6a;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Courier New",monospace; line-height:1.5; padding:32px; }
+  h1 { font-size:24px; border-bottom:3px solid var(--line); padding-bottom:8px; }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  .legend { font-size:12px; background:var(--panel); border:1px solid var(--soft);
+    border-radius:6px; padding:10px 14px; margin-bottom:28px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:22px; }
+  .wf { background:var(--panel); border:2px solid var(--line); border-radius:8px;
+    padding:0; overflow:hidden; }
+  .wf-title { background:var(--line); color:#fff; font-size:13px; font-weight:bold;
+    padding:7px 12px; display:flex; justify-content:space-between; }
+  .wf-title .tag { font-weight:normal; opacity:.85; font-size:11px; }
+  .wf-body { padding:14px; min-height:210px; }
+  .box { border:1.5px dashed var(--soft); border-radius:5px; padding:8px 10px;
+    margin:6px 0; font-size:12px; background:#fffdf5; }
+  .box.solid { border-style:solid; }
+  .box.accent { border-color:var(--accent); color:var(--accent); }
+  .box.ok { border-color:var(--ok); color:var(--ok); }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  .btn { display:inline-block; background:var(--line); color:#fff; border-radius:4px;
+    padding:4px 10px; font-size:11px; text-align:center; }
+  .btn.pulse { background:#e0a800; animation:none; box-shadow:0 0 0 2px #ffe08055; }
+  .btn.ghost { background:transparent; color:var(--line); border:1px solid var(--line); }
+  .note { font-size:11px; color:var(--muted); margin-top:8px; }
+  .topbar { display:flex; justify-content:space-between; align-items:center;
+    border:1.5px solid var(--line); border-radius:5px; padding:5px 9px; font-size:11px; margin-bottom:8px; }
+  .emoji-row { font-size:15px; letter-spacing:3px; }
+  .stage { background:linear-gradient(#cfe8ff,#e8f4d8); border:1.5px solid var(--soft);
+    border-radius:5px; padding:10px; min-height:120px; position:relative; font-size:11px; }
+  .seat { display:inline-block; border:1px dashed var(--muted); border-radius:4px;
+    width:42px; height:34px; margin:3px; text-align:center; line-height:34px; font-size:14px; }
+  .pill { display:inline-block; border:1px solid var(--soft); border-radius:10px;
+    padding:1px 8px; font-size:10px; margin:2px; }
+  .pill.sel { background:#fff2b8; border-color:var(--line); }
+  .modal-hint { font-size:10px; color:var(--accent); }
+  .stamp { font-size:10px; color:var(--muted); }
+  footer { margin-top:30px; font-size:12px; color:var(--muted);
+    border-top:1px solid var(--soft); padding-top:12px; }
+</style>
+</head>
+<body>
+  <h1>🏢 PixelAgentOffice — Wireframes</h1>
+  <div class="meta">버전 v0.0.1 (2026-05-26, Day 12) · portable EXE 외부 테스터 배포본 기준 ·
+    이전: <code>../v0.0.0/visuals/wireframes-v2.html</code></div>
+  <div class="legend">
+    <b>범례</b> &nbsp; — 점선=영역 / 실선=강조 ·
+    <span style="color:var(--accent)">빨강=필수·경고</span> ·
+    <span style="color:var(--ok)">초록=성공</span> ·
+    <span style="color:var(--muted)">🟡 = 부분구현(UI만)</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1. 빈 사무실 온보딩 -->
+    <div class="wf">
+      <div class="wf-title"><span>1. 빈 사무실 + 온보딩</span><span class="tag">첫 실행</span></div>
+      <div class="wf-body">
+        <div class="topbar"><span>👥 직원 0명 · ☀ 아침</span><span>🛍 ⚙ <span class="btn pulse">+ 채용</span></span></div>
+        <div class="stage">
+          <div style="text-align:center; padding:24px 6px;">
+            🏢 <b>사무실이 비어있어요</b><br>
+            <span class="note">+ 채용 버튼으로 첫 직원을 만나보세요</span>
+          </div>
+        </div>
+        <div class="note">v0.0.1 변경: 더미 직원 제거 → 빈 사무실 시작. "+ 채용" 노란 펄스로 유도.</div>
+      </div>
+    </div>
+
+    <!-- 2. 채용 모달 -->
+    <div class="wf">
+      <div class="wf-title"><span>2. 채용 모달 (HireModal)</span><span class="tag">+ 채용</span></div>
+      <div class="wf-body">
+        <div class="box solid">캐릭터 템플릿
+          <div class="row" style="margin-top:5px;">
+            <span class="pill sel">✍️ Mary</span><span class="pill">🪼 Haewol</span>
+            <span class="pill">🤖 Cody</span><span class="pill">🐙 커스텀</span>
+          </div>
+          <div class="note">기본 선택 시 이름·역할·지침·외형 자동 채움</div>
+        </div>
+        <div class="row">
+          <div class="box accent">이름 * <span class="modal-hint">필수</span></div>
+          <div class="box accent">역할 * <span class="modal-hint">필수</span></div>
+        </div>
+        <div class="box">🧬 MBTI (선택) → 페르소나 자동 주입</div>
+        <div class="box">📈 진급방식 · 🧠 대화모델
+          <div class="note">키 없는 모델 → 비활성 + <span class="btn ghost">⚙ 설정 열기</span></div>
+        </div>
+        <div class="row"><span class="btn ghost">취소</span><span class="btn">채용 완료</span></div>
+      </div>
+    </div>
+
+    <!-- 3. 채팅 + 감정 -->
+    <div class="wf">
+      <div class="wf-title"><span>3. 채팅창 + 감정 이모지</span><span class="tag">말풍선 클릭</span></div>
+      <div class="wf-body">
+        <div class="stage" style="min-height:70px;">
+          <div style="text-align:center;">🐙 <span style="font-size:16px;">💡</span><br><span class="note">머리 위 감정 5초 → 기본 감정 복귀</span></div>
+        </div>
+        <div class="box solid" style="margin-top:8px;">
+          <div style="text-align:right;">안녕! 이 글 다듬어줘 👤</div>
+          <div>🪼 좋아요, 한번 볼게요!</div>
+          <div class="note">[emotion:idea] 태그는 본문에서 제거됨</div>
+        </div>
+        <div class="row"><div class="box" style="flex:3;">메시지 입력…</div><span class="btn">전송</span></div>
+        <div class="note">Rate limit 사전차단 · 친절 한글 에러 · 중단(Abort) · 이력 영속화</div>
+      </div>
+    </div>
+
+    <!-- 4. 설정 모달 (중첩) -->
+    <div class="wf">
+      <div class="wf-title"><span>4. 설정 모달 (중첩)</span><span class="tag">⚙ / 채용에서</span></div>
+      <div class="wf-body">
+        <div class="box ok">Google API 키 [•••••] <span class="btn">저장</span> ✓저장됨</div>
+        <div class="box">Anthropic API 키 [•••••]</div>
+        <div class="box">기본 모델 · 메모리 모델 · 일일 한도 $</div>
+        <div class="box">📊 사용량 상세 — 모델별 RPM 막대 🟢🟡🔴</div>
+        <div class="note">채용 모달 위 zIndex 중첩 → 키 등록 후 닫으면 <b>채용 입력 유지</b>.
+          backdrop 드래그해도 안 닫힘(mousedown 기준). <i>(v0.0.1 수정)</i></div>
+      </div>
+    </div>
+
+    <!-- 5. 메모 모달 -->
+    <div class="wf">
+      <div class="wf-title"><span>5. 메모 모달 (MemoModal)</span><span class="tag">📝 메모지</span></div>
+      <div class="wf-body">
+        <div class="box">🏆 대리 · 입사 2026-05-20</div>
+        <div class="box solid">커스텀 지침 (편집 가능)<br><span class="note">기본 지침은 읽기 전용</span></div>
+        <div class="box solid">🎭 기본 감정 (말풍선)
+          <div class="emoji-row" style="margin-top:4px;">⋯ 😄 😶 😴 🤔 💡 ❤️ 😡 😭 😅 🎵 😮</div>
+        </div>
+        <div class="box">🧠 모델 · 💾 메모리 모드 <span class="stamp">🟡 로직 계획</span></div>
+        <div class="box">📊 대화/메모/칭찬 <span class="stamp">🟡 카운트 미연결</span></div>
+        <div class="row"><span class="btn ghost">취소</span><span class="btn" style="background:var(--accent)">🗑 해고</span></div>
+      </div>
+    </div>
+
+    <!-- 6. 상점 -->
+    <div class="wf">
+      <div class="wf-title"><span>6. 상점 (ShopModal)</span><span class="tag">🛍</span></div>
+      <div class="wf-body">
+        <div class="row">
+          <div class="box" style="text-align:center;">🪴<br>화분<br><span class="note">픽셀 미리보기</span></div>
+          <div class="box" style="text-align:center;">📚<br>책장</div>
+          <div class="box" style="text-align:center;">🥤<br>자판기</div>
+        </div>
+        <div class="box solid">🎭 감정 미리보기 열기 → §7</div>
+        <div class="box">🚧 다음 업데이트 예정 (커피머신·캘린더…) <span class="stamp">🟡</span></div>
+        <div class="note">배치 클릭 → 모달 닫힘 → 사무실에서 클릭 위치에 배치(ghost preview)</div>
+      </div>
+    </div>
+
+    <!-- 7. 감정 미리보기 -->
+    <div class="wf">
+      <div class="wf-title"><span>7. 감정 미리보기</span><span class="tag">상점에서</span></div>
+      <div class="wf-body">
+        <div class="stage" style="min-height:80px; text-align:center;">
+          <div style="font-size:13px;">🐙 <span style="font-size:18px;">😄</span></div>
+          <div class="note">Canvas: 캐릭터 + 말풍선 + 이모지</div>
+        </div>
+        <div class="emoji-row" style="margin-top:8px;">⋯ 😄 😶 😴 🤔 💡 ❤️ 😡 😭 😅 🎵 😮</div>
+        <div class="note">12종 버튼 클릭 → 즉시 전환</div>
+      </div>
+    </div>
+
+    <!-- 8. 사무실 풀뷰 -->
+    <div class="wf">
+      <div class="wf-title"><span>8. 사무실 (채용 후)</span><span class="tag">메인</span></div>
+      <div class="wf-body">
+        <div class="topbar"><span>👥 4명 · 🌆 노을 · $0.12</span><span>🛍 ⚙ + 채용</span></div>
+        <div class="stage">
+          <div style="text-align:center;">📋 <span class="stamp">토큰보드 🟢</span></div>
+          <div style="text-align:center; margin-top:4px;">
+            <span class="seat">👑</span><br>
+            <span class="seat">🐙</span><span class="seat">🪼</span><span class="seat">🤖</span>
+            <span class="seat" style="border-style:solid;">＋</span>
+          </div>
+        </div>
+        <div class="note">우클릭 → 컨텍스트 메뉴(§9) · 줌 휠 · 시간대 5단계 · 강제 야간</div>
+      </div>
+    </div>
+
+    <!-- 9. 컨텍스트 메뉴 -->
+    <div class="wf">
+      <div class="wf-title"><span>9. 우클릭 컨텍스트 메뉴</span><span class="tag">캐릭터 / 가구</span></div>
+      <div class="wf-body">
+        <div class="box solid">캐릭터 우클릭
+          <div class="note">💬 채팅 · 🪑 자리 이동(드래그) · 🔄 책상 회전 · 📝 메모지</div>
+        </div>
+        <div class="box solid">가구 우클릭
+          <div class="note">🚚 옮기기(ghost) · 🗑 이 가구 삭제 · 🧹 전체 삭제</div>
+        </div>
+        <div class="note">자리 이동 시 자격 검증: 리더=과장↑ / 사장석=사장↑</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    PixelAgentOffice Wireframes · v0.0.1 (Day 12) ·
+    관련: <code>PRD.md</code> · <code>user-flow.md</code> · <code>FEATURES.md</code><br>
+    🟡 표시 기능(진급·메모리·칭찬 카운트)은 UI만 존재, 핵심 로직 미연결 — 정직 표기.
+  </footer>
+</body>
+</html>

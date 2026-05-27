@@ -1,0 +1,159 @@
+/* 상점 모달 (P2 #24) */
+
+.shop-notice {
+  background: #fff2b8;
+  border-left: 3px solid #c89030;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #5a3a0f;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+/* 가구 전용 그리드 — 카드 크게 (Day 11 후속 +1) */
+.shop-grid-furniture {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.shop-item {
+  background: #fff8e0;
+  border: 2px solid #c8a878;
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  font-family: "Courier New", monospace;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.shop-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 가구 카드 — 픽셀 미리보기 잘 보이게 크게 */
+.shop-item-furniture {
+  padding: 16px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shop-item-emoji {
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+/* 픽셀 미리보기 영역 — 체크무늬 배경으로 투명 영역 강조 */
+.shop-item-pixel-preview {
+  background:
+    linear-gradient(45deg, #f0e0c0 25%, transparent 25%),
+    linear-gradient(-45deg, #f0e0c0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f0e0c0 75%),
+    linear-gradient(-45deg, transparent 75%, #f0e0c0 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+  background-color: #fffcf0;
+  border: 1px solid #d8b888;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.shop-item-name {
+  font-weight: bold;
+  color: #5a3a0f;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+/* 가구 카드의 이름은 좀 더 큼 */
+.shop-item-furniture .shop-item-name {
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.shop-item-cat {
+  font-size: 10px;
+  color: #8a6a30;
+  background: #fff2b8;
+  padding: 1px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+.shop-item-desc {
+  font-size: 11px;
+  color: #6a5a3a;
+  line-height: 1.4;
+  min-height: 30px;
+  margin-bottom: 8px;
+}
+
+.shop-item-furniture .shop-item-desc {
+  font-size: 12px;
+  min-height: 36px;
+}
+
+.shop-item-btn {
+  width: 100%;
+  padding: 6px;
+  background: #c8a878;
+  color: #fff;
+  border: 1px solid #8a6a30;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.shop-item-furniture .shop-item-btn {
+  padding: 8px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.shop-item-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 배치 모드 안내 — 사무실 영역 하단에 띄움 */
+.placement-mode-hint {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40, 30, 10, 0.92);
+  color: #ffe8a0;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 2px solid #c8a050;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  pointer-events: none;
+  animation: placement-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes placement-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(200, 160, 80, 0.4); }
+  50% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 8px rgba(200, 160, 80, 0); }
+}
