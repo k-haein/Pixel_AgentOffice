@@ -249,7 +249,7 @@ export function HireModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>📋 새 직원 채용</h2>
@@ -684,7 +684,7 @@ export function HireModal({
       {errorMessage && (
         <div
           className="modal-backdrop"
-          onClick={() => setErrorMessage(null)}
+          onMouseDown={e => { if (e.target === e.currentTarget) setErrorMessage(null) }}
           style={{ zIndex: 150 }}
         >
           <div
@@ -719,7 +719,7 @@ export function HireModal({
       {showMbtiInfo && (
         <div
           className="modal-backdrop"
-          onClick={() => setShowMbtiInfo(false)}
+          onMouseDown={e => { if (e.target === e.currentTarget) setShowMbtiInfo(false) }}
           style={{ zIndex: 100 }}
         >
           <div

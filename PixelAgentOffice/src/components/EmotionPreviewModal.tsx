@@ -142,7 +142,7 @@ export function EmotionPreviewModal({ initialEmotion, onClose }: Props) {
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ zIndex: 200 }}
     >
       <div

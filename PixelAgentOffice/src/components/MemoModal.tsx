@@ -90,7 +90,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>📝 {employee.emoji}  {employee.name}의 메모</h2>
