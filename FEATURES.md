@@ -35,6 +35,7 @@
 | [Day 12 §2](#빈-사무실-첫-실행-day-12-2--배포-빌드용) | 빈 사무실 시작 · GitHub Releases EXE 배포 |
 | [Day 12 §3](#mbti-16종-페르소나-시스템-day-12-3) | MBTI 16종 페르소나 · 감정 미리보기 모달 · 말풍선 이모지 전환 · UX 9건 · timer fix |
 | [Day 12 §3 +1](#알림-모달--빈-input-강조-day-12-3-1) | 알림 모달 · 빈 input 강조 · 기본 캐릭터 자동채움 · 🤖 Cody |
+| [Day 13 Phase 1](#활동-카운터-연결-day-13--진급메모리칭찬-phase-1) | 활동 카운터 연결 (totalMessages / totalMemoryUpdates) |
 
 ---
 
@@ -1413,6 +1414,35 @@ HireModal의 검증 알림 — `window.alert` 디자인이 어색 + 포커스 �
 ### 알려진 한계
 - Cody는 별도 픽셀 정의 없이 custom variant 재활용 (gray + stripes 적용된 문어)
 - 더 차별화된 외형 원하면 Clawd.ts에 'developer' variant 신규 추가 필요
+
+---
+
+## 활동 카운터 연결 (Day 13 — 진급/메모리/칭찬 Phase 1)
+
+### 무엇
+직원의 활동 통계(`totalMessages` / `totalMemoryUpdates` / `totalPraises`)를 실제 사용 흐름에 연결. 이전엔 채용 시 0으로 박제돼 메모 모달 "📊 그간 활동"이 항상 0이었음. 진급·메모리·칭찬 시스템의 공통 토대.
+
+### 구현
+- `incrementEmployeeStats(id, delta)` — store에 **원자적 증가** 함수 (디스크 현재값 + delta). `updateEmployee`의 patch 덮어쓰기와 달리 동시 갱신 시 카운트 유실 없음
+- 5계층 배선: `shared/types.ts`(EmployeeStatsDelta) → `store.ts` → `main.ts`(IPC) → `preload.ts` → `platform/`(types·electron·mock)
+- 호출처: ChatPopup 응답 성공 → `totalMessages +1` / MemoModal 저장 시 customInstructions 실제 변경 → `totalMemoryUpdates +1`
+
+### 사용 방법
+1. 직원 채용 → 채팅 1회 주고받기
+2. 그 직원 메모지(📝) 열기 → "📊 그간 활동" → **총 대화: 1회**
+3. 메모 모달에서 커스텀 지침 수정 후 저장 → 다시 열면 **메모 갱신: 1회**
+
+### 기대 동작 ☐
+- [ ] 채팅 응답 1건 도착마다 메모 모달 "총 대화" +1
+- [ ] 메모 모달에서 **지침을 바꿔** 저장 → "메모 갱신" +1
+- [ ] 메모 모달에서 모델/이모지만 바꿔 저장 → "메모 갱신" **증가 안 함** (지침 미변경)
+- [ ] 앱 재시작 후에도 카운트 유지 (영속화)
+- [ ] 채팅 에러/중단 시에는 "총 대화" 증가 안 함 (성공 응답만)
+
+### 알려진 한계
+- `totalPraises`(받은 칭찬)는 인프라만 연결됨 — 👍 버튼은 Phase 2에서 추가 (현재 항상 0)
+- 카운터는 누적될 뿐, **진급 로직은 미연결** (Phase 3). 즉 카운트가 올라가도 아직 진급 안 함
+- 메모리 시스템(실제 기억 저장/주입)도 별개 (Phase 4)
 
 ---
 

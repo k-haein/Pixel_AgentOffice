@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-26 (Day 12 §3 +1)** — §3 EXE v0.0.1 배포 후 추가 검증: **알림 모달**(window.alert → 중첩 모달 + 빈 input 빨간 강조) + **기본 캐릭터 자동 채움**(Mary/Haewol/Cody 이름·역할·지침·색·무늬) + **🤖 Cody 메인 캐릭터 추가**(개발자, 회색 줄무늬). EXE v0.0.1 재빌드 (Release Asset 갱신). **+ 🚧 미완·멈춤 기능 레지스터 신설**(§3↔§4 사이 — 직급 진급·메모리·칭찬 등 멈춘 기능 한 곳 추적). 다음: 외부 테스터 배포 / 미완 레지스터 A(활동 카운터 연결) / MBTI 별명 톤 결정.
+> 최종 갱신: **2026-05-27 (Day 13)** — 버그 2건 fix(모달 드래그 닫힘 / 설정 모달 중첩) + 🚧 미완·멈춤 레지스터 신설 + 📣 테스터 피드백 표(T1 튜토리얼) + 포트폴리오 **v0.0.0/v0.0.1 버전 분리**(PRD·유저플로우·와이어프레임·코드스냅샷 최신화) + E2E 전반 실행→stale 진단 + **진급/메모리/칭찬 Phase 1**(활동 카운터 `incrementEmployeeStats` 연결 — 채팅 totalMessages / 메모 totalMemoryUpdates). 다음: Phase 2 칭찬 👍 / Phase 3 진급 모달 / v0.0.2 재빌드(버그fix 반영) / E2E 재작성 / 튜토리얼(T1).
 
 ---
 
@@ -34,8 +34,8 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + Anthropic/Google LLM SDK + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 11 v2.5 코드(시각 비활성) + Day 11 후속/후속+1 + Day 12 §1/§2 + Day 12 §3 + **Day 12 §3 +1: 알림 모달 + 빈 input 강조 + Mary/Haewol/Cody 기본값 자동 채움 + 🤖 Cody 메인 캐릭터(개발자, 회색 줄무늬) + EXE v0.0.1 재빌드** |
-| **다음 작업** | 외부 테스터 본격 배포. 미완 레지스터 A(직급/메모리/칭찬 활동 카운터 연결). MBTI 별명 톤 결정(보류). 그 후 M5-d 후속 / Phase 3 백엔드 / PNG asset |
+| **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 12 §3+1(알림 모달·Cody·EXE v0.0.1) + **Day 13: 버그 2건 fix + 미완 레지스터 + 포트폴리오 v0.0.1 버전 분리 + 진급/메모리/칭찬 Phase 1(활동 카운터 연결)** |
+| **다음 작업** | Phase 2 칭찬 👍 버튼 → Phase 3 진급 요청 모달+rank↑ → Phase 4 메모리 실동작. v0.0.2 재빌드(버그fix 반영). E2E 빈사무실 기준 재작성. 튜토리얼(테스터 T1). 맥 .dmg(GitHub Actions). |
 | **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
 | **검증 상태** | Day 11~12 §2 검증 완료(사용자 시각). **Day 12 §3 — EXE 재배포 후 검증 진행 중**: 사용자가 timer 버그 + thinking emoji 누락 발견 → 두 건 모두 fix 완료. 이번 EXE는 그 fix 포함. 외부 테스터 본격 배포 대기. |
 
@@ -359,6 +359,32 @@
 
 #### 보류 (다음)
 - MBTI 별명 톤 결정
+
+### **2026-05-27 (Day 13) — 버그 fix + 미완 레지스터 + 포트폴리오 v0.0.1 + 진급 Phase 1**
+
+#### 한 일
+1. **모달 드래그 닫힘 버그 fix** (`713e840`) — 6개 모달(7곳) backdrop을 `onClick` → `onMouseDown` + `e.target===e.currentTarget`. 모달 안 텍스트 드래그 후 바깥에서 떼도 안 닫힘
+2. **🚧 미완·멈춤 기능 레지스터 신설** (`7d45366`) — §3↔§4 사이. A~F 분류(직급/메모리/칭찬 = 활동추적 미연결 공통뿌리). + 📣 테스터 피드백 표 T1(튜토리얼)
+3. **설정 모달 중첩 버그 fix** (`21d450b`+`030db10`) — ⚙ 버튼 onClose 제거 + payload `section` 통일 + SettingsModal backdrop zIndex 300. 채용 입력 보존. 레지스터 F 항목 제거
+4. **E2E 전반 실행 → stale 진단** — 1pass/8fail. 앱 버그 아님, 테스트가 빈 사무실 전환 미반영(Mary 가정). 재작성 필요(보류)
+5. **포트폴리오 v0.0.0/v0.0.1 버전 분리** (`b11e03a`) — 기존→v0.0.0/, v0.0.1/에 PRD·user-flow·wireframes·FEATURES·code-snapshot 최신화. 미완 기능 🟡 정직 표기
+6. **진급/메모리/칭찬 Phase 1 — 활동 카운터 연결** (이번 커밋) — `incrementEmployeeStats` 5계층 배선. ChatPopup 응답→totalMessages++, MemoModal 지침변경→totalMemoryUpdates++
+
+#### 왜 그렇게 결정했는지
+- **레지스터** — "승진 어떻게 됐지?"에 매번 전수 조사하던 비용 제거. 멈춘 기능 한 곳 추적
+- **Phase 1만** — 진급+메모리+칭찬 공통 뿌리(활동 추적)부터. 원자적 증가 함수로 동시 갱신 경합 방지 (updateEmployee patch 덮어쓰기 회피)
+- **포트폴리오 버전 분리** — Day 8 이후 멈춰 현재(Day 12) 앱과 괴리. 사용자 결정으로 v0.0.0 보존 + v0.0.1 최신화
+
+#### 검증 상태
+- tsc -b 통과 (버그fix·Phase 1 모두). **실시각 검증 대기**: 모달 드래그/설정 중첩(사용자 pnpm dev) + 활동 카운터 증가(채팅→메모 모달 "📊 그간 활동")
+- ⚠️ 현재 배포 EXE v0.0.1은 5/26 빌드 → 버그fix·Phase 1 **미포함**. v0.0.2 재빌드 필요
+
+#### 결정
+- **v0.0.2** = 버그fix 2건 + Phase 1 묶어서 EXE 재빌드
+- **맥 .dmg** = 코드 95% 재사용 가능, GitHub Actions macOS runner로 무료 빌드. v0.0.2 후
+
+#### 산출 커밋
+- `713e840` / `7d45366` / `21d450b` / `030db10` / `b11e03a` + (이번) Phase 1 + 세션 정리
 
 ---
 
