@@ -61,7 +61,16 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
         // Day 11 후속 +2 — 기본 idle emotion
         idleEmotion,
       })
-      if (updated) onUpdated(updated)
+      // Phase 1 — 활동 카운터: 지침(customInstructions)이 실제로 바뀌었을 때만 메모 갱신 1회 누적.
+      // 모델/이모지만 바꾼 저장은 카운트 X (진급 정량형 조건의 '메모 갱신' 지표).
+      const instructionsChanged = customInstructions.trim() !== employee.customInstructions
+      if (updated && instructionsChanged) {
+        const counted = await platform.incrementEmployeeStats(employee.id, { totalMemoryUpdates: 1 })
+        if (counted) onUpdated(counted)
+        else onUpdated(updated)
+      } else if (updated) {
+        onUpdated(updated)
+      }
       setSavedFeedback(true)
       setSaving(false)
       setTimeout(() => onClose(), 900)

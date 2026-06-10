@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppData, Employee, Settings, Model, ChatMessage } from '../src/shared/types'
+import type { AppData, Employee, Settings, Model, ChatMessage, EmployeeStatsDelta } from '../src/shared/types'
 import type { ChatRequest, ChatResponse, ProviderName, LLMErrorCode } from './llm/types'
 import type { FriendlyError } from './llm/errorMessages'
 import type { RateLimitStatus } from './llm/usage'
@@ -24,6 +24,8 @@ const api = {
     ipcRenderer.invoke('employee:add', employee),
   updateEmployee: (id: string, patch: Partial<Employee>): Promise<Employee | null> =>
     ipcRenderer.invoke('employee:update', id, patch),
+  incrementEmployeeStats: (id: string, delta: EmployeeStatsDelta): Promise<Employee | null> =>
+    ipcRenderer.invoke('employee:increment-stats', id, delta),
   removeEmployee: (id: string): Promise<boolean> =>
     ipcRenderer.invoke('employee:remove', id),
   updateSettings: (patch: Partial<Settings>): Promise<Settings> =>

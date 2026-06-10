@@ -18,6 +18,7 @@ declare global {
       loadData: Platform['loadData']
       addEmployee: Platform['addEmployee']
       updateEmployee: Platform['updateEmployee']
+      incrementEmployeeStats: Platform['incrementEmployeeStats']
       removeEmployee: Platform['removeEmployee']
       updateSettings: Platform['updateSettings']
       loadChatHistory: Platform['loadChatHistory']
@@ -44,6 +45,7 @@ export const electronPlatform: Platform = {
   loadData: () => window.api.loadData(),
   addEmployee: (employee) => window.api.addEmployee(employee),
   updateEmployee: (id, patch) => window.api.updateEmployee(id, patch),
+  incrementEmployeeStats: (id, delta) => window.api.incrementEmployeeStats(id, delta),
   removeEmployee: (id) => window.api.removeEmployee(id),
   updateSettings: (patch) => window.api.updateSettings(patch),
 

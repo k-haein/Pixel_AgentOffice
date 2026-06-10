@@ -163,13 +163,20 @@ export type Employee = {
   idleEmotion?: BubbleEmotion
   /** MBTI 페르소나 (Day 12 §2) — 16종 중 1. LLM 시스템 프롬프트에 페르소나 지침 자동 주입. null이면 페르소나 적용 X */
   mbti?: MBTI
-  // 진급 추적
+  // 진급 추적 (Phase 1 — 활동 카운터. 채팅/메모/칭찬 시점에 incrementEmployeeStats로 누적)
   totalMessages: number
   totalMemoryUpdates: number
   totalPraises: number
   // === 레거시 (구버전 호환) ===
   /** @deprecated 자유 배치 모드 시절 X 좌표. seatId 도입 후 폐기. 마이그레이션 후 무시. */
   deskPosition?: { x: number }
+}
+
+/** 직원 활동 통계 증가분 (Phase 1) — incrementEmployeeStats에 전달. 지정 필드만 누적. */
+export type EmployeeStatsDelta = {
+  totalMessages?: number
+  totalMemoryUpdates?: number
+  totalPraises?: number
 }
 
 /** 채팅창 상단 사용량 표시 모드 */

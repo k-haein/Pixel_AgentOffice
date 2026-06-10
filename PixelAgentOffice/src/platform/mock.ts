@@ -48,6 +48,19 @@ export const mockPlatform: Platform = {
     return mockEmployees[idx]
   },
 
+  incrementEmployeeStats: async (id, delta) => {
+    const idx = mockEmployees.findIndex(e => e.id === id)
+    if (idx === -1) return null
+    const emp = mockEmployees[idx]
+    mockEmployees[idx] = {
+      ...emp,
+      totalMessages: emp.totalMessages + (delta.totalMessages ?? 0),
+      totalMemoryUpdates: emp.totalMemoryUpdates + (delta.totalMemoryUpdates ?? 0),
+      totalPraises: emp.totalPraises + (delta.totalPraises ?? 0),
+    }
+    return mockEmployees[idx]
+  },
+
   removeEmployee: async (id) => {
     const before = mockEmployees.length
     const filtered = mockEmployees.filter(e => e.id !== id)

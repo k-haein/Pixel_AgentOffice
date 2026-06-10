@@ -17,6 +17,7 @@ import {
   loadData,
   addEmployee,
   updateEmployee,
+  incrementEmployeeStats,
   removeEmployee,
   updateSettings,
   loadChatHistory,
@@ -33,7 +34,7 @@ import { chat, getRateLimit } from './llm/dispatch'
 import { invalidateAllCaches } from './llm/registry'
 import { humanizeError } from './llm/errorMessages'
 import { LLMError, type ChatRequest, type ProviderName } from './llm/types'
-import type { Employee, Settings, Model } from '../src/shared/types'
+import type { Employee, Settings, Model, EmployeeStatsDelta } from '../src/shared/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -71,6 +72,9 @@ function registerIpc() {
   ipcMain.handle('employee:add', async (_e, employee: Employee) => addEmployee(employee))
   ipcMain.handle('employee:update', async (_e, id: string, patch: Partial<Employee>) =>
     updateEmployee(id, patch),
+  )
+  ipcMain.handle('employee:increment-stats', async (_e, id: string, delta: EmployeeStatsDelta) =>
+    incrementEmployeeStats(id, delta),
   )
   ipcMain.handle('employee:remove', async (_e, id: string) => removeEmployee(id))
   ipcMain.handle('settings:update', async (_e, patch: Partial<Settings>) => updateSettings(patch))

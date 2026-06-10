@@ -403,6 +403,9 @@ export function ChatPopup() {
         if (emotion) {
           eventBus.emit('agent:set-emotion', { agentId: employee.id, emotion, expireMs: 5000 })
         }
+        // Phase 1 — 활동 카운터: 응답 1건 성공 = 대화 1회 누적 (진급·메모리 토대).
+        // 화면 표시와 무관한 백그라운드 누적이라 await 없이 fire-and-forget.
+        void platform.incrementEmployeeStats(empId, { totalMessages: 1 })
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly

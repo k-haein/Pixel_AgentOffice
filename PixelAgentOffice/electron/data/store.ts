@@ -8,6 +8,7 @@ import {
   type Model,
   type SeatId,
   type ChatMessage,
+  type EmployeeStatsDelta,
   DEFAULT_SETTINGS,
   DEFAULT_MAX_EMPLOYEES,
   DEPRECATED_MODELS,
@@ -151,6 +152,29 @@ export async function updateEmployee(
     }
   }
   data.employees[idx] = { ...data.employees[idx], ...patch }
+  await saveData(data)
+  return data.employees[idx]
+}
+
+/**
+ * 직원 활동 통계를 *원자적으로 증가* (Phase 1 — 활동 카운터 연결).
+ * patch가 이전 값을 덮어쓰는 updateEmployee와 달리, 현재 디스크 값에 delta를 더함 →
+ * 채팅·메모 동시 갱신 시 카운트 유실 방지. 진급·메모리·칭찬 시스템의 공통 토대.
+ */
+export async function incrementEmployeeStats(
+  id: string,
+  delta: EmployeeStatsDelta,
+): Promise<Employee | null> {
+  const data = await loadData()
+  const idx = data.employees.findIndex(e => e.id === id)
+  if (idx === -1) return null
+  const emp = data.employees[idx]
+  data.employees[idx] = {
+    ...emp,
+    totalMessages: emp.totalMessages + (delta.totalMessages ?? 0),
+    totalMemoryUpdates: emp.totalMemoryUpdates + (delta.totalMemoryUpdates ?? 0),
+    totalPraises: emp.totalPraises + (delta.totalPraises ?? 0),
+  }
   await saveData(data)
   return data.employees[idx]
 }

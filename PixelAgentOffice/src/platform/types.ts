@@ -9,7 +9,7 @@
  * 자세한 배경: ../../../../ideas/13-electron-and-mobile-strategy.md
  */
 
-import type { AppData, Employee, Settings, Model, ChatMessage } from '../shared/types'
+import type { AppData, Employee, Settings, Model, ChatMessage, EmployeeStatsDelta } from '../shared/types'
 import type { ChatRequest } from '../../electron/llm/types'
 import type { ChatResult, RateLimitStatus } from '../../electron/preload'
 import type { ProviderName } from '../../electron/llm/types'
@@ -26,6 +26,8 @@ export interface Platform {
   addEmployee(employee: Employee): Promise<Employee>
   /** 직원 일부 필드 수정 (자리·랭크·모델 등) */
   updateEmployee(id: string, patch: Partial<Employee>): Promise<Employee | null>
+  /** 직원 활동 통계 원자적 증가 (Phase 1) — 채팅/메모/칭찬 누적. 진급·메모리 토대 */
+  incrementEmployeeStats(id: string, delta: EmployeeStatsDelta): Promise<Employee | null>
   /** 직원 해고 */
   removeEmployee(id: string): Promise<boolean>
   /** 설정 일부 필드 수정 */
