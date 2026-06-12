@@ -377,6 +377,8 @@ export type ChatMessage = {
   severity?: 'info' | 'warning' | 'error'
   /** 디버그 단서 (예: HTTP 503) — 메시지 옆에 작게 표기 */
   debugCode?: string
+  /** 칭찬 받음 (Phase 2) — agent 메시지에 👍 누르면 true. 영속화로 채팅창 재오픈 시 중복 칭찬 방지 */
+  praised?: boolean
 }
 
 export type AppData = {

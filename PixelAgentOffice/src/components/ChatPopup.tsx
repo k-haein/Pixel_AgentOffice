@@ -3,6 +3,7 @@ import { eventBus } from '../game/eventBus'
 import { platform } from '../platform'
 import type { Employee, Settings, UsageDisplayMode, ChatMessage, BubbleEmotion } from '../shared/types'
 import { MODEL_INFO, USD_TO_KRW, MBTI_PROFILES } from '../shared/types'
+import { checkPromotionEligible } from '../shared/promotion'
 import type { RateLimitStatus } from '../platform'
 
 // ChatMessage를 Message로 alias — 기존 코드 호환
@@ -404,8 +405,8 @@ export function ChatPopup() {
           eventBus.emit('agent:set-emotion', { agentId: employee.id, emotion, expireMs: 5000 })
         }
         // Phase 1 — 활동 카운터: 응답 1건 성공 = 대화 1회 누적 (진급·메모리 토대).
-        // 화면 표시와 무관한 백그라운드 누적이라 await 없이 fire-and-forget.
-        void platform.incrementEmployeeStats(empId, { totalMessages: 1 })
+        // Phase 3 — 갱신 결과로 진급 자격 체크 → 자격 도달 시 진급 요청 emit.
+        void platform.incrementEmployeeStats(empId, { totalMessages: 1 }).then(maybeRequestPromotion)
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly
@@ -451,6 +452,25 @@ export function ChatPopup() {
     if (!activeRequestId) return
     await platform.abortChat(activeRequestId)
     // 실제 cleanup은 chatWithLLM 호출이 ABORTED 에러로 반환되며 finally에서 처리됨
+  }
+
+  /** 갱신된 employee가 진급 자격이면 진급 요청 emit (Phase 3) — App이 모달 표시 */
+  const maybeRequestPromotion = (updated: Employee | null) => {
+    if (!updated) return
+    const toRank = checkPromotionEligible(updated)
+    if (toRank) eventBus.emit('promotion:request', { employee: updated, toRank })
+  }
+
+  /** 칭찬 👍 (Phase 2) — agent 응답에 칭찬 1회. 메시지당 한 번만 (praised 영속화로 중복 방지) */
+  const praise = (messageId: string) => {
+    const target = messages.find(m => m.id === messageId)
+    if (!target || target.role !== 'agent' || target.praised) return
+    // 메시지에 praised 마킹 → useEffect[messages]가 영속화 (채팅창 재오픈해도 유지)
+    setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, praised: true } : m)))
+    // 활동 카운터 누적 (Phase 1 토대) — 정성형 진급 지표. Phase 3 — 갱신 결과로 진급 체크
+    void platform.incrementEmployeeStats(employee.id, { totalPraises: 1 }).then(maybeRequestPromotion)
+    // 캐릭터가 기뻐하는 반응 (감정 시스템 연계) — 재미 요소
+    eventBus.emit('agent:set-emotion', { agentId: employee.id, emotion: 'happy', expireMs: 4000 })
   }
 
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -627,7 +647,19 @@ export function ChatPopup() {
                 )}
               </div>
             ) : (
-              <div className="msg-bubble">{m.text}</div>
+              <>
+                <div className="msg-bubble">{m.text}</div>
+                {m.role === 'agent' && (
+                  <button
+                    className={`msg-praise${m.praised ? ' msg-praised' : ''}`}
+                    onClick={() => praise(m.id)}
+                    disabled={m.praised}
+                    title={m.praised ? '칭찬함' : '이 응답 칭찬하기'}
+                  >
+                    👍
+                  </button>
+                )}
+              </>
             )}
           </div>
         ))}

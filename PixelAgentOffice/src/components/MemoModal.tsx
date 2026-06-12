@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { platform } from '../platform'
+import { eventBus } from '../game/eventBus'
 import {
   type Employee,
   type MemoryMode,
@@ -9,6 +10,7 @@ import {
   INSTRUCTIONS_PLACEHOLDER,
   EMOTION_LABELS,
 } from '../shared/types'
+import { checkPromotionEligible } from '../shared/promotion'
 
 type Props = {
   onClose: () => void
@@ -66,8 +68,11 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
       const instructionsChanged = customInstructions.trim() !== employee.customInstructions
       if (updated && instructionsChanged) {
         const counted = await platform.incrementEmployeeStats(employee.id, { totalMemoryUpdates: 1 })
-        if (counted) onUpdated(counted)
-        else onUpdated(updated)
+        const latest = counted ?? updated
+        onUpdated(latest)
+        // Phase 3 — 메모 갱신으로 정량/혼합 진급 자격 도달 시 요청 emit
+        const toRank = checkPromotionEligible(latest)
+        if (toRank) eventBus.emit('promotion:request', { employee: latest, toRank })
       } else if (updated) {
         onUpdated(updated)
       }

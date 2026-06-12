@@ -527,6 +527,30 @@ html, body, #root {
   border: 1px solid #aaa;
   box-shadow: 1px 1px 0 rgba(0,0,0,0.05);
 }
+/* 칭찬 👍 버튼 (Phase 2) — agent 응답 아래 작게 */
+.msg-praise {
+  display: inline-block;
+  margin: 3px 0 0 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: transparent;
+  border: 1px solid #d8d8c0;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.msg-praise:hover:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.msg-praise.msg-praised {
+  opacity: 1;
+  background: #fff2b8;
+  border-color: #b8860b;
+  cursor: default;
+}
 .msg-system {
   text-align: center;
   font-size: 11px;

@@ -5,10 +5,12 @@ import { SettingsModal } from './components/SettingsModal'
 import { HireModal } from './components/HireModal'
 import { MemoModal } from './components/MemoModal'
 import { ShopModal } from './components/ShopModal'
+import { PromotionModal } from './components/PromotionModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
-import type { Employee, Settings, DeskOrientation } from './shared/types'
+import type { Employee, Settings, DeskOrientation, Rank } from './shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
+import { checkPromotionEligible } from './shared/promotion'
 import './App.css'
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
   // 빈 자리는 *자리 이동 모드* 시에만 표시 (OfficeScene.enterMoveMode).
   const [shopOpen, setShopOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
+  /** 진급 요청 모달 (Phase 3) — 자격 도달 시 캐릭터가 사장에게 요청 */
+  const [promotionReq, setPromotionReq] = useState<{ employee: Employee; toRank: Rank } | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
   /** 줌 토글 상태 (B-5) — true=1.4x, false=1.0x. Phaser scene과 동기화 */
@@ -68,6 +72,10 @@ function App() {
         setLoading(false)
         eventBus.emit('office:set-employees', data.employees)
         eventBus.emit('office:settings', data.settings)
+        // Phase 3 — 시간형 진급은 카운터 이벤트가 없으므로 로드 시 1회 스캔.
+        // 첫 자격자 1명만 요청 (한 번에 여러 모달 방지)
+        const due = data.employees.map(e => ({ e, to: checkPromotionEligible(e) })).find(x => x.to)
+        if (due && due.to) setPromotionReq({ employee: due.e, toRank: due.to })
       } catch (err) {
         console.error('Load data failed:', err)
         setLoading(false)
@@ -361,6 +369,31 @@ function App() {
     setEmployees(prev => prev.map(e => (e.id === employee.id ? employee : e)))
   }
 
+  // Phase 3 — 진급 요청 이벤트 (ChatPopup/MemoModal이 카운터 증가 후 자격 도달 시 emit)
+  useEffect(() => {
+    const onPromotionRequest = (payload: unknown) => {
+      const p = payload as { employee: Employee; toRank: Rank }
+      // 이미 모달 떠있으면 무시 (한 번에 하나)
+      setPromotionReq(prev => prev ?? p)
+    }
+    eventBus.on('promotion:request', onPromotionRequest)
+    return () => eventBus.off('promotion:request', onPromotionRequest)
+  }, [])
+
+  // 진급 승인 — rank 상승 + 사무실 반영 + 축하 감정
+  const handlePromotionApprove = async () => {
+    if (!promotionReq) return
+    const { employee, toRank } = promotionReq
+    setPromotionReq(null)
+    const updated = await platform.updateEmployee(employee.id, { rank: toRank })
+    if (updated) {
+      const next = employeesRef.current.map(e => (e.id === updated.id ? updated : e))
+      setEmployees(next)
+      eventBus.emit('office:set-employees', next)
+      eventBus.emit('agent:set-emotion', { agentId: updated.id, emotion: 'happy', expireMs: 6000 })
+    }
+  }
+
   const handleFired = (id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id))
     // Close any chat popup for the fired employee
@@ -473,6 +506,14 @@ function App() {
         />
       )}
       {shopOpen && <ShopModal onClose={() => setShopOpen(false)} />}
+      {promotionReq && (
+        <PromotionModal
+          employee={promotionReq.employee}
+          toRank={promotionReq.toRank}
+          onApprove={handlePromotionApprove}
+          onDismiss={() => setPromotionReq(null)}
+        />
+      )}
       {/* 캐릭터 우클릭 컨텍스트 메뉴 */}
       {employeeContextMenu && (
         <div
