@@ -2763,6 +2763,59 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 - `b11e03a` 포트폴리오 v0.0.0/v0.0.1 분리
 - (이번) Phase 1 활동 카운터 + 세션 정리
 
+## 124. 🏆 Day 13 (계속) — 칭찬 Phase 2 + 진급 Phase 3
+
+작업일: 2026-05-27 (Day 13 연속). Phase 1 커밋(`43606e3`) 직후 "phase2로 가자" → "3,4까지 하고 한번에 정리해서 커밋하자".
+
+### 결정 — 범위 확정 (AskUserQuestion)
+
+큰 작업이라 무작정 짜기 전 두 갈림길 확인:
+- **진급 조건** → "직원별 promotionMode 따름" (정량/시간/정성/혼합/수동 다 구현, 직원이 채용 때 고른 모드대로 판정)
+- **메모리 범위** → "이번엔 Phase 3만, 메모리(Phase 4)는 다음" (LLM 요약·야간압축은 크고 Gemini 키 더미라 검증 불가 → 미룸)
+
+### Phase 2 — 칭찬 👍 버튼
+
+- `ChatMessage.praised?: boolean` 신규 — agent 응답에 👍 누르면 영속 마킹 (채팅창 재오픈해도 중복 칭찬 방지)
+- ChatPopup: agent 메시지마다 👍 버튼 + `praise(messageId)` 핸들러 → `incrementEmployeeStats(id, {totalPraises:1})` + 메시지 praised:true + 캐릭터 happy 이모지 4초 (감정 시스템 연계 = 재미 요소)
+- App.css `.msg-praise` (평소 흐릿 → hover 확대 → 누르면 노란 활성)
+- 키워드 감지(기획 §3-B)는 미구현 — 버튼만 (MVP)
+
+### Phase 3 — 진급 시스템
+
+- **`shared/promotion.ts` 신규 (순수 함수)** — ideas/11 §2 임계 테이블 3종 (정량 대화·메모 / 시간 경과일 / 정성 칭찬) + `checkPromotionEligible(emp, now?)` + `getNextRank` + `promotionRequestLine`. eventBus·platform 의존 없어 단위 테스트 가능
+  - 정량: 사원5 / 대리50·메모1 / 과장150·메모5 / 부장400·메모15 / 이사800·메모30 / 사장2000·메모100
+  - 시간: 사원3일 / 대리2주 / 과장1개월 / 부장3개월 / 이사6개월 / 사장1년
+  - 정성: 사원1 / 대리5 / 과장15 / 부장40 / 이사100
+  - 혼합: 3개 중 2개 이상. 수동(off): 제안 X. 회장·레전드: 자동 X (사장까지)
+- **`PromotionModal.tsx` 신규** — 캐릭터 emoji·이름·voice("사장님, 잠시 시간 괜찮으세요?...") + 현재→희망 직급 + 성과(대화/메모/칭찬/입사일) + [😊 진급시키기 / 🤔 다음에]
+- **App.tsx** — `promotion:request` eventBus 구독(이미 모달 떠있으면 무시) + 승인 핸들러(updateEmployee rank↑ + office:set-employees 반영 + happy 6초) + 데이터 로드 시 시간형 1회 스캔
+- **트리거** — 정량/정성/혼합은 카운터 증가 직후(ChatPopup 메시지·칭찬, MemoModal 메모)에서 `checkPromotionEligible` → emit. 시간형은 App 로드 스캔
+
+### 왜 그렇게 결정했는지
+
+- **순수 함수 분리** — promotion.ts를 eventBus/platform 없이 짜서 E2E 재작성 때 유닛테스트로 검증 가능하게
+- **승인 방식** — 기획 핵심 원칙 "직원은 도구가 아닌 캐릭터. 진급은 캐릭터가 요청, 사용자가 승인". 자동 진급 X
+- **happy 이모지로 축하** — 콘페티/직급별 외형 변화는 후속. MVP는 감정 시스템 재활용
+- **한 번에 1모달** — 여러 직원 동시 자격이어도 setPromotionReq(prev => prev ?? p)로 1개씩
+
+### 의의
+
+- **활동 추적 3종(대화·메모·칭찬) → 진급으로 완결** — Phase 1 카운터가 Phase 3 진급의 입력이 됨. "직급 시스템이 멈춰있다"던 레지스터 A의 직급 항목 해소
+- 레지스터 A 잔여: 메모리(Phase 4)만 남음
+
+### 검증 상태
+- tsc -b 통과 (Phase 2·3). **실시각 검증 대기** — Gemini 키 더미라 채팅 호출 불가. pnpm dev에서 채팅→👍→진급 모달 흐름 사용자 확인 필요
+- v0.0.2 재빌드 시 Phase 1·2·3 + 버그fix 전부 반영 예정
+
+### CONVENTIONS §7 체크리스트 (Day 13 계속)
+- ✅ brainstorming §124 (이 섹션)
+- ✅ FEATURES.md — Phase 2 칭찬 + Phase 3 진급 명세 + NAV
+- ✅ HANDOFF.md — §1·§2 Phase 2/3 반영 + 레지스터 A 직급 해소
+- (해당 없음) ideas/06 / portfolio
+
+### 산출 커밋 (예정)
+- Phase 2+3 코드 (promotion.ts·PromotionModal 신규 + ChatPopup·MemoModal·App·types·App.css) + 문서 3종 → 한 커밋 또는 코드/문서 분할
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

@@ -3,7 +3,7 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-05-27 (Day 13)** — 버그 2건 fix(모달 드래그 닫힘 / 설정 모달 중첩) + 🚧 미완·멈춤 레지스터 신설 + 📣 테스터 피드백 표(T1 튜토리얼) + 포트폴리오 **v0.0.0/v0.0.1 버전 분리**(PRD·유저플로우·와이어프레임·코드스냅샷 최신화) + E2E 전반 실행→stale 진단 + **진급/메모리/칭찬 Phase 1**(활동 카운터 `incrementEmployeeStats` 연결 — 채팅 totalMessages / 메모 totalMemoryUpdates). 다음: Phase 2 칭찬 👍 / Phase 3 진급 모달 / v0.0.2 재빌드(버그fix 반영) / E2E 재작성 / 튜토리얼(T1).
+> 최종 갱신: **2026-05-27 (Day 13)** — 버그 2건 fix(모달 드래그 닫힘 / 설정 모달 중첩) + 🚧 미완·멈춤 레지스터 신설 + 📣 테스터 피드백 표(T1 튜토리얼) + 포트폴리오 **v0.0.0/v0.0.1 버전 분리**(PRD·유저플로우·와이어프레임·코드스냅샷 최신화) + E2E 전반 실행→stale 진단 + **진급/메모리/칭찬 Phase 1~3 완료**(활동 카운터 연결 + 칭찬 👍 버튼 + 진급 요청 모달 — promotion.ts 자격 판정 + PromotionModal). 다음: Phase 4 메모리 / v0.0.2 재빌드(버그fix+Phase1~3 반영) / E2E 재작성 / 튜토리얼(T1).
 
 ---
 
@@ -35,7 +35,7 @@
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
 | **현재 마일스톤** | **M5 시그니처 폴리시 완성** + Day 10~12 폴리시 + Day 12 §3+1(알림 모달·Cody·EXE v0.0.1) + **Day 13: 버그 2건 fix + 미완 레지스터 + 포트폴리오 v0.0.1 버전 분리 + 진급/메모리/칭찬 Phase 1(활동 카운터 연결)** |
-| **다음 작업** | Phase 2 칭찬 👍 버튼 → Phase 3 진급 요청 모달+rank↑ → Phase 4 메모리 실동작. v0.0.2 재빌드(버그fix 반영). E2E 빈사무실 기준 재작성. 튜토리얼(테스터 T1). 맥 .dmg(GitHub Actions). |
+| **다음 작업** | Phase 4 메모리 실동작(LLM 요약+주입). v0.0.2 재빌드(버그fix + Phase 1~3 반영). E2E 빈사무실 기준 재작성(promotion.ts 유닛테스트 포함). 튜토리얼(테스터 T1). 맥 .dmg(GitHub Actions). |
 | **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
 | **검증 상태** | Day 11~12 §2 검증 완료(사용자 시각). **Day 12 §3 — EXE 재배포 후 검증 진행 중**: 사용자가 timer 버그 + thinking emoji 누락 발견 → 두 건 모두 fix 완료. 이번 EXE는 그 fix 포함. 외부 테스터 본격 배포 대기. |
 
@@ -368,19 +368,24 @@
 3. **설정 모달 중첩 버그 fix** (`21d450b`+`030db10`) — ⚙ 버튼 onClose 제거 + payload `section` 통일 + SettingsModal backdrop zIndex 300. 채용 입력 보존. 레지스터 F 항목 제거
 4. **E2E 전반 실행 → stale 진단** — 1pass/8fail. 앱 버그 아님, 테스트가 빈 사무실 전환 미반영(Mary 가정). 재작성 필요(보류)
 5. **포트폴리오 v0.0.0/v0.0.1 버전 분리** (`b11e03a`) — 기존→v0.0.0/, v0.0.1/에 PRD·user-flow·wireframes·FEATURES·code-snapshot 최신화. 미완 기능 🟡 정직 표기
-6. **진급/메모리/칭찬 Phase 1 — 활동 카운터 연결** (이번 커밋) — `incrementEmployeeStats` 5계층 배선. ChatPopup 응답→totalMessages++, MemoModal 지침변경→totalMemoryUpdates++
+6. **진급/메모리/칭찬 Phase 1 — 활동 카운터 연결** (`43606e3`) — `incrementEmployeeStats` 5계층 배선. ChatPopup 응답→totalMessages++, MemoModal 지침변경→totalMemoryUpdates++
+7. **autosave.7z 임시 파일 삭제** (`1f82bb5`)
+8. **칭찬 Phase 2** (이번 커밋) — `ChatMessage.praised` + agent 응답마다 👍 버튼 → totalPraises++ + 영속 중복방지 + 캐릭터 happy 4초
+9. **진급 Phase 3** (이번 커밋) — `shared/promotion.ts`(임계 테이블 3종 + checkPromotionEligible 순수함수) + `PromotionModal.tsx`(캐릭터 진급 요청) + App 구독·승인(rank↑·happy). 트리거: 카운터 증가 직후(정량/정성/혼합) + 로드 시 스캔(시간형)
 
 #### 왜 그렇게 결정했는지
 - **레지스터** — "승진 어떻게 됐지?"에 매번 전수 조사하던 비용 제거. 멈춘 기능 한 곳 추적
-- **Phase 1만** — 진급+메모리+칭찬 공통 뿌리(활동 추적)부터. 원자적 증가 함수로 동시 갱신 경합 방지 (updateEmployee patch 덮어쓰기 회피)
-- **포트폴리오 버전 분리** — Day 8 이후 멈춰 현재(Day 12) 앱과 괴리. 사용자 결정으로 v0.0.0 보존 + v0.0.1 최신화
+- **Phase 단계화** — 진급+메모리+칭찬 공통 뿌리(활동 추적)부터(Phase 1). 원자적 증가로 동시 갱신 경합 방지. 그 위에 칭찬(2)·진급(3) 차례로
+- **진급 승인 방식** — 기획 원칙 "캐릭터가 요청, 사용자가 승인"(자동 진급 X). promotion.ts는 순수 함수로 분리해 유닛테스트 가능
+- **메모리(Phase 4) 미룸** — LLM 요약·야간압축은 크고 Gemini 키 더미라 검증 불가 → 다음 세션
+- **포트폴리오 버전 분리** — Day 8 이후 멈춰 현재 앱과 괴리. v0.0.0 보존 + v0.0.1 최신화
 
 #### 검증 상태
-- tsc -b 통과 (버그fix·Phase 1 모두). **실시각 검증 대기**: 모달 드래그/설정 중첩(사용자 pnpm dev) + 활동 카운터 증가(채팅→메모 모달 "📊 그간 활동")
-- ⚠️ 현재 배포 EXE v0.0.1은 5/26 빌드 → 버그fix·Phase 1 **미포함**. v0.0.2 재빌드 필요
+- tsc -b 통과 (버그fix·Phase 1~3 모두). **실시각 검증 대기**: 모달 드래그/설정 중첩 + 활동 카운터/칭찬👍/진급 모달 흐름 (사용자 pnpm dev — Gemini 키 더미라 자동 호출 불가)
+- ⚠️ 현재 배포 EXE v0.0.1은 5/26 빌드 → 버그fix·Phase 1~3 **미포함**. v0.0.2 재빌드 필요
 
 #### 결정
-- **v0.0.2** = 버그fix 2건 + Phase 1 묶어서 EXE 재빌드
+- **v0.0.2** = 버그fix 2건 + Phase 1~3 묶어서 EXE 재빌드
 - **맥 .dmg** = 코드 95% 재사용 가능, GitHub Actions macOS runner로 무료 빌드. v0.0.2 후
 
 #### 산출 커밋
@@ -557,11 +562,9 @@
 
 | 기능 | 있는 것 | 빠진 것 (= 멈춘 지점) | 위치 |
 |---|---|---|---|
-| **직급 진급** | 9단계 `RANK_ORDER` + 진급방식 5종 선택 UI + `rank`/`promotionMode`/`totalMessages`/`totalMemoryUpdates` 필드 + 자격 기반 자리 제한(과장↑ 리더, 사장↑ 사장석) | 진급 로직 자체 없음 · `totalMessages` 채팅해도 안 증가 · 진급 조건 체크 · 캐릭터 진급요청 모달 · 콘페티/시각변화 | `shared/types.ts`, `seats.ts`, `HireModal.tsx`, 기획 `ideas/11-rank-system.md` |
-| **메모리 시스템** | `MemoryMode`(off/manual/ask/auto) + 메모모달 "💾 메모리 모드" UI + 메모리 전용 모델 설정 | 실제 기억 저장·요약·system prompt 주입 없음 (`// 메모리는 M4에서 추가 예정`) · `totalMemoryUpdates` 0 고정 | `ChatPopup.tsx:83`, `MemoModal.tsx`, 기획 `ideas/09-memory-system.md` |
-| **칭찬 카운트** | 메모모달 "받은 칭찬 N회" 표시 + 정성형 진급 모드 옵션 | 👍 버튼·키워드 감지 없음 → `totalPraises` 항상 0 | `MemoModal.tsx:295`, `HireModal.tsx:44` |
+| **메모리 시스템** | `MemoryMode`(off/manual/ask/auto) + 메모모달 "💾 메모리 모드" UI + 메모리 전용 모델 설정 | 실제 기억 저장·요약·system prompt 주입 없음 (`// 메모리는 M4에서 추가 예정`) | `ChatPopup.tsx`, `MemoModal.tsx`, 기획 `ideas/09-memory-system.md` |
 
-→ 셋 다 **활동 추적이 채팅 흐름에 연결 안 됨**이 공통 뿌리. 카운터 증가부터 살리면 셋이 같이 풀림.
+→ **Day 13에 직급 진급·칭찬은 해소** (Phase 1 활동 카운터 + Phase 2 칭찬 👍 + Phase 3 진급 요청 모달). 잔여는 **메모리(Phase 4)** 만 — 다음 세션. 자세히는 `FEATURES.md` "활동 카운터/칭찬/진급 시스템" + brainstorming §123·§124.
 
 ### B. 코드는 완성됐는데 시각 품질로 비활성 (PNG asset 도입 시 부활)
 
