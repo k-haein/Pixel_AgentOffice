@@ -40,11 +40,20 @@ const RANK_OPTIONS: Rank[] = ['알바', '사원', '대리', '과장', '부장']
 
 const PROMOTION_MODES: { value: PromotionMode; label: string; desc: string }[] = [
   { value: 'time', label: '⏰ 시간', desc: '입사 후 일정 기간' },
-  { value: 'quantitative', label: '📊 정량', desc: '대화·메모 횟수' },
+  { value: 'quantitative', label: '📊 정량', desc: '대화 누적 횟수' },
   { value: 'qualitative', label: '⭐ 정성', desc: '칭찬·👍 횟수' },
   { value: 'mixed', label: '🔀 혼합', desc: '여러 조건 충족' },
   { value: 'off', label: '🛑 수동', desc: '자동 제안 OFF' },
 ]
+
+/** 진급방식별 구체 기준 안내 (Day 13) — 채용 모달 tip */
+const PROMOTION_CRITERIA_TIP: Record<PromotionMode, string> = {
+  quantitative: '대화 누적: 사원 50 / 대리 100 / 과장 200 / 부장 400회',
+  time: '입사 경과: 사원 3일 / 대리 2주 / 과장 1개월 / 부장 3개월',
+  qualitative: '받은 칭찬(👍): 사원 1 / 대리 5 / 과장 15 / 부장 40회',
+  mixed: '정량·시간·정성 중 2개 이상 충족 시 진급',
+  off: '자동 진급 없음 — 사장이 직접 임명',
+}
 
 const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
 const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
@@ -578,6 +587,18 @@ export function HireModal({
                   <div className="promotion-desc">{m.desc}</div>
                 </button>
               ))}
+            </div>
+            {/* 선택한 방식의 구체 기준 (Day 13) */}
+            <div
+              style={{
+                marginTop: 8, fontSize: 12, lineHeight: 1.6, color: '#5a3a0f',
+                background: '#faf3e0', border: '1px solid #e0d0a8', borderRadius: 6, padding: '8px 12px',
+              }}
+            >
+              {PROMOTION_CRITERIA_TIP[promotionMode]}
+              <div style={{ marginTop: 4, color: '#8a6a2a' }}>
+                ※ 자동 진급은 <b>부장까지</b>. <b>이사·사장은 사장(나)이 직접 임명</b>합니다.
+              </div>
             </div>
           </section>
 

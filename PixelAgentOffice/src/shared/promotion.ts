@@ -1,43 +1,44 @@
 /**
  * 진급(승진) 판정 — Phase 3.
  *
- * 직원의 활동 카운터(Phase 1·2: totalMessages / totalMemoryUpdates / totalPraises)와
- * 입사 경과 시간을 직원별 promotionMode에 따라 평가해 *다음 직급* 자격을 판정한다.
+ * 직원의 활동 카운터(Phase 1·2: totalMessages / totalPraises)와 입사 경과 시간을
+ * 직원별 promotionMode에 따라 평가해 *다음 직급* 자격을 판정한다.
  *
  * 순수 함수 — eventBus·platform 의존 없음. 단위 테스트 가능.
- * 기준값 출처: ideas/11-rank-system.md §2 (모드별 기본 조건값).
+ *
+ * 정책 (Day 13 사용자 결정):
+ *   - 자동 진급은 **부장까지만**. 이사·사장은 사용자가 직접 임명.
+ *   - 사장 임명은 "회사를 넘긴다"는 특별 동작(사장=사용자 본인) — 별도(다음 세션).
+ *   - 정량형은 대화 누적 횟수만 본다 (메모 조건 없음).
  */
 
-import { type Employee, type Rank, RANK_ORDER } from './types'
+import { type Employee, type Rank, type PromotionMode, RANK_ORDER } from './types'
 
-/** 정량형 — 다음 직급이 되기 위한 누적 대화·메모 갱신 임계 */
-type QuantThreshold = { messages: number; memos: number }
-const QUANT_THRESHOLDS: Partial<Record<Rank, QuantThreshold>> = {
-  사원: { messages: 5, memos: 0 },
-  대리: { messages: 50, memos: 1 },
-  과장: { messages: 150, memos: 5 },
-  부장: { messages: 400, memos: 15 },
-  이사: { messages: 800, memos: 30 },
-  사장: { messages: 2000, memos: 100 },
+/** 자동 진급 상한 — 이 직급까지만 조건 충족 시 자동 제안. 그 위(이사·사장)는 수동 임명 */
+export const AUTO_MAX_RANK: Rank = '부장'
+
+/** 정량형 — 다음 직급이 되기 위한 누적 대화 횟수 (메모 조건 없음) */
+const QUANT_MESSAGES: Partial<Record<Rank, number>> = {
+  사원: 50,
+  대리: 100,
+  과장: 200,
+  부장: 400,
 }
 
-/** 시간형 — 채용 후 누적 경과일 임계 */
+/** 시간형 — 채용 후 누적 경과일 */
 const TIME_DAYS: Partial<Record<Rank, number>> = {
   사원: 3,
   대리: 14,
   과장: 30,
   부장: 90,
-  이사: 180,
-  사장: 365,
 }
 
-/** 정성형 — 받은 칭찬(👍) 누적 임계 (기획상 이사까지) */
-const PRAISE_THRESHOLDS: Partial<Record<Rank, number>> = {
+/** 정성형 — 받은 칭찬(👍) 누적 */
+const PRAISE_COUNT: Partial<Record<Rank, number>> = {
   사원: 1,
   대리: 5,
   과장: 15,
   부장: 40,
-  이사: 100,
 }
 
 /** 현재 직급의 다음 직급. 최상위(레전드)거나 미정의면 null */
@@ -47,6 +48,11 @@ export function getNextRank(rank: Rank): Rank | null {
   return RANK_ORDER[i + 1]
 }
 
+/** 다음 직급이 자동 진급 대상인지 (부장 이하) — 임계 테이블에 정의된 직급 */
+function isAutoRank(rank: Rank): boolean {
+  return rank in QUANT_MESSAGES || rank in TIME_DAYS || rank in PRAISE_COUNT
+}
+
 function daysSince(iso: string, now: number): number {
   const t = Date.parse(iso)
   if (Number.isNaN(t)) return 0
@@ -54,18 +60,19 @@ function daysSince(iso: string, now: number): number {
 }
 
 /**
- * 진급 자격 판정. 다음 직급으로 올라갈 자격이 되면 그 Rank, 아니면 null.
- * @param now 현재 시각 ms (테스트 시 주입 가능, 기본 Date.now())
+ * 자동 진급 자격 판정. 다음 직급으로 자동 승급할 자격이 되면 그 Rank, 아니면 null.
+ * 이사·사장(수동 임명 대상)은 항상 null.
+ * @param now 현재 시각 ms (테스트 시 주입 가능)
  */
 export function checkPromotionEligible(emp: Employee, now: number = Date.now()): Rank | null {
   if (emp.promotionMode === 'off') return null
   const next = getNextRank(emp.rank)
-  if (!next) return null
+  if (!next || !isAutoRank(next)) return null // 이사·사장은 자동 X
 
-  const q = QUANT_THRESHOLDS[next]
+  const q = QUANT_MESSAGES[next]
   const t = TIME_DAYS[next]
-  const p = PRAISE_THRESHOLDS[next]
-  const meetsQuant = q ? emp.totalMessages >= q.messages && emp.totalMemoryUpdates >= q.memos : false
+  const p = PRAISE_COUNT[next]
+  const meetsQuant = q != null ? emp.totalMessages >= q : false
   const meetsTime = t != null ? daysSince(emp.hiredAt, now) >= t : false
   const meetsPraise = p != null ? emp.totalPraises >= p : false
 
@@ -77,9 +84,81 @@ export function checkPromotionEligible(emp: Employee, now: number = Date.now()):
     case 'qualitative':
       return meetsPraise ? next : null
     case 'mixed': {
-      // 정량·시간·정성 중 2개 이상 충족
       const count = [meetsQuant, meetsTime, meetsPraise].filter(Boolean).length
       return count >= 2 ? next : null
+    }
+    default:
+      return null
+  }
+}
+
+/**
+ * 수동 임명 가능한 다음 직급 — 자동 진급 상한(부장)에 도달한 직원을 사용자가 직접 올릴 때.
+ * 부장 → 이사. (이사 → 사장 "회사 넘기기"는 별도/다음 세션이라 여기선 제외)
+ */
+export function getAppointableRank(rank: Rank): Rank | null {
+  const next = getNextRank(rank)
+  if (!next) return null
+  // 자동 대상이 아닌(=수동) 직급만 임명 버튼 대상. 단 사장은 이번 제외 → 이사까지
+  if (next === '이사') return '이사'
+  return null
+}
+
+/** 진급방식 사람이 읽는 라벨 */
+export function promotionModeLabel(mode: PromotionMode): string {
+  switch (mode) {
+    case 'quantitative': return '📊 정량 (대화 누적)'
+    case 'time': return '⏰ 시간 (입사 경과)'
+    case 'qualitative': return '⭐ 정성 (받은 칭찬)'
+    case 'mixed': return '🔀 혼합 (2개 이상)'
+    case 'off': return '🛑 수동 (자동 진급 끔)'
+  }
+}
+
+/** 특정 모드에서 다음 직급까지의 기준 텍스트 (이사·사장은 '임명') */
+export function promotionCriteriaText(mode: PromotionMode, toRank: Rank): string {
+  if (mode === 'off') return '자동 진급 꺼짐 (수동)'
+  if (!isAutoRank(toRank)) return `${toRank}는 사장이 직접 임명`
+  switch (mode) {
+    case 'quantitative': return `대화 ${QUANT_MESSAGES[toRank]}회`
+    case 'time': return `입사 ${TIME_DAYS[toRank]}일 경과`
+    case 'qualitative': return `받은 칭찬 ${PRAISE_COUNT[toRank]}회`
+    case 'mixed': return `대화 ${QUANT_MESSAGES[toRank]} / 입사 ${TIME_DAYS[toRank]}일 / 칭찬 ${PRAISE_COUNT[toRank]} 중 2개`
+  }
+}
+
+export type PromotionProgress = {
+  toRank: Rank
+  label: string   // 예: '대화'
+  current: number
+  target: number
+  manual?: boolean // 이사·사장 등 수동 임명 대상
+}
+
+/**
+ * 다음 직급까지의 진행도 (메모 모달 표시용).
+ * 자동 대상이 아니면(이사·사장) manual:true로 반환, off면 null.
+ */
+export function promotionProgress(emp: Employee, now: number = Date.now()): PromotionProgress | null {
+  if (emp.promotionMode === 'off') return null
+  const next = getNextRank(emp.rank)
+  if (!next) return null
+  if (!isAutoRank(next)) {
+    return { toRank: next, label: '임명', current: 0, target: 0, manual: true }
+  }
+  switch (emp.promotionMode) {
+    case 'quantitative':
+      return { toRank: next, label: '대화', current: emp.totalMessages, target: QUANT_MESSAGES[next]! }
+    case 'time':
+      return { toRank: next, label: '경과일', current: Math.floor(daysSince(emp.hiredAt, now)), target: TIME_DAYS[next]! }
+    case 'qualitative':
+      return { toRank: next, label: '칭찬', current: emp.totalPraises, target: PRAISE_COUNT[next]! }
+    case 'mixed': {
+      const q = emp.totalMessages >= QUANT_MESSAGES[next]!
+      const t = daysSince(emp.hiredAt, now) >= TIME_DAYS[next]!
+      const p = emp.totalPraises >= PRAISE_COUNT[next]!
+      const count = [q, t, p].filter(Boolean).length
+      return { toRank: next, label: '충족 조건', current: count, target: 2 }
     }
     default:
       return null

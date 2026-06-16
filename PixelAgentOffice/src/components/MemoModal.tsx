@@ -6,11 +6,17 @@ import {
   type MemoryMode,
   type Model,
   type BubbleEmotion,
+  type PromotionMode,
   MODEL_INFO,
   INSTRUCTIONS_PLACEHOLDER,
   EMOTION_LABELS,
 } from '../shared/types'
-import { checkPromotionEligible } from '../shared/promotion'
+import {
+  checkPromotionEligible,
+  promotionProgress,
+  getAppointableRank,
+  promotionModeLabel,
+} from '../shared/promotion'
 
 type Props = {
   onClose: () => void
@@ -29,6 +35,8 @@ const MEMORY_MODES: { value: MemoryMode; label: string; desc: string }[] = [
 const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
 const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
 
+const PROMOTION_MODES: PromotionMode[] = ['quantitative', 'time', 'qualitative', 'mixed', 'off']
+
 export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   // employee props로 초기화 (key prop으로 다른 employee 시 재마운트됨)
   const [name, setName] = useState(employee.name)
@@ -38,6 +46,8 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
   const [customInstructions, setCustomInstructions] = useState(employee.customInstructions)
   const [model, setModel] = useState<Model>(employee.model)
   const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
+  // 진급방식 (Day 13) — 메모에서 변경 가능
+  const [promotionMode, setPromotionMode] = useState<PromotionMode>(employee.promotionMode)
   // v2 #17·#18 — 외형 (Day 11 후속 +2: 메모에서 편집 비활성, 기존 값 read-only로 저장 시 전달)
   const customColor = employee.customColor
   const pattern = employee.pattern
@@ -57,6 +67,8 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
         customInstructions: customInstructions.trim(),
         model,
         memoryMode,
+        // Day 13 — 진급방식 변경
+        promotionMode,
         // v2 — 외형 편집 (커스텀 템플릿만 색 저장)
         customColor: employee.template === 'custom' ? customColor : employee.customColor,
         pattern,
@@ -82,6 +94,19 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
     } catch (err) {
       alert('저장 실패: ' + (err as Error).message)
       setSaving(false)
+    }
+  }
+
+  // Day 13 — 이사 수동 임명 (부장 → 이사). 자동 진급 상한 위는 사장이 직접 임명
+  const handleAppoint = async () => {
+    const toRank = getAppointableRank(employee.rank)
+    if (!toRank) return
+    if (!window.confirm(`${employee.name}을(를) ${toRank}(으)로 임명하시겠습니까?`)) return
+    const updated = await platform.updateEmployee(employee.id, { rank: toRank })
+    if (updated) {
+      eventBus.emit('agent:set-emotion', { agentId: updated.id, emotion: 'happy', expireMs: 6000 })
+      onUpdated(updated)
+      onClose()
     }
   }
 
@@ -308,6 +333,61 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
               <li>메모 갱신: {employee.totalMemoryUpdates}회</li>
               <li>받은 칭찬: {employee.totalPraises}회</li>
             </ul>
+          </section>
+
+          {/* 진급 (Day 13) */}
+          <section className="modal-section">
+            <h3>📈 진급 — 현재 🏆 {employee.rank}</h3>
+            <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
+              진급 방식을 고르면 조건 충족 시 캐릭터가 진급을 요청합니다.
+              <b> 이사·사장은 사장(나)이 직접 임명</b>합니다.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
+              {PROMOTION_MODES.map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`promotion-option ${promotionMode === m ? 'selected' : ''}`}
+                  onClick={() => setPromotionMode(m)}
+                  style={{ fontSize: 11, padding: '6px 4px', textAlign: 'center' }}
+                >
+                  {promotionModeLabel(m)}
+                </button>
+              ))}
+            </div>
+            {/* 다음 직급 진행도 (선택한 방식 기준) */}
+            <div style={{ marginTop: 10, fontSize: 13 }}>
+              {(() => {
+                const prog = promotionProgress({ ...employee, promotionMode })
+                if (!prog) return <span style={{ opacity: 0.7 }}>🛑 자동 진급 꺼짐 (수동)</span>
+                if (prog.manual) {
+                  return <span>다음 단계 <b style={{ color: '#b8860b' }}>{prog.toRank}</b>는 사장이 직접 임명합니다.</span>
+                }
+                const pct = Math.min(100, Math.round((prog.current / prog.target) * 100))
+                return (
+                  <div>
+                    <div>다음 직급 <b style={{ color: '#b8860b' }}>{prog.toRank}</b>까지: {prog.label} <b>{prog.current}</b> / {prog.target}</div>
+                    <div style={{ height: 8, background: '#eee3c8', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? '#3a8a3a' : '#b8860b' }} />
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+            {/* 이사 수동 임명 (부장일 때) */}
+            {getAppointableRank(employee.rank) && (
+              <button
+                type="button"
+                onClick={handleAppoint}
+                style={{
+                  marginTop: 10, width: '100%', padding: '8px', fontSize: 13, fontFamily: 'inherit',
+                  background: '#fff2b8', border: '2px solid #b8860b', borderRadius: 6, cursor: 'pointer',
+                  color: '#5a3a0f', fontWeight: 'bold',
+                }}
+              >
+                ⬆ {getAppointableRank(employee.rank)}(으)로 임명하기
+              </button>
+            )}
           </section>
         </div>
 

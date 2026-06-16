@@ -368,6 +368,7 @@ type Workstation = {
   chatBubble?: Phaser.GameObjects.Container
   memo?: Phaser.GameObjects.Container
   nameplate?: Phaser.GameObjects.Text
+  rankPlate?: Phaser.GameObjects.Text
   /** 탁상 전등 (P2 #23) — 야간 + working 시 표시 */
   deskLamp?: Phaser.GameObjects.Container
   deskLampGlow?: Phaser.GameObjects.Rectangle
@@ -2038,6 +2039,20 @@ export class OfficeScene extends Phaser.Scene {
     nameplate.setPadding({ left: 8, right: 8, top: 3, bottom: 3 })
     allObjects.push(nameplate)
 
+    // 직급 팻말 (Day 13) — 이름·역할 아래 작은 배지. 진급 시 rebuild로 갱신됨
+    const rankPlate = this.add
+      .text(x, deskY + 46, `🏆 ${employee.rank}`, {
+        fontFamily: '"Courier New", monospace',
+        fontSize: '10px',
+        color: '#ffffff',
+        backgroundColor: '#8a5a2a',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(15)
+    rankPlate.setPadding({ left: 6, right: 6, top: 2, bottom: 2 })
+    allObjects.push(rankPlate)
+
     // === 자리 인터랙티브 zone ===
     // Phaser.Zone — invisible interactive 영역 전용 객체.
     // 정면일 땐 캐릭터(위)~책상(아래) 세로 박스. 회전 시 가로 박스로 바꾸고 캐릭터 쪽으로 이동.
@@ -2105,6 +2120,7 @@ export class OfficeScene extends Phaser.Scene {
       chatBubble,
       memo,
       nameplate,
+      rankPlate,
       deskLamp,
       deskLampGlow,
       eyesClosed,
@@ -2190,6 +2206,7 @@ export class OfficeScene extends Phaser.Scene {
     target.workingBubble?.setVisible(false)
     target.memo?.setVisible(false)
     target.nameplate?.setVisible(false)
+    target.rankPlate?.setVisible(false)
 
     // 빈 자리 펄스 강조 + 자격 검증
     this.dropTargetHighlights = []
@@ -2275,6 +2292,7 @@ export class OfficeScene extends Phaser.Scene {
     ws.chatBubble?.setVisible(true)
     ws.memo?.setVisible(true)
     ws.nameplate?.setVisible(true)
+    ws.rankPlate?.setVisible(true)
   }
 
   /** 드롭 처리 — hit-test로 가장 가까운 빈 자리 찾고 자격 검증, 성공 시 IPC update */

@@ -6,7 +6,7 @@
  */
 
 import type { Employee, Rank } from '../shared/types'
-import { promotionRequestLine } from '../shared/promotion'
+import { promotionRequestLine, promotionCriteriaText } from '../shared/promotion'
 
 type Props = {
   employee: Employee
@@ -62,6 +62,16 @@ export function PromotionModal({ employee, toRank, onApprove, onDismiss }: Props
             <span style={{ opacity: 0.7 }}>{employee.rank}</span>
             <span style={{ margin: '0 10px', color: '#b8860b' }}>→</span>
             <span style={{ fontWeight: 'bold', color: '#b8860b' }}>⭐ {toRank}</span>
+          </div>
+
+          {/* 기준 달성 */}
+          <div
+            style={{
+              fontSize: 12, color: '#2e7d32', background: '#eaf6ea',
+              border: '1px solid #a5d6a7', borderRadius: 6, padding: '7px 12px', marginBottom: 8,
+            }}
+          >
+            ✅ 진급 기준 달성 — <b>{promotionCriteriaText(employee.promotionMode, toRank)}</b>
           </div>
 
           {/* 성과 */}
