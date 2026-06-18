@@ -38,6 +38,7 @@ function createDefaultData(): AppData {
     maxEmployees: DEFAULT_MAX_EMPLOYEES,
     settings: { ...DEFAULT_SETTINGS },
     chatHistories: {},
+    memories: {},
   }
 }
 
@@ -114,6 +115,7 @@ export async function loadData(): Promise<AppData> {
       maxEmployees: parsed.maxEmployees ?? DEFAULT_MAX_EMPLOYEES,
       settings,
       chatHistories: parsed.chatHistories ?? {},
+      memories: parsed.memories ?? {},
     }
     // 마이그레이션 결과를 디스크에 다시 쓰기 (영구화)
     await saveData(data)
@@ -205,6 +207,10 @@ export async function removeEmployee(id: string): Promise<boolean> {
   if (data.chatHistories) {
     delete data.chatHistories[id]
   }
+  // 해고 시 메모리도 삭제 (Phase 4)
+  if (data.memories) {
+    delete data.memories[id]
+  }
   await saveData(data)
   return true
 }
@@ -235,5 +241,19 @@ export async function clearChatHistory(employeeId: string): Promise<void> {
   const data = await loadData()
   if (!data.chatHistories) return
   delete data.chatHistories[employeeId]
+  await saveData(data)
+}
+
+/** 직원 메모리 로드 (Phase 4) — system prompt 주입용. 없으면 빈 문자열 */
+export async function loadMemory(employeeId: string): Promise<string> {
+  const data = await loadData()
+  return data.memories?.[employeeId] ?? ''
+}
+
+/** 직원 메모리 저장 (Phase 4) — "지금 기억 정리" 요약 결과 저장 */
+export async function saveMemory(employeeId: string, text: string): Promise<void> {
+  const data = await loadData()
+  if (!data.memories) data.memories = {}
+  data.memories[employeeId] = text
   await saveData(data)
 }

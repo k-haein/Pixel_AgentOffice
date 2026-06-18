@@ -23,6 +23,8 @@ import {
   loadChatHistory,
   saveChatHistory,
   clearChatHistory,
+  loadMemory,
+  saveMemory,
 } from './data/store'
 import {
   saveApiKey,
@@ -85,6 +87,10 @@ function registerIpc() {
     saveChatHistory(employeeId, messages as never)
   )
   ipcMain.handle('chat:clear-history', async (_e, employeeId: string) => clearChatHistory(employeeId))
+
+  // 메모리 (Phase 4)
+  ipcMain.handle('memory:load', async (_e, employeeId: string) => loadMemory(employeeId))
+  ipcMain.handle('memory:save', async (_e, employeeId: string, text: string) => saveMemory(employeeId, text))
 
   // === API Keys (provider별) ===
   ipcMain.handle('apikey:save', async (_e, provider: ProviderName, key: string) => {

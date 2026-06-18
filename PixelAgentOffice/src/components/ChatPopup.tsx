@@ -9,8 +9,9 @@ import type { RateLimitStatus } from '../platform'
 // ChatMessage를 Message로 alias — 기존 코드 호환
 type Message = ChatMessage
 
-/** Employee → 시스템 프롬프트 조립 (페르소나 정체 + 기본 지침 + 커스텀 지침) */
-function buildSystemPrompt(employee: Employee): string {
+/** Employee → 시스템 프롬프트 조립 (페르소나 정체 + 기본 지침 + 커스텀 지침 + 기억).
+ *  memory: 누적 메모리 텍스트 (Phase 4). 있으면 # 기억 섹션으로 주입 */
+function buildSystemPrompt(employee: Employee, memory?: string): string {
   // 페르소나 정체성 — 모델이 기본 정체(Claude/Gemini)로 돌아가지 않도록 명시
   const identity = `# 당신의 정체
 - 이름: ${employee.name}
@@ -80,8 +81,17 @@ ${p.trait}
 - 키는 위 12종 중 정확히 하나만.
 - 평범한 응답에는 thinking으로.`
 
+  // 메모리 주입 (Phase 4) — 누적 기억이 있으면 system prompt에 추가
+  if (memory && memory.trim()) {
+    prompt += `
+
+# 기억 (이전 대화에서 누적된 사용자 정보)
+${memory.trim()}
+
+위 기억을 자연스럽게 활용해 대화하세요. 단, 기억에 없는 것을 아는 척하지 마세요.`
+  }
+
   // 부적절 콘텐츠 가드 (v2 #21) — 주석 처리. Gemini safety filter 충돌 가능성 + 채팅 테스트는 나중에.
-  // 메모리는 M4에서 추가 예정
   return prompt
 }
 
@@ -380,9 +390,11 @@ export function ChatPopup() {
       }))
 
     try {
+      // Phase 4 — 매 전송 직전 최신 메모리 로드 (메모 모달에서 갱신돼도 즉시 반영, stale 차단)
+      const freshMemory = await platform.loadMemory(employee.id)
       const result = await platform.chat({
         model: employee.model,
-        systemPrompt: buildSystemPrompt(employee),
+        systemPrompt: buildSystemPrompt(employee, freshMemory),
         messages: apiMessages,
         requestId,
       })

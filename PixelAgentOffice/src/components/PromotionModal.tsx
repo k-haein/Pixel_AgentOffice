@@ -80,7 +80,7 @@ export function PromotionModal({ employee, toRank, multiplier, onApprove, onDism
           <div style={{ fontSize: 12, color: '#5a3a0f', background: '#faf3e0', borderRadius: 6, padding: '8px 12px' }}>
             <div style={{ fontWeight: 'bold', marginBottom: 4 }}>📈 그간 성과</div>
             <div>• 대화 {employee.totalMessages}회</div>
-            <div>• 메모 갱신 {employee.totalMemoryUpdates}회</div>
+            <div>• 지침 수정 {employee.totalMemoryUpdates}회</div>
             <div>• 받은 칭찬 {employee.totalPraises}회</div>
             <div>• 입사 {daysSinceLabel(employee.hiredAt)}</div>
           </div>

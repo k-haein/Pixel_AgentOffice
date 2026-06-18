@@ -39,6 +39,12 @@ const api = {
   clearChatHistory: (employeeId: string): Promise<void> =>
     ipcRenderer.invoke('chat:clear-history', employeeId),
 
+  // === 메모리 (Phase 4) ===
+  loadMemory: (employeeId: string): Promise<string> =>
+    ipcRenderer.invoke('memory:load', employeeId),
+  saveMemory: (employeeId: string, text: string): Promise<void> =>
+    ipcRenderer.invoke('memory:save', employeeId, text),
+
   // === API 키 (provider별) ===
   saveApiKey: (provider: ProviderName, key: string): Promise<{ ok: true }> =>
     ipcRenderer.invoke('apikey:save', provider, key),

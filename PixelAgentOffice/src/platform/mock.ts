@@ -17,6 +17,7 @@ import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, TEMPLATES } from '../shared/ty
 const mockEmployees: Employee[] = []
 const mockKeys = new Map<string, boolean>()
 const mockChatHistories = new Map<string, ChatMessage[]>()
+const mockMemories = new Map<string, string>()
 let mockSettings: Settings = { ...DEFAULT_SETTINGS }
 
 const FAKE_REPLIES = [
@@ -80,6 +81,11 @@ export const mockPlatform: Platform = {
   },
   clearChatHistory: async (employeeId) => {
     mockChatHistories.delete(employeeId)
+  },
+
+  loadMemory: async (employeeId) => mockMemories.get(employeeId) ?? '',
+  saveMemory: async (employeeId, text) => {
+    mockMemories.set(employeeId, text)
   },
 
   saveApiKey: async (provider) => {

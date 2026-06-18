@@ -24,6 +24,8 @@ declare global {
       loadChatHistory: Platform['loadChatHistory']
       saveChatHistory: Platform['saveChatHistory']
       clearChatHistory: Platform['clearChatHistory']
+      loadMemory: Platform['loadMemory']
+      saveMemory: Platform['saveMemory']
       saveApiKey: Platform['saveApiKey']
       hasApiKey: Platform['hasApiKey']
       deleteApiKey: Platform['deleteApiKey']
@@ -53,6 +55,10 @@ export const electronPlatform: Platform = {
   loadChatHistory: (employeeId) => window.api.loadChatHistory(employeeId),
   saveChatHistory: (employeeId, messages) => window.api.saveChatHistory(employeeId, messages),
   clearChatHistory: (employeeId) => window.api.clearChatHistory(employeeId),
+
+  // === 메모리 ===
+  loadMemory: (employeeId) => window.api.loadMemory(employeeId),
+  saveMemory: (employeeId, text) => window.api.saveMemory(employeeId, text),
 
   // === API 키 ===
   saveApiKey: (provider, key) => window.api.saveApiKey(provider, key),

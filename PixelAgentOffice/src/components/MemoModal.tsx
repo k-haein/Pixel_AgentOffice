@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { platform } from '../platform'
 import { eventBus } from '../game/eventBus'
 import {
@@ -50,6 +50,60 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
   const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
   // 진급방식 (Day 13) — 메모에서 변경 가능
   const [promotionMode, setPromotionMode] = useState<PromotionMode>(employee.promotionMode)
+  // 메모리 (Phase 4) — 누적 기억. mount 시 로드, 직접 편집 + "기억 정리"(LLM 요약)
+  const [memoryText, setMemoryText] = useState('')
+  const [summarizing, setSummarizing] = useState(false)
+
+  useEffect(() => {
+    platform.loadMemory(employee.id).then(setMemoryText)
+  }, [employee.id])
+
+  /** "지금 기억 정리" — 대화 이력 + 기존 기억을 memoryModel로 요약해 갱신 (Phase 4) */
+  const handleSummarize = async () => {
+    setSummarizing(true)
+    try {
+      const history = await platform.loadChatHistory(employee.id)
+      // 긴 대화는 토큰 한도 초과 → 최근 40개만 요약 (최신 대화가 기억에 더 중요)
+      const convo = history
+        .filter(m => m.role !== 'system')
+        .slice(-40)
+        .map(m => `${m.role === 'agent' ? employee.name : '사용자'}: ${m.text}`)
+        .join('\n')
+      if (!convo.trim()) {
+        alert('아직 대화 기록이 없어요. 채팅을 나눈 뒤 정리해보세요.')
+        setSummarizing(false)
+        return
+      }
+      const result = await platform.chat({
+        model: employee.memoryModel,
+        systemPrompt:
+          '당신은 메모리 요약기입니다. 대화에서 *사용자에 대해* 기억할 사실(이름·선호·진행 중인 작업·반복 주제)만 간결한 3인칭 메모로 추출해 기존 기억과 병합하세요. 추측·창작 금지. 메모 본문만 출력하세요.',
+        messages: [
+          {
+            role: 'user',
+            content: `기존 기억:\n${memoryText || '(없음)'}\n\n새 대화:\n${convo}\n\n병합된 기억을 출력하세요:`,
+          },
+        ],
+      })
+      if (result.ok) {
+        const newMem = result.response.text.trim()
+        // 빈/무의미 결과가 기존 기억을 덮어쓰지 않게 방어
+        const meta = /^[(（]?\s*(없음|기억\s*없음|n\/?a|none)\s*[)）]?$/i
+        if (newMem.length < 2 || meta.test(newMem)) {
+          alert('정리 결과가 비어 있어 기존 기억을 그대로 유지합니다.')
+        } else {
+          setMemoryText(newMem)
+          await platform.saveMemory(employee.id, newMem)
+        }
+      } else {
+        alert('기억 정리 실패: ' + result.error.message)
+      }
+    } catch (err) {
+      alert('기억 정리 실패: ' + (err as Error).message)
+    } finally {
+      setSummarizing(false)
+    }
+  }
   // v2 #17·#18 — 외형 (Day 11 후속 +2: 메모에서 편집 비활성, 기존 값 read-only로 저장 시 전달)
   const customColor = employee.customColor
   const pattern = employee.pattern
@@ -90,6 +144,8 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
       } else if (updated) {
         onUpdated(updated)
       }
+      // Phase 4 — 직접 편집한 기억도 저장 (요약 버튼은 즉시 저장하지만 수동 편집분 반영)
+      await platform.saveMemory(employee.id, memoryText)
       setSavedFeedback(true)
       setSaving(false)
       setTimeout(() => onClose(), 900)
@@ -327,12 +383,45 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             </div>
           </section>
 
+          {/* 기억 (Phase 4) */}
+          <section className="modal-section">
+            <h3>🧠 기억</h3>
+            <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
+              이 직원이 대화에서 기억하는 내용입니다. 채팅 시 자동으로 참고합니다.
+              직접 편집하거나, 대화 내용을 바탕으로 자동 정리할 수 있어요.
+            </p>
+            <textarea
+              className="modal-input"
+              value={memoryText}
+              onChange={e => setMemoryText(e.target.value)}
+              rows={4}
+              disabled={summarizing}
+              placeholder="아직 기억이 없습니다. 채팅을 나눈 뒤 '기억 정리'를 눌러보세요."
+              style={{ resize: 'vertical', fontFamily: 'inherit', opacity: summarizing ? 0.6 : 1 }}
+            />
+            <button
+              type="button"
+              onClick={handleSummarize}
+              disabled={summarizing}
+              style={{
+                marginTop: 6, padding: '7px 12px', fontFamily: 'inherit', fontSize: 12,
+                background: '#e8f0ff', border: '1px solid #8aa8d8', borderRadius: 6,
+                cursor: summarizing ? 'default' : 'pointer', color: '#2a3a5a', fontWeight: 'bold',
+              }}
+            >
+              {summarizing ? '⏳ 정리 중…' : '🧠 대화에서 기억 정리'}
+            </button>
+            <p style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+              메모리 모델({MODEL_INFO[employee.memoryModel].label})로 요약합니다. 편집 내용은 저장 시 반영됩니다.
+            </p>
+          </section>
+
           {/* Stats */}
           <section className="modal-section">
             <h3>📊 그간 활동</h3>
             <ul className="memo-stats">
               <li>총 대화: {employee.totalMessages}회</li>
-              <li>메모 갱신: {employee.totalMemoryUpdates}회</li>
+              <li>지침 수정: {employee.totalMemoryUpdates}회</li>
               <li>받은 칭찬: {employee.totalPraises}회</li>
             </ul>
           </section>
@@ -394,7 +483,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
         </div>
 
         <div className="modal-footer">
-          <button className="btn-danger" onClick={handleFire} disabled={saving || savedFeedback}>
+          <button className="btn-danger" onClick={handleFire} disabled={saving || savedFeedback || summarizing}>
             🗑 해고
           </button>
           {savedFeedback && (
@@ -403,8 +492,9 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             </span>
           )}
           <div style={{ flex: 1 }} />
-          <button className="btn-secondary" onClick={onClose} disabled={saving}>취소</button>
-          <button className="btn-primary" onClick={handleSave} disabled={saving || savedFeedback}>
+          {/* 요약 중에는 저장·닫기 차단 — saveMemory 경쟁(last-writer-wins) 방지 */}
+          <button className="btn-secondary" onClick={onClose} disabled={saving || summarizing}>취소</button>
+          <button className="btn-primary" onClick={handleSave} disabled={saving || savedFeedback || summarizing}>
             {saving ? '저장 중...' : savedFeedback ? '✓ 완료' : '💾 저장'}
           </button>
         </div>

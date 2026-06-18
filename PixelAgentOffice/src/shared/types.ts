@@ -389,6 +389,8 @@ export type AppData = {
   settings: Settings
   /** 채팅 이력 — employeeId → 메시지 배열 (P1 #13 풀 스펙, Day 11 후속) */
   chatHistories?: Record<string, ChatMessage[]>
+  /** 직원별 누적 메모리 (Phase 4) — employeeId → 요약 텍스트. system prompt에 주입 */
+  memories?: Record<string, string>
 }
 
 // 템플릿 정의 (UI에서 채용 시 기본값)

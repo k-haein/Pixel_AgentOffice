@@ -41,6 +41,12 @@ export interface Platform {
   /** 특정 직원의 채팅 이력 삭제 — 해고 시 호출 */
   clearChatHistory(employeeId: string): Promise<void>
 
+  // === 메모리 (Phase 4) ===
+  /** 직원 메모리 로드 — 채팅 system prompt 주입용 */
+  loadMemory(employeeId: string): Promise<string>
+  /** 직원 메모리 저장 — "지금 기억 정리" 요약 결과 */
+  saveMemory(employeeId: string, text: string): Promise<void>
+
   // === API 키 관리 (provider별) ===
   /** API 키 저장 (Electron=OS키체인 / Web=백엔드DB 등 환경별 구현) */
   saveApiKey(provider: ProviderName, key: string): Promise<{ ok: true }>
