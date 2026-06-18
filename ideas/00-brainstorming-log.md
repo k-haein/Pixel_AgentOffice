@@ -2907,7 +2907,7 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 **잡은 실제 버그 4건 + 수정:**
 - A. PromotionModal "기준 달성" 문구가 배율 무시 → multiplier prop 추가. (모달 "대화 50회"인데 실제 성과 25회로 한 화면 모순이던 것)
 - B. 배율 변경 시 시간형 직원 재스캔 없음(이벤트가 없어 앱 재시작 전까지 누락) → handleSettingsSaved에 scanForPromotion 재스캔
-- C. 동시 자격자 多 시 첫 1명만, 순차 진행 안 됨 → **큐 대신** 승인 후 다음 자격자 재스캔 전환(큐의 복잡도·버그 위험 회피)
+- C. 동시 자격자 여럿일 때 첫 1명만, 순차 진행 안 됨 → **큐 대신** 승인 후 다음 자격자 재스캔 전환(큐의 복잡도·버그 위험 회피)
 - NaN방어: 손상 배율(NaN/0/음수) → 1 폴백 (진급 전면 차단 방지)
 - 회귀(시그니처 순서 변경) 우려는 리뷰 결과 호출처 전부 정상 확인 — 깨끗
 
@@ -2937,6 +2937,59 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 
 ### 산출 커밋 (예정)
 - 코드 (types·promotion·SettingsModal·ChatPopup·MemoModal·App·PromotionModal·HireModal) + 문서 (FEATURES·brainstorming·HANDOFF)
+
+## 127. 🧠 Day 13 (계속) — Phase 4 메모리 시스템 (반자동) + Workflow 적대적 리뷰
+
+작업일: 2026-05-27 (Day 13 연속). ultracode 모드 — 구현 후 Workflow로 다각도 리뷰. 미완 레지스터 A "메모리 시스템" 마지막 잔여 해소.
+
+### 발단
+"다음거 하자" → 레지스터 A의 마지막 항목 = 메모리. 기존엔 `MemoryMode`(off/manual/ask/auto) 토글 + 메모리 전용 모델 설정 UI만 있고 *실제 저장·요약·주입은 전무*(`// 메모리는 M4에서 추가 예정` 주석만). 설계 범위 AskUserQuestion:
+- **저장 방식**: app-data.json에 통합 (employeeId → 텍스트). 별도 파일·DB 안 씀
+- **갱신 방식**: **B 반자동** — 구조(저장·주입)는 자동, 요약은 사용자가 "🧠 대화에서 기억 정리" 버튼으로 트리거. (완전 자동·야간 압축은 후속)
+
+### 1) 저장·배선 (5계층)
+- `types.ts`: `AppData.memories?: Record<string, string>`
+- `store.ts`: `loadMemory(id)` / `saveMemory(id, text)` + createDefaultData·loadData에 `memories: {}` + `removeEmployee` 시 메모리 삭제
+- `main.ts`: `memory:load` / `memory:save` IPC
+- `preload.ts` + `platform/{types,electron,mock}.ts`: 인터페이스 + 두 어댑터 (mock은 `Map<string,string>`)
+
+### 2) system prompt 주입
+- `ChatPopup.buildSystemPrompt(employee, memory?)` — 기억 있으면 `# 기억 (이전 대화에서 누적된 사용자 정보)` 섹션 추가 + "기억에 없는 걸 아는 척 말라" 가드
+- 매 전송 직전 `platform.loadMemory(employee.id)`로 **최신 로드**(메모 모달에서 갱신돼도 즉시 반영 — stale 차단)
+
+### 3) MemoModal 🧠 기억 섹션
+- textarea(직접 편집) + "🧠 대화에서 기억 정리" 버튼
+- 요약: 최근 대화 40개 + 기존 기억을 *메모리 모델*로 요약 → 3인칭 메모로 병합. "메모 갱신" 라벨 → "지침 수정"으로 통일(혼동 제거)
+
+### 4) Workflow 적대적 리뷰 (ultracode)
+구현 후 다각도 병렬 리뷰 → high 3 + medium 4 = 7건 모두 수정:
+- (high) ChatPopup이 mount 시점 stale 메모리 사용 → send()에서 매번 fresh load
+- (high) 요약 중 textarea 편집분 유실 → 요약 동안 textarea·저장·닫기 disable
+- (high) 저장 경쟁(last-writer-wins) → summarizing 중 버튼 차단
+- (med) 긴 대화 토큰 초과 → 최근 40개만 slice
+- (med) 빈·무의미 요약이 기존 기억 덮어씀 → newMem 검증(길이·"없음" 메타 정규식) 후 거부
+- (med) "메모 갱신" 라벨 혼동 → "지침 수정"
+- (med) 대화 없을 때 빈 요약 → alert 안내 + early return
+
+### 왜 그렇게 결정했는지
+- **B 반자동** — 완전 자동 요약은 트리거 시점·비용·품질 통제가 어려움. 사용자가 버튼으로 "지금 정리"하는 게 통제·검증 쉬움. 구조는 자동이라 야간 압축 등 후속 확장 여지를 둠
+- **app-data.json 통합** — 이미 chatHistories가 거기 있음. 별도 저장소는 영속·마이그레이션 복잡도만 늘림
+- **매 전송 fresh load** — 메모 모달과 채팅창이 동시에 열릴 수 있어 React state 캐시는 stale 위험. 디스크가 단일 진실
+- **Workflow 리뷰** — tsc가 못 잡는 동시성·데이터 유실 7건 발견 (요약 중 편집 유실·저장 경쟁이 핵심)
+
+### 검증 상태
+- tsc -b 통과. **실시각·LLM 검증 대기** — Gemini 키 더미라 요약 호출은 사용자 dev에서 확인 필요. 구조(저장·주입·UI)는 검증 완료
+- v0.0.2 재빌드 시 메모리까지 EXE 반영 예정
+
+### CONVENTIONS §7 체크리스트 (Day 13 §127)
+- ✅ brainstorming §127 (이 섹션)
+- ✅ FEATURES — 직원 기억(메모리) 시스템 섹션 + NAV + Phase 1 라벨 "지침 수정" 통일
+- ✅ HANDOFF — §1·§2 메모리 완료 반영 + 레지스터 A "메모리 시스템" 행 제거(완성)
+- (해당 없음) ideas/06 / portfolio
+
+### 산출 커밋 (예정)
+- 커밋1 feat: 메모리 코드 (types·store·main·preload·platform 3종·ChatPopup·MemoModal·PromotionModal)
+- 커밋2 docs: 세션 정리 (FEATURES·brainstorming §127·HANDOFF)
 
 ---
 
