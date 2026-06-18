@@ -2887,6 +2887,59 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 
 ---
 
+## 126. ⚖️ Day 13 (계속) — 진급 난이도 배율 설정 + Workflow 적대적 리뷰 + 정성 기준 재정의
+
+작업일: 2026-05-27 (Day 13 연속). ultracode 모드 — 구현 후 Workflow로 다각도 리뷰.
+
+### 발단
+"설정에서 진급 방식을 커스텀하는 건 어떻게 할거야?" → 진급 기준이 promotion.ts 코드에만 있고 UI에서 못 바꾼다는 점 확인. 범위 결정(AskUserQuestion): **난이도 배율 하나**로(직급별 수치 직접 편집은 UI 과함), Phase 3 검증·커밋 후 착수.
+
+### 1) 진급 난이도 배율 구현
+- `Settings.promotionSpeedMultiplier`(기본 1) + DEFAULT
+- `promotion.ts applyMultiplier(base, mult) = max(1, round(base × mult))`. checkPromotionEligible/promotionProgress/promotionCriteriaText에 multiplier 인자(기본 1)
+- 시그니처 `(emp, multiplier=1, now=Date.now())` — multiplier를 자주 쓰니 2번째로
+- SettingsModal: 📈 진급 속도 프리셋 버튼 (🚀0.5 / ⚖️1 / 🐢2 / 🏔3)
+- 호출처 주입: App(로드 스캔·settings state), ChatPopup(settings:changed로 promotionMult state), MemoModal(settings prop)
+
+### 2) Workflow 적대적 리뷰 (ultracode)
+구현 후 5개 관점(엣지케이스/일관성/회귀/설정흐름/UX) 병렬 리뷰 → high·medium 적대적 재검증. 후보 14건 → confirmed 5건(중복 제외 4 고유). agent 11개, 63만 토큰.
+
+**잡은 실제 버그 4건 + 수정:**
+- A. PromotionModal "기준 달성" 문구가 배율 무시 → multiplier prop 추가. (모달 "대화 50회"인데 실제 성과 25회로 한 화면 모순이던 것)
+- B. 배율 변경 시 시간형 직원 재스캔 없음(이벤트가 없어 앱 재시작 전까지 누락) → handleSettingsSaved에 scanForPromotion 재스캔
+- C. 동시 자격자 多 시 첫 1명만, 순차 진행 안 됨 → **큐 대신** 승인 후 다음 자격자 재스캔 전환(큐의 복잡도·버그 위험 회피)
+- NaN방어: 손상 배율(NaN/0/음수) → 1 폴백 (진급 전면 차단 방지)
+- 회귀(시그니처 순서 변경) 우려는 리뷰 결과 호출처 전부 정상 확인 — 깨끗
+
+### 3) 정성형 기준 재정의 (리뷰 D → 사용자 결정)
+- 리뷰: 정성 사원 임계 1 → ×0.5 빠름 골라도 max(1,round(0.5))=1로 무효. "빠르게 했는데 그대로네" 혼란
+- 사용자: "차등을 주자. 알바→사원 최소 칭찬 5번. 기준점 새로 정하자"
+- AskUserQuestion 세분화 → **정성 5/20/50/100** (정량 50/100/200/400, 시간 3/14/30/90 유지)
+- 결과: 사원 5 → 빠름 ×0.5 = round(2.5)=3 으로 구분됨. D 해결
+
+### 왜 그렇게 결정했는지
+- **배율 하나** — 직급별 수치 직접 편집은 입력 칸 많아 UI 과함. 배율 1개로 전체 비례 조정이 단순·충분
+- **C 큐 대신 재스캔** — 큐 자료구조는 stale 스냅샷·dedupe 등 새 복잡도. "승인 후 employeesRef에서 다음 자격자 1명"이 더 단순하고 순차 진행 달성
+- **Workflow 리뷰** — ultracode 방침. 순차 의존 구현은 직접 하되, 다각도 검증은 병렬 에이전트로. 4개 실버그를 tsc가 못 잡는 영역(일관성·재스캔 누락)에서 발견
+
+### 검증 상태
+- 사용자 dev 실시간 검증 "잘 된다" 확인. tsc -b 통과
+- v0.0.2 재빌드 시 배율까지 EXE 반영 예정
+
+### CONVENTIONS §7 체크리스트 (Day 13 §126)
+- ✅ brainstorming §126 (이 섹션)
+- ✅ FEATURES — 정성 기준 5/20/50/100 + 진급 배율 섹션 + NAV
+- ✅ HANDOFF — §1·§2 배율 반영 + 다음 작업 Phase 4 메모리로
+- (해당 없음) ideas/06 / portfolio
+
+### 다음 작업
+**Phase 4 메모리 시스템** (레지스터 A 마지막 잔여) — LLM이 대화에서 사실 추출→저장→system prompt 주입. ideas/09 기획.
+
+### 산출 커밋 (예정)
+- 코드 (types·promotion·SettingsModal·ChatPopup·MemoModal·App·PromotionModal·HireModal) + 문서 (FEATURES·brainstorming·HANDOFF)
+
+---
+
 ## 결정 진화 요약 (M5 시점)
 
 | 항목 | 처음 | M1 | M2 | M3 | M4 | 최종 (M5) |
