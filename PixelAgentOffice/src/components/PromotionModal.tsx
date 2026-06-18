@@ -11,6 +11,8 @@ import { promotionRequestLine, promotionCriteriaText } from '../shared/promotion
 type Props = {
   employee: Employee
   toRank: Rank
+  /** 진급 난이도 배율 (Day 13) — 기준 텍스트가 판정과 같은 배율 임계를 표시하도록 */
+  multiplier: number
   onApprove: () => void
   onDismiss: () => void
 }
@@ -25,7 +27,7 @@ function daysSinceLabel(iso: string): string {
   return `${Math.floor(days / 365)}년`
 }
 
-export function PromotionModal({ employee, toRank, onApprove, onDismiss }: Props) {
+export function PromotionModal({ employee, toRank, multiplier, onApprove, onDismiss }: Props) {
   return (
     <div
       className="modal-backdrop"
@@ -71,7 +73,7 @@ export function PromotionModal({ employee, toRank, onApprove, onDismiss }: Props
               border: '1px solid #a5d6a7', borderRadius: 6, padding: '7px 12px', marginBottom: 8,
             }}
           >
-            ✅ 진급 기준 달성 — <b>{promotionCriteriaText(employee.promotionMode, toRank)}</b>
+            ✅ 진급 기준 달성 — <b>{promotionCriteriaText(employee.promotionMode, toRank, multiplier)}</b>
           </div>
 
           {/* 성과 */}

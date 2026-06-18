@@ -7,6 +7,7 @@ import {
   type Model,
   type BubbleEmotion,
   type PromotionMode,
+  type Settings,
   MODEL_INFO,
   INSTRUCTIONS_PLACEHOLDER,
   EMOTION_LABELS,
@@ -21,6 +22,7 @@ import {
 type Props = {
   onClose: () => void
   employee: Employee
+  settings: Settings
   onUpdated: (employee: Employee) => void
   onFired: (id: string) => void
 }
@@ -37,7 +39,7 @@ const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-ha
 
 const PROMOTION_MODES: PromotionMode[] = ['quantitative', 'time', 'qualitative', 'mixed', 'off']
 
-export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
+export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: Props) {
   // employee props로 초기화 (key prop으로 다른 employee 시 재마운트됨)
   const [name, setName] = useState(employee.name)
   const [role, setRole] = useState(employee.role)
@@ -83,7 +85,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
         const latest = counted ?? updated
         onUpdated(latest)
         // Phase 3 — 메모 갱신으로 정량/혼합 진급 자격 도달 시 요청 emit
-        const toRank = checkPromotionEligible(latest)
+        const toRank = checkPromotionEligible(latest, settings.promotionSpeedMultiplier ?? 1)
         if (toRank) eventBus.emit('promotion:request', { employee: latest, toRank })
       } else if (updated) {
         onUpdated(updated)
@@ -358,7 +360,7 @@ export function MemoModal({ onClose, employee, onUpdated, onFired }: Props) {
             {/* 다음 직급 진행도 (선택한 방식 기준) */}
             <div style={{ marginTop: 10, fontSize: 13 }}>
               {(() => {
-                const prog = promotionProgress({ ...employee, promotionMode })
+                const prog = promotionProgress({ ...employee, promotionMode }, settings.promotionSpeedMultiplier ?? 1)
                 if (!prog) return <span style={{ opacity: 0.7 }}>🛑 자동 진급 꺼짐 (수동)</span>
                 if (prog.manual) {
                   return <span>다음 단계 <b style={{ color: '#b8860b' }}>{prog.toRank}</b>는 사장이 직접 임명합니다.</span>

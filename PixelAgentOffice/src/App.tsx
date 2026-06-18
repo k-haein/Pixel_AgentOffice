@@ -74,7 +74,8 @@ function App() {
         eventBus.emit('office:settings', data.settings)
         // Phase 3 — 시간형 진급은 카운터 이벤트가 없으므로 로드 시 1회 스캔.
         // 첫 자격자 1명만 요청 (한 번에 여러 모달 방지)
-        const due = data.employees.map(e => ({ e, to: checkPromotionEligible(e) })).find(x => x.to)
+        const mult = data.settings.promotionSpeedMultiplier ?? 1
+        const due = data.employees.map(e => ({ e, to: checkPromotionEligible(e, mult) })).find(x => x.to)
         if (due && due.to) setPromotionReq({ employee: due.e, toRank: due.to })
       } catch (err) {
         console.error('Load data failed:', err)
@@ -373,25 +374,39 @@ function App() {
   useEffect(() => {
     const onPromotionRequest = (payload: unknown) => {
       const p = payload as { employee: Employee; toRank: Rank }
-      // 이미 모달 떠있으면 무시 (한 번에 하나)
+      // 이미 모달 떠있으면 무시 (한 번에 하나 — 다음 자격자는 승인 후 재스캔으로 이어짐)
       setPromotionReq(prev => prev ?? p)
     }
     eventBus.on('promotion:request', onPromotionRequest)
     return () => eventBus.off('promotion:request', onPromotionRequest)
   }, [])
 
-  // 진급 승인 — rank 상승 + 사무실 반영 + 축하 감정
+  /** 자격자 1명을 찾아 진급 요청 모달 표시 (이미 떠있으면 유지).
+   *  로드 시·배율 변경 시·승인 직후 호출. 시간형은 이벤트가 없어 이 스캔에 의존 (리뷰 B). */
+  const scanForPromotion = (emps: Employee[], mult: number) => {
+    const due = emps.find(e => checkPromotionEligible(e, mult))
+    if (!due) return
+    const toRank = checkPromotionEligible(due, mult)
+    if (toRank) setPromotionReq(prev => prev ?? { employee: due, toRank })
+  }
+
+  // 진급 승인 — rank 상승 + 사무실 반영 + 축하 감정 + 다음 자격자로 자동 전환 (리뷰 C)
   const handlePromotionApprove = async () => {
     if (!promotionReq) return
     const { employee, toRank } = promotionReq
-    setPromotionReq(null)
     const updated = await platform.updateEmployee(employee.id, { rank: toRank })
+    let nextEmps = employeesRef.current
     if (updated) {
-      const next = employeesRef.current.map(e => (e.id === updated.id ? updated : e))
-      setEmployees(next)
-      eventBus.emit('office:set-employees', next)
+      nextEmps = employeesRef.current.map(e => (e.id === updated.id ? updated : e))
+      setEmployees(nextEmps)
+      eventBus.emit('office:set-employees', nextEmps)
       eventBus.emit('agent:set-emotion', { agentId: updated.id, emotion: 'happy', expireMs: 6000 })
     }
+    // 다음 자격자 1명으로 전환 (방금 승인자는 rank가 올라 제외됨). 없으면 닫힘
+    const mult = settingsRef.current.promotionSpeedMultiplier ?? 1
+    const nextDue = nextEmps.find(e => checkPromotionEligible(e, mult))
+    const nextToRank = nextDue ? checkPromotionEligible(nextDue, mult) : null
+    setPromotionReq(nextDue && nextToRank ? { employee: nextDue, toRank: nextToRank } : null)
   }
 
   const handleFired = (id: string) => {
@@ -403,6 +418,8 @@ function App() {
   const handleSettingsSaved = (newSettings: Settings) => {
     setSettings(newSettings)
     eventBus.emit('office:settings', newSettings)
+    // 배율 변경 시 시간형 진급은 이벤트가 없어 표면화 안 됨 → 즉시 재스캔 (리뷰 B)
+    scanForPromotion(employeesRef.current, newSettings.promotionSpeedMultiplier ?? 1)
   }
 
   return (
@@ -501,6 +518,7 @@ function App() {
           key={memoEmployee.id}
           onClose={() => setMemoEmployee(null)}
           employee={memoEmployee}
+          settings={settings}
           onUpdated={handleUpdated}
           onFired={handleFired}
         />
@@ -510,6 +528,7 @@ function App() {
         <PromotionModal
           employee={promotionReq.employee}
           toRank={promotionReq.toRank}
+          multiplier={settings.promotionSpeedMultiplier ?? 1}
           onApprove={handlePromotionApprove}
           onDismiss={() => setPromotionReq(null)}
         />

@@ -364,6 +364,8 @@ export type Settings = {
   teamPlateStyle?: TeamPlateStyle
   /** 사무실에 배치한 가구 — 사용자 자유 위치 (P2 #25, Day 11 후속) */
   placedFurniture?: PlacedFurniture[]
+  /** 진급 난이도 배율 (Day 13) — 기본 기준 임계에 곱함. 0.5=빠름(절반), 1=기본, 3=느림(3배). 기본 1 */
+  promotionSpeedMultiplier?: number
   // API 키는 safeStorage에 따로 저장
 }
 
@@ -461,6 +463,7 @@ export const DEFAULT_SETTINGS: Settings = {
   teamNames: { A: '팀 A', B: '팀 B', C: '팀 C' },
   teamPlateStyle: 'wood',
   placedFurniture: [],
+  promotionSpeedMultiplier: 1,
 }
 
 /** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */

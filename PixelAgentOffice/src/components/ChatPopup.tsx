@@ -153,6 +153,8 @@ export function ChatPopup() {
   const [pauseMessage, setPauseMessage] = useState<PauseMessage | null>(null)
   /** 사용량 표시 모드 — 설정에서 읽어옴 */
   const [usageMode, setUsageMode] = useState<UsageDisplayMode>('chips')
+  // 진급 난이도 배율 (Day 13) — settings에서 로드, 진급 자격 판정에 사용
+  const [promotionMult, setPromotionMult] = useState(1)
   /** 토글 모드일 때 스트립 펼침 여부 */
   const [usageStripOpen, setUsageStripOpen] = useState<boolean>(false)
   /** 우클릭 컨텍스트 메뉴 좌표 (null이면 닫힘) */
@@ -237,10 +239,12 @@ export function ChatPopup() {
   useEffect(() => {
     platform.loadData().then(d => {
       setUsageMode(d.settings.usageDisplayMode ?? 'chips')
+      setPromotionMult(d.settings.promotionSpeedMultiplier ?? 1)
     })
     const onSettingsChanged = (payload: unknown) => {
       const s = payload as Settings
       setUsageMode(s.usageDisplayMode ?? 'chips')
+      setPromotionMult(s.promotionSpeedMultiplier ?? 1)
     }
     eventBus.on('settings:changed', onSettingsChanged)
     return () => {
@@ -457,7 +461,7 @@ export function ChatPopup() {
   /** 갱신된 employee가 진급 자격이면 진급 요청 emit (Phase 3) — App이 모달 표시 */
   const maybeRequestPromotion = (updated: Employee | null) => {
     if (!updated) return
-    const toRank = checkPromotionEligible(updated)
+    const toRank = checkPromotionEligible(updated, promotionMult)
     if (toRank) eventBus.emit('promotion:request', { employee: updated, toRank })
   }
 

@@ -44,6 +44,10 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
   const [usageDisplayMode, setUsageDisplayMode] = useState<UsageDisplayMode>(
     initialSettings.usageDisplayMode ?? 'chips',
   )
+  // 진급 난이도 배율 (Day 13) — 기준 임계에 곱함. 0.5 빠름 ~ 3 느림
+  const [promotionSpeed, setPromotionSpeed] = useState<number>(
+    initialSettings.promotionSpeedMultiplier ?? 1,
+  )
   /** focusSection 적용 시 일시 강조 */
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -115,6 +119,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
         defaultMemoryModel: memoryModel,
         dailyLimitUsd: dailyLimit,
         usageDisplayMode,
+        promotionSpeedMultiplier: promotionSpeed,
       })
       onSaved(updated)
       eventBus.emit('settings:changed', updated)
@@ -339,6 +344,45 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
               value={dailyLimit}
               onChange={e => setDailyLimit(Number(e.target.value))}
             />
+          </section>
+
+          {/* === 진급 난이도 배율 (Day 13) === */}
+          <section className="modal-section" data-section="promotion-speed">
+            <h3>📈 진급 속도 (난이도)</h3>
+            <p className="modal-hint">
+              모든 직원의 자동 진급 기준에 곱해집니다. 빠름일수록 적은 활동으로 진급.
+              예) 정량형 사원 기준 대화 50회 → 0.5배 25회 / 2배 100회.
+            </p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { v: 0.5, label: '🚀 빠름', desc: '×0.5' },
+                { v: 1, label: '⚖️ 보통', desc: '×1' },
+                { v: 2, label: '🐢 느림', desc: '×2' },
+                { v: 3, label: '🏔 매우 느림', desc: '×3' },
+              ].map(opt => {
+                const selected = promotionSpeed === opt.v
+                return (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => setPromotionSpeed(opt.v)}
+                    style={{
+                      flex: '1 1 80px', padding: '8px 4px', fontFamily: 'inherit', fontSize: 12,
+                      borderRadius: 6, cursor: 'pointer', textAlign: 'center',
+                      border: selected ? '2px solid #8a5a2a' : '1px solid #c8a878',
+                      background: selected ? '#fff2b8' : '#fff8e0',
+                      color: '#5a3a0f', fontWeight: selected ? 'bold' : 'normal',
+                    }}
+                  >
+                    <div>{opt.label}</div>
+                    <div style={{ fontSize: 10, opacity: 0.7 }}>{opt.desc}</div>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="modal-hint" style={{ marginTop: 6 }}>
+              ※ 이사·사장은 배율과 무관하게 사장(나)이 직접 임명합니다.
+            </p>
           </section>
 
           {/* === 사용량 상세 (E) — 모델별 분포 + RPM 막대 === */}

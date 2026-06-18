@@ -33,12 +33,12 @@ const TIME_DAYS: Partial<Record<Rank, number>> = {
   부장: 90,
 }
 
-/** 정성형 — 받은 칭찬(👍) 누적 */
+/** 정성형 — 받은 칭찬(👍) 누적 (Day 13 사용자 재정의: 5/20/50/100) */
 const PRAISE_COUNT: Partial<Record<Rank, number>> = {
-  사원: 1,
-  대리: 5,
-  과장: 15,
-  부장: 40,
+  사원: 5,
+  대리: 20,
+  과장: 50,
+  부장: 100,
 }
 
 /** 현재 직급의 다음 직급. 최상위(레전드)거나 미정의면 null */
@@ -59,12 +59,24 @@ function daysSince(iso: string, now: number): number {
   return (now - t) / 86_400_000
 }
 
+/** 난이도 배율을 기준 임계에 적용 — 최소 1 (배율 0.5라도 0회로 떨어지지 않게).
+ *  손상된 배율(NaN/undefined/0/음수)은 1로 폴백해 진급이 전면 차단되지 않게 방어. */
+export function applyMultiplier(base: number, multiplier: number): number {
+  const m = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
+  return Math.max(1, Math.round(base * m))
+}
+
 /**
  * 자동 진급 자격 판정. 다음 직급으로 자동 승급할 자격이 되면 그 Rank, 아니면 null.
  * 이사·사장(수동 임명 대상)은 항상 null.
+ * @param multiplier 진급 난이도 배율 (Settings.promotionSpeedMultiplier). 임계에 곱함. 기본 1
  * @param now 현재 시각 ms (테스트 시 주입 가능)
  */
-export function checkPromotionEligible(emp: Employee, now: number = Date.now()): Rank | null {
+export function checkPromotionEligible(
+  emp: Employee,
+  multiplier: number = 1,
+  now: number = Date.now(),
+): Rank | null {
   if (emp.promotionMode === 'off') return null
   const next = getNextRank(emp.rank)
   if (!next || !isAutoRank(next)) return null // 이사·사장은 자동 X
@@ -72,9 +84,9 @@ export function checkPromotionEligible(emp: Employee, now: number = Date.now()):
   const q = QUANT_MESSAGES[next]
   const t = TIME_DAYS[next]
   const p = PRAISE_COUNT[next]
-  const meetsQuant = q != null ? emp.totalMessages >= q : false
-  const meetsTime = t != null ? daysSince(emp.hiredAt, now) >= t : false
-  const meetsPraise = p != null ? emp.totalPraises >= p : false
+  const meetsQuant = q != null ? emp.totalMessages >= applyMultiplier(q, multiplier) : false
+  const meetsTime = t != null ? daysSince(emp.hiredAt, now) >= applyMultiplier(t, multiplier) : false
+  const meetsPraise = p != null ? emp.totalPraises >= applyMultiplier(p, multiplier) : false
 
   switch (emp.promotionMode) {
     case 'quantitative':
@@ -115,15 +127,18 @@ export function promotionModeLabel(mode: PromotionMode): string {
   }
 }
 
-/** 특정 모드에서 다음 직급까지의 기준 텍스트 (이사·사장은 '임명') */
-export function promotionCriteriaText(mode: PromotionMode, toRank: Rank): string {
+/** 특정 모드에서 다음 직급까지의 기준 텍스트 (이사·사장은 '임명'). multiplier 반영 */
+export function promotionCriteriaText(mode: PromotionMode, toRank: Rank, multiplier: number = 1): string {
   if (mode === 'off') return '자동 진급 꺼짐 (수동)'
   if (!isAutoRank(toRank)) return `${toRank}는 사장이 직접 임명`
+  const q = QUANT_MESSAGES[toRank] != null ? applyMultiplier(QUANT_MESSAGES[toRank]!, multiplier) : 0
+  const t = TIME_DAYS[toRank] != null ? applyMultiplier(TIME_DAYS[toRank]!, multiplier) : 0
+  const p = PRAISE_COUNT[toRank] != null ? applyMultiplier(PRAISE_COUNT[toRank]!, multiplier) : 0
   switch (mode) {
-    case 'quantitative': return `대화 ${QUANT_MESSAGES[toRank]}회`
-    case 'time': return `입사 ${TIME_DAYS[toRank]}일 경과`
-    case 'qualitative': return `받은 칭찬 ${PRAISE_COUNT[toRank]}회`
-    case 'mixed': return `대화 ${QUANT_MESSAGES[toRank]} / 입사 ${TIME_DAYS[toRank]}일 / 칭찬 ${PRAISE_COUNT[toRank]} 중 2개`
+    case 'quantitative': return `대화 ${q}회`
+    case 'time': return `입사 ${t}일 경과`
+    case 'qualitative': return `받은 칭찬 ${p}회`
+    case 'mixed': return `대화 ${q} / 입사 ${t}일 / 칭찬 ${p} 중 2개`
   }
 }
 
@@ -139,7 +154,11 @@ export type PromotionProgress = {
  * 다음 직급까지의 진행도 (메모 모달 표시용).
  * 자동 대상이 아니면(이사·사장) manual:true로 반환, off면 null.
  */
-export function promotionProgress(emp: Employee, now: number = Date.now()): PromotionProgress | null {
+export function promotionProgress(
+  emp: Employee,
+  multiplier: number = 1,
+  now: number = Date.now(),
+): PromotionProgress | null {
   if (emp.promotionMode === 'off') return null
   const next = getNextRank(emp.rank)
   if (!next) return null
@@ -148,15 +167,15 @@ export function promotionProgress(emp: Employee, now: number = Date.now()): Prom
   }
   switch (emp.promotionMode) {
     case 'quantitative':
-      return { toRank: next, label: '대화', current: emp.totalMessages, target: QUANT_MESSAGES[next]! }
+      return { toRank: next, label: '대화', current: emp.totalMessages, target: applyMultiplier(QUANT_MESSAGES[next]!, multiplier) }
     case 'time':
-      return { toRank: next, label: '경과일', current: Math.floor(daysSince(emp.hiredAt, now)), target: TIME_DAYS[next]! }
+      return { toRank: next, label: '경과일', current: Math.floor(daysSince(emp.hiredAt, now)), target: applyMultiplier(TIME_DAYS[next]!, multiplier) }
     case 'qualitative':
-      return { toRank: next, label: '칭찬', current: emp.totalPraises, target: PRAISE_COUNT[next]! }
+      return { toRank: next, label: '칭찬', current: emp.totalPraises, target: applyMultiplier(PRAISE_COUNT[next]!, multiplier) }
     case 'mixed': {
-      const q = emp.totalMessages >= QUANT_MESSAGES[next]!
-      const t = daysSince(emp.hiredAt, now) >= TIME_DAYS[next]!
-      const p = emp.totalPraises >= PRAISE_COUNT[next]!
+      const q = emp.totalMessages >= applyMultiplier(QUANT_MESSAGES[next]!, multiplier)
+      const t = daysSince(emp.hiredAt, now) >= applyMultiplier(TIME_DAYS[next]!, multiplier)
+      const p = emp.totalPraises >= applyMultiplier(PRAISE_COUNT[next]!, multiplier)
       const count = [q, t, p].filter(Boolean).length
       return { toRank: next, label: '충족 조건', current: count, target: 2 }
     }

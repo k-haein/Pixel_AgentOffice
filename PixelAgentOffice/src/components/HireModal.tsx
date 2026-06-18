@@ -50,7 +50,7 @@ const PROMOTION_MODES: { value: PromotionMode; label: string; desc: string }[] =
 const PROMOTION_CRITERIA_TIP: Record<PromotionMode, string> = {
   quantitative: '대화 누적: 사원 50 / 대리 100 / 과장 200 / 부장 400회',
   time: '입사 경과: 사원 3일 / 대리 2주 / 과장 1개월 / 부장 3개월',
-  qualitative: '받은 칭찬(👍): 사원 1 / 대리 5 / 과장 15 / 부장 40회',
+  qualitative: '받은 칭찬(👍): 사원 5 / 대리 20 / 과장 50 / 부장 100회',
   mixed: '정량·시간·정성 중 2개 이상 충족 시 진급',
   off: '자동 진급 없음 — 사장이 직접 임명',
 }
