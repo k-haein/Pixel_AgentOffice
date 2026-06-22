@@ -125,6 +125,15 @@ export function ShopModal({ onClose }: Props) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>🛍 상점 — 사무실 꾸미기</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={() => eventBus.emit('tutorial:start', { track: 'shop' })}
+            title="상점 사용법 보기 (튜토리얼)"
+            style={{ fontSize: 18 }}
+          >
+            🎓
+          </button>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -134,7 +143,7 @@ export function ShopModal({ onClose }: Props) {
           </p>
 
           {/* 팻말 카탈로그 (Day 11) — 즉시 적용 가능 */}
-          <h3 style={{ marginTop: 8 }}>🪧 팀 팻말 디자인</h3>
+          <h3 data-tutorial="shop-plate" style={{ marginTop: 8 }}>🪧 팀 팻말 디자인</h3>
           <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
             클릭으로 모든 팀의 팻말 스타일이 즉시 변경됩니다. (현재: <strong>{PLATE_CATALOG.find(p => p.id === currentPlate)?.name ?? currentPlate}</strong>)
           </p>
@@ -226,7 +235,7 @@ export function ShopModal({ onClose }: Props) {
           </>)}
 
           {/* 감정 미리보기 갤러리 (Day 11 v2.5 A) */}
-          <h3 style={{ marginTop: 16 }}>🎭 감정 표현 미리보기 (12종)</h3>
+          <h3 data-tutorial="shop-emotion" style={{ marginTop: 16 }}>🎭 감정 표현 미리보기 (12종)</h3>
           <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
             미리보기 창에서 캐릭터가 12가지 감정을 어떻게 표현하는지 확인할 수 있습니다.
           </p>
@@ -238,7 +247,7 @@ export function ShopModal({ onClose }: Props) {
             🎭 감정 미리보기 열기
           </button>
 
-          <h3 style={{ marginTop: 16 }}>🪑 가구·꾸미기 — 배치 가능 (8종)</h3>
+          <h3 data-tutorial="shop-furniture" style={{ marginTop: 16 }}>🪑 가구·꾸미기 — 배치 가능 (8종)</h3>
           <div className="shop-notice">
             ✅ <strong>"사무실에 배치" 클릭</strong> → 모달 닫히고 마우스 따라 ghost 표시 → 원하는 위치 클릭 → 배치 완료. ESC 또는 우클릭으로 취소. 배치 후 드래그로 이동·우클릭으로 제거.
           </div>

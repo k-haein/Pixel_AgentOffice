@@ -11,6 +11,10 @@ import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation, Rank } from './shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
 import { checkPromotionEligible } from './shared/promotion'
+import { TutorialOverlay } from './components/TutorialOverlay'
+import { ApiKeyModal } from './components/ApiKeyModal'
+import { ApiKeyGuideModal } from './components/ApiKeyGuideModal'
+import { TUTORIAL_STEPS, SHOP_TUTORIAL_STEPS, SETTINGS_TUTORIAL_STEPS, type TutorialStep } from './shared/tutorial'
 import './App.css'
 
 function App() {
@@ -39,6 +43,23 @@ function App() {
   /** 상태바(F) — 사용량·시간대 라이브 정보 (OfficeScene이 emit) */
   const [usageSummary, setUsageSummary] = useState<{ totalCost: number; limit: number; color: 'green' | 'yellow' | 'red' } | null>(null)
   const [timeOfDay, setTimeOfDay] = useState<{ label: string; forcedNight: boolean } | null>(null)
+  /** 튜토리얼(T1, Day 14) — 현재 단계 인덱스. null=비활성. 첫 실행 시 0부터 시작 */
+  const [tutorialStep, setTutorialStep] = useState<number | null>(null)
+  const tutorialStepRef = useRef<number | null>(null)
+  useEffect(() => { tutorialStepRef.current = tutorialStep }, [tutorialStep])
+  /** 설정 "다시 보기"로 재시작했는지 — 재시청 시 행동 단계(채용·대화)는 자동 통과 */
+  const tutorialReplayRef = useRef(false)
+  /** 튜토리얼 단계 이동 히스토리 — "◂ 이전" 버튼용 (분기 흐름도 정확히 되돌림) */
+  const tutorialHistoryRef = useRef<number[]>([])
+  /** 활성 튜토리얼 트랙의 단계 배열 (메인/상점/설정). 트랙 전환은 항상 setTutorialStep을 동반하므로 ref로 충분 */
+  const tutorialStepsRef = useRef<TutorialStep[]>(TUTORIAL_STEPS)
+  /** 활성 트랙 종류 — 상점/설정 트랙은 해당 모달이 닫히면 자동 종료 */
+  const tutorialTrackRef = useRef<'main' | 'shop' | 'settings'>('main')
+  /** API 키 미니 팝업 (Day 14) — 설정·튜토리얼·키없음 흐름 공용 */
+  const [apiKeyOpen, setApiKeyOpen] = useState(false)
+  const [apiKeyGuideOpen, setApiKeyGuideOpen] = useState(false)
+  /** 키가 하나라도 등록돼 있는지 — 튜토리얼 키 단계 스킵 판단 (ref로 최신값) */
+  const hasAnyKeyRef = useRef(false)
 
   // Stable ref to current employees (for handlers that won't see state updates)
   const employeesRef = useRef<Employee[]>([])
@@ -70,6 +91,14 @@ function App() {
         setMaxEmployees(data.maxEmployees)
         setSettings(data.settings)
         setLoading(false)
+        // 튜토리얼(T1) — 자동으로 띄우지 않음 (사용자 요청, Day 14). 상단 🎓 버튼으로 직접 연다.
+        // API 키 보유 여부 — 튜토리얼 키 단계 스킵 판단용 (비동기, welcome 단계 클릭 전 도착)
+        void Promise.all([platform.hasApiKey('google'), platform.hasApiKey('anthropic')]).then(([g, a]) => {
+          hasAnyKeyRef.current = g || a
+          // 로드가 늦게 끝나 이미 키 단계에 머물러 있으면 즉시 스킵
+          const idx = tutorialStepRef.current
+          if (hasAnyKeyRef.current && idx !== null && tutorialStepsRef.current[idx]?.id === 'apikey') goToTutorialStep('hire')
+        })
         eventBus.emit('office:set-employees', data.employees)
         eventBus.emit('office:settings', data.settings)
         // Phase 3 — 시간형 진급은 카운터 이벤트가 없으므로 로드 시 1회 스캔.
@@ -111,6 +140,8 @@ function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // 위에 API 키 팝업/안내가 떠 있으면 그 팝업만 ESC로 닫고 아래 모달(채용·설정) 입력은 보존
+        if (apiKeyOpen || apiKeyGuideOpen) return
         setSettingsOpen(false)
         setHireOpen(false)
         setMemoEmployee(null)
@@ -118,18 +149,103 @@ function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [apiKeyOpen, apiKeyGuideOpen])
 
   // 다른 컴포넌트에서 우클릭으로 설정 → 특정 섹션 점프하면서 열기
   useEffect(() => {
     const onSettingsOpen = (payload: unknown) => {
       const section = (payload as { section?: string } | undefined)?.section
+      // API 키 섹션 요청은 미니 팝업으로 (Day 14 — 설정에서 키 입력 분리)
+      if (section === 'google-key' || section === 'anthropic-key') {
+        setApiKeyGuideOpen(false)
+        setApiKeyOpen(true)
+        return
+      }
       setSettingsFocusSection(section)
       setSettingsOpen(true)
     }
     eventBus.on('settings:open', onSettingsOpen)
     return () => eventBus.off('settings:open', onSettingsOpen)
   }, [])
+
+  // API 키 미니 팝업 (Day 14) — 열기/받는법/저장 이벤트 공용 구독
+  useEffect(() => {
+    const onOpen = () => { setApiKeyGuideOpen(false); setApiKeyOpen(true) }
+    const onOpenGuide = () => { setApiKeyOpen(false); setApiKeyGuideOpen(true) }
+    const onSaved = () => {
+      hasAnyKeyRef.current = true
+      advanceTutorialOn('api-key-set') // 튜토리얼 키 단계면 다음으로 (→ apikey-ok)
+    }
+    eventBus.on('apikey:open', onOpen)
+    eventBus.on('apikey:open-guide', onOpenGuide)
+    eventBus.on('apikey:saved', onSaved)
+    return () => {
+      eventBus.off('apikey:open', onOpen)
+      eventBus.off('apikey:open-guide', onOpenGuide)
+      eventBus.off('apikey:saved', onSaved)
+    }
+  }, [])
+
+  // 튜토리얼(T1) — chat:open(대화 시작) / tutorial:start(설정에서 다시 보기) 구독.
+  // 핸들러는 ref만 읽으므로 [] deps로 한 번만 등록해도 최신 단계로 동작.
+  useEffect(() => {
+    const onChatOpen = () => advanceTutorialOn('chat-opened')
+    const onTutorialStart = (payload: unknown) => {
+      const track = (payload as { track?: string } | undefined)?.track
+      if (track === 'shop') startTutorialTrack(SHOP_TUTORIAL_STEPS, 'shop')
+      else if (track === 'settings') startTutorialTrack(SETTINGS_TUTORIAL_STEPS, 'settings')
+      else startTutorialTrack(TUTORIAL_STEPS, 'main')
+    }
+    eventBus.on('chat:open', onChatOpen)
+    eventBus.on('tutorial:start', onTutorialStart)
+    return () => {
+      eventBus.off('chat:open', onChatOpen)
+      eventBus.off('tutorial:start', onTutorialStart)
+    }
+  }, [])
+
+  // 튜토리얼(T1) — 행동 단계의 조건이 이미 충족돼 있으면 자동 전진.
+  // (예: 설정에서 "다시 보기"로 재시작했는데 직원이 이미 있으면 채용 단계 건너뜀)
+  useEffect(() => {
+    if (tutorialStep === null) return
+    const s = tutorialStepsRef.current[tutorialStep]
+    if (!s) return
+    // 재시청("다시 보기")은 전체 흐름을 다 보여줌 — 자동 스킵 안 함.
+    // (행동 단계는 오버레이가 "다음 ▸" 버튼을 제공해 갇히지 않게 함)
+    if (tutorialReplayRef.current) return
+    // 첫 실행 — 키가 이미 있으면 API 키 안내 단계 건너뜀 (→ 채용)
+    if (s.id === 'apikey' && hasAnyKeyRef.current) { goToTutorialStep('hire'); return }
+    // 첫 실행 — 이미 직원이 있으면(예: 안내 전에 직접 채용) 채용 단계 건너뜀
+    if (s.advanceOn === 'employee-hired' && employees.length > 0) advanceTutorial()
+  }, [tutorialStep, employees])
+
+  // 튜토리얼 채용 폼 안내 — 채용 모달 열림/닫힘에 맞춰 진입·복귀 (Day 14)
+  // 'hire' 단계에서 모달 열면 폼 필드 안내(hire-template~)로, 폼 안내 중 모달 닫으면 'hire'로 복귀.
+  useEffect(() => {
+    if (tutorialStep === null) return
+    const id = tutorialStepsRef.current[tutorialStep]?.id
+    if (!id) return
+    if (id === 'hire' && hireOpen) {
+      tutorialHistoryRef.current = [] // 폼 안내는 자체 이전/다음 체인
+      const i = tutorialStepsRef.current.findIndex(s => s.id === 'hire-template')
+      if (i >= 0) setTutorialStep(i)
+    } else if (id.startsWith('hire-') && !hireOpen) {
+      const i = tutorialStepsRef.current.findIndex(s => s.id === 'hire')
+      if (i >= 0) setTutorialStep(i)
+    } else if (!id.startsWith('hire') && hireOpen) {
+      // 폼을 "다음"으로 건너뛰어 폼 밖(chat 등)으로 나갔는데 모달이 남아있으면 닫기
+      // (실제 채용 경로는 onClose로 이미 닫히지만, 폼-스킵 경로엔 닫는 호출이 없음)
+      setHireOpen(false)
+    }
+  }, [hireOpen, tutorialStep])
+
+  // 상점/설정 트랙(Day 14) — 해당 모달이 닫히면 그 트랙 튜토리얼도 종료
+  useEffect(() => {
+    if (tutorialStep === null) return
+    const track = tutorialTrackRef.current
+    if (track === 'shop' && !shopOpen) finishTutorial()
+    else if (track === 'settings' && !settingsOpen) finishTutorial()
+  }, [shopOpen, settingsOpen, tutorialStep])
 
   // 캐릭터 우클릭 → 컨텍스트 메뉴 (자리 변경 등)
   useEffect(() => {
@@ -362,8 +478,74 @@ function App() {
     }
   }, [])
 
+  // ── 튜토리얼(T1) 제어 ──────────────────────────────────────────
+  /** 완료/건너뛰기 — 투어 종료 + 완료 플래그 영속화 (다시는 자동 시작 안 함) */
+  const finishTutorial = () => {
+    setTutorialStep(null)
+    tutorialHistoryRef.current = []
+    const updated = { ...settingsRef.current, tutorialDone: true }
+    setSettings(updated)
+    void platform.updateSettings({ tutorialDone: true })
+  }
+  /** 현재 단계를 히스토리에 쌓고 목표 단계로 이동 (앞으로 갈 때만) */
+  const navigateTutorial = (target: number) => {
+    const idx = tutorialStepRef.current
+    if (idx !== null) tutorialHistoryRef.current.push(idx)
+    setTutorialStep(target)
+  }
+  /** 특정 단계로 점프 (분기용) */
+  const goToTutorialStep = (id: string) => {
+    const i = tutorialStepsRef.current.findIndex(s => s.id === id)
+    if (i >= 0) navigateTutorial(i)
+  }
+  /** 다음 단계로 (step.next 있으면 그쪽으로 분기). 마지막이면 종료 */
+  const advanceTutorial = () => {
+    const idx = tutorialStepRef.current
+    if (idx === null) return
+    const cur = tutorialStepsRef.current[idx]
+    if (cur?.next) {
+      const i = tutorialStepsRef.current.findIndex(s => s.id === cur.next)
+      if (i >= 0) { navigateTutorial(i); return }
+    }
+    const next = idx + 1
+    if (next >= tutorialStepsRef.current.length) finishTutorial()
+    else navigateTutorial(next)
+  }
+  /** 이전 단계로 (히스토리 pop) */
+  const prevTutorial = () => {
+    const prev = tutorialHistoryRef.current.pop()
+    if (prev !== undefined) setTutorialStep(prev)
+  }
+  /** 실제 행동(채용/대화)으로 진행되는 단계 — 현재 단계가 그 트리거를 기다릴 때만 전진 */
+  const advanceTutorialOn = (trigger: TutorialStep['advanceOn']) => {
+    const idx = tutorialStepRef.current
+    if (idx === null) return
+    if (tutorialStepsRef.current[idx]?.advanceOn === trigger) advanceTutorial()
+  }
+  /** 좌상단 🎓 버튼 — 튜토리얼 토글 (열기=처음부터 재시청 / 닫기=완료 처리) */
+  /** 트랙(메인/상점/설정) 처음부터 시작 — 항상 재시청 모드. 빈 트랙은 무시 */
+  const startTutorialTrack = (steps: TutorialStep[], track: 'main' | 'shop' | 'settings') => {
+    if (steps.length === 0) return
+    tutorialStepsRef.current = steps
+    tutorialTrackRef.current = track
+    tutorialReplayRef.current = true
+    tutorialHistoryRef.current = []
+    setTutorialStep(0)
+  }
+  const toggleTutorial = () => {
+    if (tutorialStep !== null) finishTutorial()
+    else startTutorialTrack(TUTORIAL_STEPS, 'main')
+  }
+
   const handleHired = (employee: Employee) => {
     setEmployees(prev => [...prev, employee])
+    // 튜토리얼이 채용 단계/폼 안내 중이면 대화 단계로 점프
+    const idx = tutorialStepRef.current
+    if (idx !== null && tutorialStepsRef.current[idx]?.id.startsWith('hire')) {
+      tutorialHistoryRef.current = []
+      const i = tutorialStepsRef.current.findIndex(s => s.id === 'chat')
+      if (i >= 0) setTutorialStep(i)
+    }
   }
 
   const handleUpdated = (employee: Employee) => {
@@ -436,14 +618,23 @@ function App() {
             className={`topbar-btn ${employees.length === 0 ? 'topbar-btn-pulse' : ''}`}
             onClick={() => setHireOpen(true)}
             disabled={employees.length >= maxEmployees}
+            data-tutorial="hire"
             title={employees.length >= maxEmployees ? '최대 인원 도달' : '새 직원 채용'}
           >
             + 채용
           </button>
           <button
             className="topbar-btn"
+            onClick={toggleTutorial}
+            title={tutorialStep !== null ? '튜토리얼 닫기' : '튜토리얼 보기'}
+          >
+            🎓 튜토리얼
+          </button>
+          <button
+            className="topbar-btn"
             onClick={() => setShopOpen(true)}
             title="상점 (가구·꾸미기)"
+            data-tutorial="shop"
           >
             🛍 상점
           </button>
@@ -451,13 +642,14 @@ function App() {
             className="topbar-btn"
             onClick={() => setSettingsOpen(true)}
             title="설정"
+            data-tutorial="settings"
           >
             ⚙
           </button>
         </div>
       </header>
 
-      <main className="stage">
+      <main className="stage" data-tutorial="canvas">
         {loading && (
           <div className="loading-overlay">
             <div className="loading-text">사무실 준비 중...</div>
@@ -477,7 +669,7 @@ function App() {
         </button>
         {/* 온보딩 안내 (C) — 직원 0명일 때 화면 중앙 가이드.
             Day 12 §3 — "또는 빈 자리 클릭" 안내 제거 (P0 #6에서 빈 자리 클릭 채용 기능도 이미 제거됨) */}
-        {!loading && employees.length === 0 && (
+        {!loading && employees.length === 0 && tutorialStep === null && (
           <div className="onboarding-overlay">
             <div className="onboarding-box">
               <div className="onboarding-emoji">🏢</div>
@@ -531,6 +723,24 @@ function App() {
           multiplier={settings.promotionSpeedMultiplier ?? 1}
           onApprove={handlePromotionApprove}
           onDismiss={() => setPromotionReq(null)}
+        />
+      )}
+      {/* API 키 미니 팝업 + 받는 법 안내 (Day 14) */}
+      {apiKeyOpen && <ApiKeyModal onClose={() => setApiKeyOpen(false)} />}
+      {apiKeyGuideOpen && <ApiKeyGuideModal onClose={() => setApiKeyGuideOpen(false)} />}
+      {/* 튜토리얼 가이드 투어 (T1, Day 14) */}
+      {tutorialStep !== null && tutorialStepsRef.current[tutorialStep] && (
+        <TutorialOverlay
+          step={tutorialStepsRef.current[tutorialStep]}
+          index={tutorialStep}
+          total={tutorialStepsRef.current.length}
+          onNext={advanceTutorial}
+          onPrev={prevTutorial}
+          canPrev={tutorialHistoryRef.current.length > 0}
+          onSkip={finishTutorial}
+          onApiKeyGuide={() => eventBus.emit('apikey:open-guide')}
+          onApiKeyLater={() => goToTutorialStep('apikey-later')}
+          replay={tutorialReplayRef.current}
         />
       )}
       {/* 캐릭터 우클릭 컨텍스트 메뉴 */}

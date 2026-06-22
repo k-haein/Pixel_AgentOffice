@@ -366,6 +366,8 @@ export type Settings = {
   placedFurniture?: PlacedFurniture[]
   /** 진급 난이도 배율 (Day 13) — 기본 기준 임계에 곱함. 0.5=빠름(절반), 1=기본, 3=느림(3배). 기본 1 */
   promotionSpeedMultiplier?: number
+  /** 튜토리얼(T1, Day 14) 완료 여부 — 첫 실행 시 false/미설정이면 가이드 투어 자동 시작 */
+  tutorialDone?: boolean
   // API 키는 safeStorage에 따로 저장
 }
 
@@ -466,6 +468,7 @@ export const DEFAULT_SETTINGS: Settings = {
   teamPlateStyle: 'wood',
   placedFurniture: [],
   promotionSpeedMultiplier: 1,
+  tutorialDone: false,
 }
 
 /** 사무실 총 자리 수 = 사장 1 + 3팀 × 5 = 16 (사장석은 일반 채용으로 안 채워짐) */

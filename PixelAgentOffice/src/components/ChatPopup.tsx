@@ -4,6 +4,7 @@ import { platform } from '../platform'
 import type { Employee, Settings, UsageDisplayMode, ChatMessage, BubbleEmotion } from '../shared/types'
 import { MODEL_INFO, USD_TO_KRW, MBTI_PROFILES } from '../shared/types'
 import { checkPromotionEligible } from '../shared/promotion'
+import { demoReply } from '../shared/demoReplies'
 import type { RateLimitStatus } from '../platform'
 
 // ChatMessage를 Message로 alias — 기존 코드 호환
@@ -169,10 +170,28 @@ export function ChatPopup() {
   const [usageStripOpen, setUsageStripOpen] = useState<boolean>(false)
   /** 우클릭 컨텍스트 메뉴 좌표 (null이면 닫힘) */
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  /** 데모 모드 (Day 14) — 직원 모델의 provider 키가 없으면 true. 더미 응답 + 배너 */
+  const [demoMode, setDemoMode] = useState(false)
+  /** 데모 응답 순번 — 캐릭터별 라인 순환용 */
+  const demoTurnRef = useRef(0)
   const msgsEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   /** 채팅 영구화 (P1 #13) — employee별 메시지 보관. 같은 직원 채팅 다시 열면 복원. */
   const messagesByEmployeeRef = useRef<Record<string, Message[]>>({})
+
+  // 데모 모드 판별 (Day 14) — 직원 모델 provider의 키 유무. 키 저장되면 즉시 해제.
+  useEffect(() => {
+    if (!employee) { setDemoMode(false); return }
+    let alive = true
+    const check = async () => {
+      const has = await platform.hasApiKey(MODEL_INFO[employee.model].provider)
+      if (alive) setDemoMode(!has)
+    }
+    void check()
+    const onSaved = () => { void check() }
+    eventBus.on('apikey:saved', onSaved)
+    return () => { alive = false; eventBus.off('apikey:saved', onSaved) }
+  }, [employee])
 
   // 채팅 열기 이벤트 (Day 11+ 풀 스펙: store.ts 영속화 추가 — 앱 재시작 후도 이력 복원)
   useEffect(() => {
@@ -390,6 +409,26 @@ export function ChatPopup() {
       }))
 
     try {
+      // 데모 모드 (Day 14) — 모델 provider 키가 없으면 실제 LLM 대신 캐릭터별 더미 응답.
+      const hasKey = await platform.hasApiKey(MODEL_INFO[employee.model].provider)
+      if (!hasKey) {
+        setDemoMode(true)
+        await new Promise(r => setTimeout(r, 500)) // 타이핑 느낌의 짧은 지연
+        const reply: Message = {
+          id: `a-${Date.now()}`,
+          role: 'agent',
+          text: demoReply(employee.template, employee.name, demoTurnRef.current++),
+        }
+        setMessages(prev => [...prev, reply])
+        const empId = employee.id
+        const prevPersisted = messagesByEmployeeRef.current[empId] ?? []
+        messagesByEmployeeRef.current[empId] = [...prevPersisted, reply]
+        eventBus.emit('agent:reply', { agentId: empId }) // 말풍선 happy
+        // 데모도 게임 루프(칭찬·진급) 체험되게 활동 카운트
+        void platform.incrementEmployeeStats(empId, { totalMessages: 1 }).then(maybeRequestPromotion)
+        return // finally에서 typing/state 정리
+      }
+
       // Phase 4 — 매 전송 직전 최신 메모리 로드 (메모 모달에서 갱신돼도 즉시 반영, stale 차단)
       const freshMemory = await platform.loadMemory(employee.id)
       const result = await platform.chat({
@@ -651,6 +690,29 @@ export function ChatPopup() {
         </div>
       )}
 
+      {demoMode && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            background: '#fff3d6', borderTop: '1px solid #e0c890', borderBottom: '1px solid #e0c890',
+            padding: '7px 12px', fontSize: 12, color: '#7a5a1a',
+          }}
+        >
+          <span>🔑 데모 응답이에요 — API 키를 연결하면 진짜로 대화해요</span>
+          <button
+            type="button"
+            onClick={() => eventBus.emit('apikey:open')}
+            style={{
+              background: '#ffd24a', border: '1px solid #b8860b', borderRadius: 6,
+              padding: '4px 10px', fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
+              color: '#2a2118', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}
+          >
+            🔑 키 연결
+          </button>
+        </div>
+      )}
+
       <div className="chat-msgs">
         {messages.map(m => (
           <div key={m.id} className={`msg msg-${m.role}`}>
@@ -727,7 +789,9 @@ export function ChatPopup() {
       </div>
 
       <div className="chat-footer">
-        💬 실제 LLM과 대화 중 · {modelInfo?.tier === 'free' ? '🆓 무료' : '💸 토큰 비용 발생'}
+        {demoMode
+          ? '🔑 데모 모드 · API 키를 연결하면 실제 대화 (비용 없음)'
+          : `💬 실제 LLM과 대화 중 · ${modelInfo?.tier === 'free' ? '🆓 무료' : '💸 토큰 비용 발생'}`}
       </div>
 
       {contextMenu && (

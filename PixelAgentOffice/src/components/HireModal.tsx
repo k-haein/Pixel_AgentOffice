@@ -141,14 +141,18 @@ export function HireModal({
   // 빈 input 강조 (Day 12 §3 +1) — 검증 실패 시 해당 칸 빨간 테두리
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; role?: boolean }>({})
   useEffect(() => {
-    void (async () => {
+    const refreshKeys = async () => {
       const [g, a] = await Promise.all([
         platform.hasApiKey('google'),
         platform.hasApiKey('anthropic'),
       ])
       setHasGoogleKey(g)
       setHasAnthropicKey(a)
-    })()
+    }
+    void refreshKeys()
+    // 채용 모달을 연 채 "⚙ 설정 열기" → API 키 팝업에서 키 저장 시 즉시 반영 (모델 활성화)
+    eventBus.on('apikey:saved', refreshKeys)
+    return () => eventBus.off('apikey:saved', refreshKeys)
   }, [])
 
   const handleTemplateChange = (t: Template) => {
@@ -205,16 +209,7 @@ export function HireModal({
       return
     }
     setFieldErrors({}) // 통과 시 강조 clear
-    // Day 12 §3 — 선택된 모델의 provider 키 확인
-    const isGoogleModel = FREE_MODELS.includes(model)
-    if (isGoogleModel && !hasGoogleKey) {
-      setErrorMessage('Google API 키가 없습니다. ⚙ 설정에서 키를 먼저 등록해주세요.')
-      return
-    }
-    if (!isGoogleModel && !hasAnthropicKey) {
-      setErrorMessage('Anthropic API 키가 없습니다. ⚙ 설정에서 키를 먼저 등록해주세요.')
-      return
-    }
+    // Day 14 — 키 없어도 채용 가능 (데모 모드). 대화 시 캐릭터별 더미 응답 + 키 연결 안내.
     const seatRes = resolveSeatId()
     if (!seatRes.ok) {
       setErrorMessage(seatRes.reason)
@@ -273,7 +268,7 @@ export function HireModal({
           )}
 
           {/* Template — Day 12 §3: custom 카드는 "새 직원" 한 줄로 단순화 */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-template">
             <h3>👤 캐릭터 템플릿</h3>
             <div className="template-grid">
               {(Object.keys(TEMPLATES) as Template[]).map(t => {
@@ -308,7 +303,7 @@ export function HireModal({
           </section>
 
           {/* 팀 배정 (P1 #16) */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-team">
             <h3>👥 팀 배정</h3>
             <p className="modal-hint">
               팀에 첫 직원이 배정되면 사무실에 그 팀 영역이 표시됩니다. 최대 3팀.
@@ -339,6 +334,7 @@ export function HireModal({
             <h3>🪪 정체성 <span style={{ color: '#c83838', fontSize: 12 }}>* 필수</span></h3>
             <label className="modal-label">이름</label>
             <input
+              data-tutorial="hire-name"
               className="modal-input"
               value={name}
               onChange={e => {
@@ -356,6 +352,7 @@ export function HireModal({
             )}
             <label className="modal-label">역할</label>
             <input
+              data-tutorial="hire-role"
               className="modal-input"
               value={role}
               onChange={e => {
@@ -399,6 +396,7 @@ export function HireModal({
               </button>
             </label>
             <textarea
+              data-tutorial="hire-instructions"
               className="modal-input"
               rows={6}
               value={customInstructions}
@@ -433,7 +431,7 @@ export function HireModal({
           </section>
 
           {/* 캐릭터 외형 (v2 #17·#18) — 커스텀 색 + 무늬 */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-appearance">
             <h3>🎨 캐릭터 외형</h3>
             <p className="modal-hint">
               {template === 'custom'
@@ -476,7 +474,7 @@ export function HireModal({
           </section>
 
           {/* MBTI 페르소나 (Day 12 §2) — 16종 중 1 선택. LLM 시스템 프롬프트에 자동 주입 */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-mbti">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               🧬 MBTI 페르소나 (선택)
               <button
@@ -551,7 +549,7 @@ export function HireModal({
           </section>
 
           {/* Rank */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-rank">
             <h3>🏆 초기 직급</h3>
             <div className="pill-row">
               {RANK_OPTIONS.map(r => (
@@ -573,7 +571,7 @@ export function HireModal({
           </section>
 
           {/* Promotion Mode */}
-          <section className="modal-section">
+          <section className="modal-section" data-tutorial="hire-promotion">
             <h3>📈 진급 방식</h3>
             <div className="promotion-grid">
               {PROMOTION_MODES.map(m => (
@@ -602,53 +600,50 @@ export function HireModal({
             </div>
           </section>
 
-          {/* Model — Day 12 §3: 키 없으면 비활성 + 빨간 안내 + 설정 열기 버튼 */}
-          <section className="modal-section">
+          {/* Model — Day 14: 키 없어도 선택·채용 가능(데모). 키 안내는 막지 않고 유도만. */}
+          <section className="modal-section" data-tutorial="hire-model">
             <h3>🧠 대화 모델</h3>
             {!hasGoogleKey && !hasAnthropicKey && (
               <div
                 style={{
-                  background: '#ffe5e5',
-                  border: '1px solid #c83838',
+                  background: '#fff3d6',
+                  border: '1px solid #e0c890',
                   borderRadius: 4,
                   padding: '8px 12px',
                   marginBottom: 10,
                   fontSize: 12,
-                  color: '#c83838',
+                  color: '#7a5a1a',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 10,
                 }}
               >
-                <strong>⚠ API 키가 설정되지 않았습니다. 설정에서 키를 먼저 등록해주세요.</strong>
+                <strong>🔑 키가 없어도 데모로 채용·대화할 수 있어요. 키를 넣으면 진짜 대화가 돼요.</strong>
                 <button
                   type="button"
-                  onClick={() => {
-                    // 채용 모달은 그대로 두고 설정 모달을 위에 중첩 (onClose 호출 X — 입력 보존).
-                    // 키 등록 후 설정 닫으면 채용 모달 입력이 유지됨.
-                    eventBus.emit('settings:open', { section: 'google-key' })
-                  }}
+                  onClick={() => eventBus.emit('apikey:open')}
                   style={{
-                    background: '#c83838',
-                    color: '#fff',
-                    border: 'none',
+                    background: '#ffd24a',
+                    color: '#2a2118',
+                    border: '1px solid #b8860b',
                     borderRadius: 4,
                     padding: '4px 10px',
                     fontSize: 11,
+                    fontWeight: 'bold',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  ⚙ 설정 열기
+                  🔑 키 설정
                 </button>
               </div>
             )}
             <div className="modal-subhead">
               🆓 무료 (Google){' '}
               {!hasGoogleKey && (
-                <span style={{ color: '#c83838', fontSize: 11 }}>· 키 없음 (선택 불가)</span>
+                <span style={{ color: '#9a7a3a', fontSize: 11 }}>· 키 없음 (데모로 동작)</span>
               )}
             </div>
             <div className="pill-row">
@@ -658,9 +653,6 @@ export function HireModal({
                   type="button"
                   className={`pill ${model === m ? 'selected' : ''}`}
                   onClick={() => setModel(m)}
-                  disabled={!hasGoogleKey}
-                  title={!hasGoogleKey ? 'Google API 키가 필요합니다' : undefined}
-                  style={!hasGoogleKey ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
                   {MODEL_INFO[m].label}
                 </button>
@@ -669,7 +661,7 @@ export function HireModal({
             <div className="modal-subhead">
               💸 유료 (Anthropic){' '}
               {!hasAnthropicKey && (
-                <span style={{ color: '#c83838', fontSize: 11 }}>· 키 없음 (선택 불가)</span>
+                <span style={{ color: '#9a7a3a', fontSize: 11 }}>· 키 없음 (데모로 동작)</span>
               )}
             </div>
             <div className="pill-row">
@@ -679,9 +671,6 @@ export function HireModal({
                   type="button"
                   className={`pill ${model === m ? 'selected' : ''}`}
                   onClick={() => setModel(m)}
-                  disabled={!hasAnthropicKey}
-                  title={!hasAnthropicKey ? 'Anthropic API 키가 필요합니다' : undefined}
-                  style={!hasAnthropicKey ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
                   {MODEL_INFO[m].label}
                 </button>
@@ -696,6 +685,7 @@ export function HireModal({
             className="btn-primary"
             onClick={handleHire}
             disabled={submitting || isAtMax}
+            data-tutorial="hire-submit"
           >
             {submitting ? '채용 중...' : '✓ 채용 완료'}
           </button>

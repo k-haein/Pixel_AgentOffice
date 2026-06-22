@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { platform, type RateLimitStatus } from '../platform'
 import { type Model, type Settings, type UsageDisplayMode, MODEL_INFO } from '../shared/types'
-import type { ProviderName } from '../../electron/llm/types'
 import { eventBus } from '../game/eventBus'
 
 /** 설정 섹션 식별자 — 우클릭 메뉴 등에서 직접 점프할 수 있는 위치 */
@@ -30,14 +29,7 @@ const ALL_MODELS: Model[] = [
   'claude-haiku-4-7',
 ]
 
-type KeyState = { has: boolean; input: string }
-
 export function SettingsModal({ onClose, initialSettings, onSaved, focusSection }: Props) {
-  const [keys, setKeys] = useState<Record<ProviderName, KeyState>>({
-    anthropic: { has: false, input: '' },
-    google: { has: false, input: '' },
-  })
-  const [storageAvailable, setStorageAvailable] = useState(true)
   const [defaultModel, setDefaultModel] = useState<Model>(initialSettings.defaultModel)
   const [memoryModel, setMemoryModel] = useState<Model>(initialSettings.defaultMemoryModel)
   const [dailyLimit, setDailyLimit] = useState<number>(initialSettings.dailyLimitUsd)
@@ -92,25 +84,6 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
     }
   }, [])
 
-  useEffect(() => {
-    let mounted = true
-    Promise.all([
-      platform.hasApiKey('anthropic'),
-      platform.hasApiKey('google'),
-      platform.isApiKeyStorageAvailable(),
-    ]).then(([hasA, hasG, available]) => {
-      if (!mounted) return
-      setKeys({
-        anthropic: { has: hasA, input: '' },
-        google: { has: hasG, input: '' },
-      })
-      setStorageAvailable(available)
-    })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -124,24 +97,6 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
       onSaved(updated)
       eventBus.emit('settings:changed', updated)
 
-      // Provider별 키 저장
-      for (const provider of ['anthropic', 'google'] as ProviderName[]) {
-        const k = keys[provider].input.trim()
-        if (k) {
-          await platform.saveApiKey(provider, k)
-        }
-      }
-
-      // 키 상태 새로고침
-      const [hasA, hasG] = await Promise.all([
-        platform.hasApiKey('anthropic'),
-        platform.hasApiKey('google'),
-      ])
-      setKeys({
-        anthropic: { has: hasA, input: '' },
-        google: { has: hasG, input: '' },
-      })
-
       setSavedFeedback(true)
       setSaving(false)
       setTimeout(() => onClose(), 900)
@@ -152,23 +107,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
     }
   }
 
-  const handleDeleteKey = async (provider: ProviderName) => {
-    if (!window.confirm(`${provider === 'anthropic' ? 'Anthropic' : 'Google'} API 키를 삭제하시겠습니까?`)) {
-      return
-    }
-    try {
-      await platform.deleteApiKey(provider)
-      setKeys(prev => ({ ...prev, [provider]: { has: false, input: '' } }))
-    } catch (err) {
-      alert('삭제 실패: ' + (err as Error).message)
-    }
-  }
-
-  const setInput = (provider: ProviderName, value: string) => {
-    setKeys(prev => ({ ...prev, [provider]: { ...prev[provider], input: value } }))
-  }
-
-  const renderModelGroup = (tier: 'free' | 'paid', current: Model, onSelect: (m: Model) => void) => (
+  const renderModelGroup =(tier: 'free' | 'paid', current: Model, onSelect: (m: Model) => void) => (
     <div className="model-options">
       {ALL_MODELS.filter(m => MODEL_INFO[m].tier === tier).map(m => (
         <label key={m} className={`model-option ${current === m ? 'selected' : ''}`}>
@@ -194,77 +133,32 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>⚙️ 설정</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={() => eventBus.emit('tutorial:start', { track: 'settings' })}
+            title="설정 사용법 보기 (튜토리얼)"
+            style={{ fontSize: 18 }}
+          >
+            🎓
+          </button>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body" ref={bodyRef}>
-          {/* === Google API Key (무료) === */}
+          {/* === API 키 (미니 팝업으로 분리, Day 14) === */}
           <section
-            className={`modal-section ${highlightedSection === 'google-key' ? 'modal-section-focus' : ''}`}
-            data-section="google-key"
+            className={`modal-section ${highlightedSection === 'google-key' || highlightedSection === 'anthropic-key' ? 'modal-section-focus' : ''}`}
+            data-section="api-key"
           >
-            <h3>🆓 Google AI API 키 <span style={{ color: '#2a8a2a', fontSize: 11 }}>(무료 권장)</span></h3>
+            <h3>🔑 API 키</h3>
             <p className="modal-hint">
-              발급:{' '}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
-                aistudio.google.com/apikey
-              </a>
-              {' '}— Google 계정만 있으면 즉시 발급, 신용카드 불필요.
+              직원과 대화하려면 최소 1개의 키가 필요해요. 무료 Gemini로 시작할 수 있어요.
             </p>
-            {keys.google.has && (
-              <div className="key-stored-badge">✓ 저장됨</div>
-            )}
-            <input
-              type="password"
-              className="modal-input"
-              placeholder={keys.google.has ? '새 키 입력 시 교체됨' : 'AIza... 형식'}
-              value={keys.google.input}
-              onChange={e => setInput('google', e.target.value)}
-              disabled={!storageAvailable}
-            />
-            {keys.google.has && (
-              <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('google')}>
-                🗑 삭제
-              </button>
-            )}
+            <button type="button" className="btn-secondary" onClick={() => eventBus.emit('apikey:open')}>
+              🔑 API 키 설정 열기
+            </button>
           </section>
-
-          {/* === Anthropic API Key (유료) === */}
-          <section
-            className={`modal-section ${highlightedSection === 'anthropic-key' ? 'modal-section-focus' : ''}`}
-            data-section="anthropic-key"
-          >
-            <h3>💸 Anthropic API 키 <span style={{ color: '#aa6020', fontSize: 11 }}>(유료, 한국어 강함)</span></h3>
-            <p className="modal-hint">
-              발급:{' '}
-              <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">
-                console.anthropic.com
-              </a>
-              {' '}— 신용카드 + 선불 충전 필요 (학습용 월 $1~5).
-            </p>
-            {keys.anthropic.has && (
-              <div className="key-stored-badge">✓ 저장됨</div>
-            )}
-            <input
-              type="password"
-              className="modal-input"
-              placeholder={keys.anthropic.has ? '새 키 입력 시 교체됨' : 'sk-ant-...'}
-              value={keys.anthropic.input}
-              onChange={e => setInput('anthropic', e.target.value)}
-              disabled={!storageAvailable}
-            />
-            {keys.anthropic.has && (
-              <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('anthropic')}>
-                🗑 삭제
-              </button>
-            )}
-          </section>
-
-          {!storageAvailable && (
-            <div className="modal-alert">
-              ⚠️ OS 키체인을 사용할 수 없는 환경입니다. API 키 안전 저장이 비활성화됨.
-            </div>
-          )}
 
           {/* === Default Model === */}
           <section
@@ -441,6 +335,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
               / 한도 ${dailyLimit.toFixed(2)}
             </div>
           </section>
+
         </div>
 
         <div className="modal-footer">

@@ -110,6 +110,10 @@ export async function loadData(): Promise<AppData> {
       defaultModel: migrateModel(settingsRaw.defaultModel, DEFAULT_SETTINGS.defaultModel),
       defaultMemoryModel: migrateModel(settingsRaw.defaultMemoryModel, DEFAULT_SETTINGS.defaultMemoryModel),
     }
+    // Day 14 — 기존 저장 파일(튜토리얼 도입 전)엔 tutorialDone 키가 없다.
+    // 이미 앱을 써온 사용자에게 첫 실행 튜토리얼을 강제로 띄우지 않도록 '본 것'으로 간주.
+    // (신규 설치는 파일이 없어 createDefaultData → tutorialDone:false 로 튜토리얼이 정상 노출됨)
+    if (settingsRaw.tutorialDone === undefined) settings.tutorialDone = true
     const data: AppData = {
       employees: migrateEmployees(parsed.employees ?? []),
       maxEmployees: parsed.maxEmployees ?? DEFAULT_MAX_EMPLOYEES,

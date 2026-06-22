@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { setDefaultResultOrder } from 'node:dns'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -59,6 +59,23 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+
+  // 외부 링크(target="_blank")는 OS 기본 브라우저로 열기 — 앱 안에서 새 창 안 띄움.
+  // API 키 발급 페이지(aistudio.google.com / console.anthropic.com) 등 안내 링크용.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      void shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+  // target 없는 링크로 앱 자체가 외부 URL로 이동하는 것 차단 (앱 화면 보존)
+  win.webContents.on('will-navigate', (e, url) => {
+    const current = VITE_DEV_SERVER_URL ?? 'file://'
+    if (!url.startsWith(current)) {
+      e.preventDefault()
+      if (url.startsWith('https://') || url.startsWith('http://')) void shell.openExternal(url)
+    }
   })
 
   if (VITE_DEV_SERVER_URL) {
