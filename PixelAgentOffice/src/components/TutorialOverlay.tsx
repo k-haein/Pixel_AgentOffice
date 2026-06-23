@@ -114,6 +114,9 @@ export function TutorialOverlay({ step, index, total, onNext, onPrev, canPrev, o
   // 카드가 대상을 가리지 않게 — 화면 하단을 가리키는 "채용 완료"(footer) 단계에서만 카드를 위로.
   // (라이브 rect로 판단하면 스크롤 애니메이션 중 임계값을 넘나들며 카드가 위아래로 깜빡임 → 단계 기준 고정)
   const cardAtTop = step.id === 'hire-submit' || step.id === 'memo-fire'
+  // 채팅창은 우하단(z100)에 고정 — 사무실(canvas)/줌 안내 단계에선 카드를 좌측 정렬해
+  // 채팅 입력·👍 버튼을 가리지 않게 한다. (카드는 pointer-events:auto라 겹치면 클릭을 가로챔)
+  const cardLeft = step.target === 'canvas' || step.target === 'zoom'
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 320, pointerEvents: 'none' }}>
@@ -148,8 +151,7 @@ export function TutorialOverlay({ step, index, total, onNext, onPrev, canPrev, o
       <div
         style={{
           position: 'fixed',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          ...(cardLeft ? { left: 24, transform: 'none' } : { left: '50%', transform: 'translateX(-50%)' }),
           ...(cardAtTop ? { top: 24 } : { bottom: 28 }),
           pointerEvents: 'auto',
           width: 'min(440px, calc(100vw - 32px))',

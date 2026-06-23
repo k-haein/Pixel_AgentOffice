@@ -151,14 +151,14 @@ const MAIN_CORE: TutorialStep[] = [
   },
   {
     id: 'context',
-    text: '직원을 우클릭하면 자리 이동·메모(지침 수정)·책상 회전·해고 메뉴가 나옵니다.',
+    text: '직원을 우클릭하면 자리 이동·책상 회전·💬 채팅 열기·📝 메모지 열기가 나옵니다. (지침·기억·해고 같은 직원 관리는 다음에 보여드릴 메모지 안에 있어요.)',
     target: 'canvas',
     advanceOn: 'next',
   },
   {
     id: 'navigate',
     text: '사무실이 크면 둘러보세요 — 왼쪽 위 [🔎] 버튼이나 마우스 휠로 확대·축소하고, 빈 공간을 드래그하면 화면을 옮길 수 있어요.',
-    target: 'zoom',
+    target: 'canvas',
     advanceOn: 'next',
   },
 ]
@@ -347,7 +347,7 @@ export const FIRST_RUN_STEPS: TutorialStep[] = [
   ...SETTINGS_CORE,
   {
     id: 'all-done',
-    text: '안내는 여기까지입니다, 사장님! 🎉\n이제 직원과 대화하고 칭찬하며 사무실을 키워보세요. 다시 보고 싶으시면 언제든 왼쪽 위 [🎓] 버튼을 눌러 주세요.',
+    text: '안내는 여기까지입니다, 사장님! 🎉\n이제 직원과 대화하고 칭찬하며 사무실을 키워보세요. 다시 보고 싶으시면 언제든 오른쪽 위 [🎓 튜토리얼] 버튼을 눌러 주세요.',
     target: null,
     advanceOn: 'next',
     cta: '시작하기',
