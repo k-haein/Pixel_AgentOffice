@@ -34,6 +34,8 @@ type Props = {
   defaultModel: Model
   defaultMemoryModel: Model
   onHired: (employee: Employee) => void
+  /** 최초 튜토리얼 중 — 메리로 고정하고 폼 입력을 잠금(ⓘ 정보 버튼·[채용 완료]만 허용). */
+  lockToTutorial?: boolean
 }
 
 const RANK_OPTIONS: Rank[] = ['알바', '사원', '대리', '과장', '부장']
@@ -69,6 +71,7 @@ export function HireModal({
   defaultModel,
   defaultMemoryModel,
   onHired,
+  lockToTutorial,
 }: Props) {
   // 컴포넌트가 마운트될 때 (모달 열림 시점) state가 초기화됨
   // Day 12 §3 +1: 기본 캐릭터(editor/writer)는 defaultName/Role 자동 채움 (수정 가능),
@@ -154,6 +157,12 @@ export function HireModal({
     eventBus.on('apikey:saved', refreshKeys)
     return () => eventBus.off('apikey:saved', refreshKeys)
   }, [])
+
+  // 튜토리얼 중 MBTI 16종 설명 모달을 열면 스팟라이트를 숨김 (포커스 뒤에 가려 안 보이는 문제 방지)
+  useEffect(() => {
+    eventBus.emit('tutorial:suppress', showMbtiInfo)
+    return () => { if (showMbtiInfo) eventBus.emit('tutorial:suppress', false) }
+  }, [showMbtiInfo])
 
   const handleTemplateChange = (t: Template) => {
     setTemplate(t)
@@ -260,7 +269,7 @@ export function HireModal({
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={lockToTutorial ? { pointerEvents: 'none' } : undefined}>
           {isAtMax && (
             <div className="modal-alert">
               ⚠️ 최대 직원 수 ({maxCount}명)에 도달했습니다. 기존 직원을 해고해야 새로 채용할 수 있어요.
@@ -390,6 +399,7 @@ export function HireModal({
                   color: '#5a3a0f',
                   padding: 0,
                   lineHeight: 1,
+                  pointerEvents: 'auto', // 폼 잠금(튜토리얼) 중에도 정보 버튼은 클릭 가능
                 }}
               >
                 ⓘ
@@ -493,6 +503,7 @@ export function HireModal({
                   color: '#5a3a0f',
                   padding: 0,
                   lineHeight: 1,
+                  pointerEvents: 'auto', // 폼 잠금(튜토리얼) 중에도 정보 버튼은 클릭 가능
                 }}
               >
                 ⓘ

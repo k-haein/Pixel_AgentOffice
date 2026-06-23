@@ -91,6 +91,12 @@ export function ShopModal({ onClose }: Props) {
       if (data.employees[0]) setSelectedEmpId(data.employees[0].id)
     })()
   }, [])
+
+  // 감정 미리보기 모달이 열리면 튜토리얼 스팟라이트를 숨김 (포커스 뒤에 가려 안 보이는 문제 방지)
+  useEffect(() => {
+    eventBus.emit('tutorial:suppress', previewEmotion !== null)
+    return () => { if (previewEmotion !== null) eventBus.emit('tutorial:suppress', false) }
+  }, [previewEmotion])
   const selectedEmp = employees.find(e => e.id === selectedEmpId)
   const applyAccessory = async (accId: AccessoryId | 'none') => {
     if (!selectedEmp) return
@@ -124,7 +130,7 @@ export function ShopModal({ onClose }: Props) {
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>🛍 상점 — 사무실 꾸미기</h2>
+          <h2>🛒 상점 — 사무실 꾸미기</h2>
           <button
             type="button"
             className="modal-close"

@@ -54,13 +54,16 @@ function useTargetRect(target: TutorialStep['target']): Rect | null {
       const r = el.getBoundingClientRect()
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
     }
+    // 대상을 가운데로 스크롤 → 즉시 1회 측정(화면 안 대상은 공백 없이 바로 표시) → 스크롤 정착 후 1회 보정.
+    // 폴링(setInterval) 없이 단발 보정만 하므로 스크롤 중 위아래로 깜빡이지 않음.
+    const el = document.querySelector(selector)
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     measure()
+    const timer = window.setTimeout(measure, 360)
     window.addEventListener('resize', measure)
-    // 캔버스 줌/레이아웃 변화도 따라가도록 가볍게 폴링
-    const timer = window.setInterval(measure, 400)
     return () => {
+      window.clearTimeout(timer)
       window.removeEventListener('resize', measure)
-      window.clearInterval(timer)
     }
   }, [target])
   return rect
@@ -102,13 +105,7 @@ function MascotCanvas() {
 }
 
 export function TutorialOverlay({ step, index, total, onNext, onPrev, canPrev, onSkip, onApiKeyGuide, onApiKeyLater, replay }: Props) {
-  const rect = useTargetRect(step.target)
-  // 모달 안 필드(채용 폼 등)는 가려져 있을 수 있어 단계 전환 시 보이도록 스크롤
-  useEffect(() => {
-    if (!step.target) return
-    const el = document.querySelector(`[data-tutorial="${step.target}"], [data-section="${step.target}"]`)
-    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [step.target])
+  const rect = useTargetRect(step.target) // 스크롤 후 1회 측정 — 스크롤/포커스 겹침 깜빡임 방지
   const pad = step.target === 'canvas' ? 0 : 8
   const isApiKey = step.id === 'apikey'
   // 행동 단계는 직접 해야 진행. 평소 행동 단계는 재시청 땐 "다음"으로 넘기지만,
@@ -116,7 +113,7 @@ export function TutorialOverlay({ step, index, total, onNext, onPrev, canPrev, o
   const isAction = step.requireAction === true || (step.advanceOn !== 'next' && !replay)
   // 카드가 대상을 가리지 않게 — 화면 하단을 가리키는 "채용 완료"(footer) 단계에서만 카드를 위로.
   // (라이브 rect로 판단하면 스크롤 애니메이션 중 임계값을 넘나들며 카드가 위아래로 깜빡임 → 단계 기준 고정)
-  const cardAtTop = step.id === 'hire-submit'
+  const cardAtTop = step.id === 'hire-submit' || step.id === 'memo-fire'
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 320, pointerEvents: 'none' }}>
@@ -197,17 +194,27 @@ export function TutorialOverlay({ step, index, total, onNext, onPrev, canPrev, o
               건너뛰기
             </button>
             <div style={{ flex: 1 }} />
-            <div style={{ display: 'flex', gap: 4 }}>
-              {Array.from({ length: total }).map((_, i) => (
-                <span
-                  key={i}
-                  style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: i === index ? '#b8860b' : '#d8c8a8',
-                  }}
-                />
-              ))}
-            </div>
+            {total > 12 ? (
+              // 긴 트랙(최초 자동 연속 등)은 점 대신 진행 막대 — 점이 너무 많아 넘치는 것 방지
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 110, height: 6, background: '#e6d8b8', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.round(((index + 1) / total) * 100)}%`, background: '#b8860b' }} />
+                </div>
+                <span style={{ fontSize: 11, color: '#8a6a30', whiteSpace: 'nowrap' }}>{index + 1} / {total}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {Array.from({ length: total }).map((_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: i === index ? '#b8860b' : '#d8c8a8',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 하단: ◂ 이전(좌) + 액션 버튼(우), 줄바꿈 방지 */}

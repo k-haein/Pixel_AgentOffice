@@ -191,12 +191,21 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>📝 {employee.emoji}  {employee.name}의 메모</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={() => eventBus.emit('tutorial:start', { track: 'memo' })}
+            title="메모지 사용법 보기 (튜토리얼)"
+            style={{ fontSize: 18 }}
+          >
+            🎓
+          </button>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
           {/* Identity (v2 #19 — 자유 편집) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-identity">
             <h3>🪪 정체성 <span className="modal-tag">편집 가능</span></h3>
             <p className="modal-hint">
               🏆 {employee.rank} · 입사 {new Date(employee.hiredAt).toLocaleDateString('ko-KR')}
@@ -223,7 +232,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* Base instructions (v2 #19 — editable) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-base">
             <h3>⚙️ 기본 지침 <span className="modal-tag">편집 가능</span></h3>
             <textarea
               className="modal-input"
@@ -238,7 +247,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* Custom instructions (editable) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-custom">
             <h3>✏️ 커스텀 지침 <span className="modal-tag">편집 가능</span></h3>
             <textarea
               className="modal-input"
@@ -253,7 +262,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* Model */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-model">
             <h3>🧠 대화 모델</h3>
             <div className="modal-subhead">🆓 무료 (Google)</div>
             <div className="pill-row">
@@ -284,7 +293,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* Memory mode — button-based (radio 문제 회피) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-memory-mode">
             <h3>💾 메모리 모드</h3>
             <div className="promotion-grid">
               {MEMORY_MODES.map(m => (
@@ -342,7 +351,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           */}
 
           {/* 기본 감정 (Day 11 후속 +2) — 평소 말풍선에 표시. LLM 응답에 따라 일시 변화 후 복귀 */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-emotion">
             <h3>🎭 기본 감정 (말풍선)</h3>
             <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
               평소 이 직원의 말풍선에 표시될 감정입니다. 채팅 응답에 따라 잠깐 다른 감정이 떴다가 이 기본값으로 돌아옵니다.
@@ -384,7 +393,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* 기억 (Phase 4) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-memory">
             <h3>🧠 기억</h3>
             <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
               이 직원이 대화에서 기억하는 내용입니다. 채팅 시 자동으로 참고합니다.
@@ -417,7 +426,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* Stats */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-stats">
             <h3>📊 그간 활동</h3>
             <ul className="memo-stats">
               <li>총 대화: {employee.totalMessages}회</li>
@@ -427,11 +436,11 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
           </section>
 
           {/* 진급 (Day 13) */}
-          <section className="modal-section">
+          <section className="modal-section" data-section="memo-promotion">
             <h3>📈 진급 — 현재 🏆 {employee.rank}</h3>
             <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
               진급 방식을 고르면 조건 충족 시 캐릭터가 진급을 요청합니다.
-              <b> 이사·사장은 사장(나)이 직접 임명</b>합니다.
+              <b> 이사 직급은 사장(나)이 직접 임명</b>합니다.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
               {PROMOTION_MODES.map(m => (
@@ -483,7 +492,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
         </div>
 
         <div className="modal-footer">
-          <button className="btn-danger" onClick={handleFire} disabled={saving || savedFeedback || summarizing}>
+          <button className="btn-danger" data-tutorial="memo-fire" onClick={handleFire} disabled={saving || savedFeedback || summarizing}>
             🗑 해고
           </button>
           {savedFeedback && (

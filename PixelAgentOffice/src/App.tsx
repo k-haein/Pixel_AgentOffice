@@ -14,7 +14,7 @@ import { checkPromotionEligible } from './shared/promotion'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { ApiKeyModal } from './components/ApiKeyModal'
 import { ApiKeyGuideModal } from './components/ApiKeyGuideModal'
-import { TUTORIAL_STEPS, SHOP_TUTORIAL_STEPS, SETTINGS_TUTORIAL_STEPS, type TutorialStep } from './shared/tutorial'
+import { TUTORIAL_STEPS, FIRST_RUN_STEPS, SHOP_TUTORIAL_STEPS, SETTINGS_TUTORIAL_STEPS, MEMO_TUTORIAL_STEPS, type TutorialStep } from './shared/tutorial'
 import './App.css'
 
 function App() {
@@ -53,8 +53,11 @@ function App() {
   const tutorialHistoryRef = useRef<number[]>([])
   /** 활성 튜토리얼 트랙의 단계 배열 (메인/상점/설정). 트랙 전환은 항상 setTutorialStep을 동반하므로 ref로 충분 */
   const tutorialStepsRef = useRef<TutorialStep[]>(TUTORIAL_STEPS)
-  /** 활성 트랙 종류 — 상점/설정 트랙은 해당 모달이 닫히면 자동 종료 */
-  const tutorialTrackRef = useRef<'main' | 'shop' | 'settings'>('main')
+  /** 활성 트랙 종류. 'first-run'=최초/다시보기 자동 연속(메모·상점·설정 모달을 zone에 맞춰 자동 제어).
+   *  상점/설정/메모 단독 트랙은 해당 모달이 닫히면 자동 종료. */
+  const tutorialTrackRef = useRef<'main' | 'first-run' | 'shop' | 'settings' | 'memo'>('main')
+  /** 정보 팝업(MBTI 16종·감정 미리보기 등)이 열리면 스팟라이트를 잠시 숨김 — 팝업이 포커스 뒤에 가려 안 보이는 문제 방지 */
+  const [tutorialSuppressed, setTutorialSuppressed] = useState(false)
   /** API 키 미니 팝업 (Day 14) — 설정·튜토리얼·키없음 흐름 공용 */
   const [apiKeyOpen, setApiKeyOpen] = useState(false)
   const [apiKeyGuideOpen, setApiKeyGuideOpen] = useState(false)
@@ -142,6 +145,8 @@ function App() {
       if (e.key === 'Escape') {
         // 위에 API 키 팝업/안내가 떠 있으면 그 팝업만 ESC로 닫고 아래 모달(채용·설정) 입력은 보존
         if (apiKeyOpen || apiKeyGuideOpen) return
+        // 최초 튜토리얼(자동 연속) 중엔 ESC로 모달을 닫지 않음 — zone 효과가 즉시 재오픈해 충돌. 종료는 카드의 "건너뛰기".
+        if (tutorialTrackRef.current === 'first-run' && tutorialStepRef.current !== null) return
         setSettingsOpen(false)
         setHireOpen(false)
         setMemoEmployee(null)
@@ -194,6 +199,7 @@ function App() {
       const track = (payload as { track?: string } | undefined)?.track
       if (track === 'shop') startTutorialTrack(SHOP_TUTORIAL_STEPS, 'shop')
       else if (track === 'settings') startTutorialTrack(SETTINGS_TUTORIAL_STEPS, 'settings')
+      else if (track === 'memo') startTutorialTrack(MEMO_TUTORIAL_STEPS, 'memo')
       else startTutorialTrack(TUTORIAL_STEPS, 'main')
     }
     eventBus.on('chat:open', onChatOpen)
@@ -210,7 +216,10 @@ function App() {
     if (tutorialStep === null) return
     const s = tutorialStepsRef.current[tutorialStep]
     if (!s) return
-    // 재시청("다시 보기")은 전체 흐름을 다 보여줌 — 자동 스킵 안 함.
+    // 이미 직원이 있으면 채용 단계(hire/hire-*/hire-submit)는 건너뛰고 대화로 — replay 가드보다 먼저.
+    // 채용 단계는 requireAction이라 "다음"이 없고 최대 인원이면 [+채용]도 비활성 → 다시보기 데드엔드·중복채용 방지.
+    if (s.id.startsWith('hire') && employees.length > 0) { goToTutorialStep('chat'); return }
+    // 재시청("다시 보기")은 전체 흐름을 다 보여줌 — 이하 자동 스킵 안 함.
     // (행동 단계는 오버레이가 "다음 ▸" 버튼을 제공해 갇히지 않게 함)
     if (tutorialReplayRef.current) return
     // 첫 실행 — 키가 이미 있으면 API 키 안내 단계 건너뜀 (→ 채용)
@@ -239,13 +248,43 @@ function App() {
     }
   }, [hireOpen, tutorialStep])
 
-  // 상점/설정 트랙(Day 14) — 해당 모달이 닫히면 그 트랙 튜토리얼도 종료
+  // 상점/설정/메모 단독 트랙(Day 14) — 해당 모달이 닫히면 그 트랙 튜토리얼도 종료.
+  // (first-run은 모달을 자동 제어하므로 제외 — 아래 zone 효과가 담당)
   useEffect(() => {
     if (tutorialStep === null) return
     const track = tutorialTrackRef.current
     if (track === 'shop' && !shopOpen) finishTutorial()
     else if (track === 'settings' && !settingsOpen) finishTutorial()
-  }, [shopOpen, settingsOpen, tutorialStep])
+    else if (track === 'memo' && !memoEmployee) finishTutorial()
+  }, [shopOpen, settingsOpen, memoEmployee, tutorialStep])
+
+  // 최초 튜토리얼(first-run) 자동 연속 — 현재 단계 zone(메모/상점/설정)에 맞춰 모달을 자동으로 열고 닫음.
+  // 채용폼(hire) zone은 별도 효과가 담당. zone 밖이면 해당 모달을 닫아 한 흐름으로 이어지게 한다.
+  useEffect(() => {
+    if (tutorialStep === null) return
+    if (tutorialTrackRef.current !== 'first-run') return
+    const id = tutorialStepsRef.current[tutorialStep]?.id
+    if (!id) return
+    const wantMemo = id.startsWith('memo')
+    const wantShop = id.startsWith('shop')
+    const wantSettings = id.startsWith('set')
+    // 메모 — 첫 직원(방금 채용한 메리)의 메모지를 대상으로
+    if (wantMemo) {
+      const emp = employeesRef.current[0]
+      if (emp && memoEmployee?.id !== emp.id) setMemoEmployee(emp)
+    } else if (memoEmployee) {
+      setMemoEmployee(null)
+    }
+    if (wantShop !== shopOpen) setShopOpen(wantShop)
+    if (wantSettings !== settingsOpen) setSettingsOpen(wantSettings)
+  }, [tutorialStep, memoEmployee, shopOpen, settingsOpen])
+
+  // 정보 팝업(MBTI 16종·감정 미리보기 등)이 열리면 스팟라이트를 잠시 숨김 (포커스 뒤에 가려 안 보이는 문제 방지)
+  useEffect(() => {
+    const onSuppress = (payload: unknown) => setTutorialSuppressed(payload === true)
+    eventBus.on('tutorial:suppress', onSuppress)
+    return () => eventBus.off('tutorial:suppress', onSuppress)
+  }, [])
 
   // 캐릭터 우클릭 → 컨텍스트 메뉴 (자리 변경 등)
   useEffect(() => {
@@ -482,6 +521,7 @@ function App() {
   /** 완료/건너뛰기 — 투어 종료 + 완료 플래그 영속화 (다시는 자동 시작 안 함) */
   const finishTutorial = () => {
     setTutorialStep(null)
+    setTutorialSuppressed(false)
     tutorialHistoryRef.current = []
     const updated = { ...settingsRef.current, tutorialDone: true }
     setSettings(updated)
@@ -523,8 +563,8 @@ function App() {
     if (tutorialStepsRef.current[idx]?.advanceOn === trigger) advanceTutorial()
   }
   /** 좌상단 🎓 버튼 — 튜토리얼 토글 (열기=처음부터 재시청 / 닫기=완료 처리) */
-  /** 트랙(메인/상점/설정) 처음부터 시작 — 항상 재시청 모드. 빈 트랙은 무시 */
-  const startTutorialTrack = (steps: TutorialStep[], track: 'main' | 'shop' | 'settings') => {
+  /** 트랙 처음부터 시작 — 항상 재시청 모드. 빈 트랙은 무시 */
+  const startTutorialTrack = (steps: TutorialStep[], track: 'main' | 'first-run' | 'shop' | 'settings' | 'memo') => {
     if (steps.length === 0) return
     tutorialStepsRef.current = steps
     tutorialTrackRef.current = track
@@ -534,7 +574,7 @@ function App() {
   }
   const toggleTutorial = () => {
     if (tutorialStep !== null) finishTutorial()
-    else startTutorialTrack(TUTORIAL_STEPS, 'main')
+    else startTutorialTrack(FIRST_RUN_STEPS, 'first-run')
   }
 
   const handleHired = (employee: Employee) => {
@@ -604,6 +644,9 @@ function App() {
     scanForPromotion(employeesRef.current, newSettings.promotionSpeedMultiplier ?? 1)
   }
 
+  // 최초 튜토리얼(자동 연속) 활성 중 — 채용폼 잠금 + 자동 개폐 모달의 사용자 닫기 무시(zone 효과가 흐름 제어)
+  const firstRunActive = tutorialStep !== null && tutorialTrackRef.current === 'first-run'
+
   return (
     <div className="app">
       <header className="topbar">
@@ -636,7 +679,7 @@ function App() {
             title="상점 (가구·꾸미기)"
             data-tutorial="shop"
           >
-            🛍 상점
+            🛒 상점
           </button>
           <button
             className="topbar-btn"
@@ -659,6 +702,7 @@ function App() {
         {/* 줌 토글 (B-5) — 캔버스 좌상단 floating */}
         <button
           className="zoom-toggle"
+          data-tutorial="zoom"
           title={zoomedIn ? '줌 아웃 (전체)' : '줌 인 (1.4x)'}
           onClick={() => {
             setZoomedIn(prev => !prev)
@@ -687,6 +731,7 @@ function App() {
       {settingsOpen && (
         <SettingsModal
           onClose={() => {
+            if (firstRunActive) return // 자동 연속 튜토리얼 중 — 닫기 무시(zone 효과가 다음 단계에서 닫음)
             setSettingsOpen(false)
             setSettingsFocusSection(undefined)
           }}
@@ -703,19 +748,20 @@ function App() {
           defaultModel={settings.defaultModel}
           defaultMemoryModel={settings.defaultMemoryModel}
           onHired={handleHired}
+          lockToTutorial={firstRunActive}
         />
       )}
       {memoEmployee && (
         <MemoModal
           key={memoEmployee.id}
-          onClose={() => setMemoEmployee(null)}
+          onClose={() => { if (firstRunActive) return; setMemoEmployee(null) }}
           employee={memoEmployee}
           settings={settings}
           onUpdated={handleUpdated}
           onFired={handleFired}
         />
       )}
-      {shopOpen && <ShopModal onClose={() => setShopOpen(false)} />}
+      {shopOpen && <ShopModal onClose={() => { if (firstRunActive) return; setShopOpen(false) }} />}
       {promotionReq && (
         <PromotionModal
           employee={promotionReq.employee}
@@ -729,7 +775,7 @@ function App() {
       {apiKeyOpen && <ApiKeyModal onClose={() => setApiKeyOpen(false)} />}
       {apiKeyGuideOpen && <ApiKeyGuideModal onClose={() => setApiKeyGuideOpen(false)} />}
       {/* 튜토리얼 가이드 투어 (T1, Day 14) */}
-      {tutorialStep !== null && tutorialStepsRef.current[tutorialStep] && (
+      {tutorialStep !== null && !tutorialSuppressed && tutorialStepsRef.current[tutorialStep] && (
         <TutorialOverlay
           step={tutorialStepsRef.current[tutorialStep]}
           index={tutorialStep}
