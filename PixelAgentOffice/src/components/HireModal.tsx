@@ -200,13 +200,17 @@ export function HireModal({
     }
     // 1차: 선택한 팀에서 찾기
     let seat = findInTeam(selectedTeam)
-    // 2차 fallback: 다른 팀
+    // 2차 fallback: 다른 팀. 과장+는 리더→팀원, 그 외(저직급)는 팀원 자리만 —
+    // "리더는 과장 이상" 규칙을 유지해 수동 이동·안내 문구와 일치시킴(G-1 seats-0). 자리 없으면 null → 아래 reason으로 차단.
     if (!seat) {
       seat = leaderOk
         ? (findNextEmptyLeaderSeat(occupied) ?? findNextEmptyMemberSeat(occupied))
         : findNextEmptyMemberSeat(occupied)
     }
-    if (!seat) return { ok: false, reason: '빈 자리가 없어요. 최대 채용 도달.' }
+    if (!seat) return {
+      ok: false,
+      reason: '앉힐 자리가 없어요. 팀원 자리가 다 찼고 리더 자리는 과장 이상만 앉을 수 있어요. 기존 직원을 진급시키거나 해고한 뒤 다시 시도해 주세요.',
+    }
     return { ok: true, seatId: seat }
   }
 
@@ -577,7 +581,7 @@ export function HireModal({
             <p className="modal-hint" style={{ marginTop: 6 }}>
               💡 자리는 자동 배치돼요. 채용 후 <b>캐릭터 우클릭 → 자리 이동</b>으로 드래그해서 옮길 수 있어요.
               <br />
-              <strong style={{ color: '#c83838' }}>⭐ 과장 이상만 리더 자리에 앉을 수 있습니다.</strong>
+              <strong style={{ color: '#c83838' }}>⭐ 리더 자리는 과장 이상만 앉을 수 있어요.</strong>
             </p>
           </section>
 

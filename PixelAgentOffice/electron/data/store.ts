@@ -13,7 +13,7 @@ import {
   DEFAULT_MAX_EMPLOYEES,
   DEPRECATED_MODELS,
 } from '../../src/shared/types'
-import { findNextEmptyMemberSeat, SEAT_LOOKUP } from '../../src/shared/seats'
+import { findNextEmptySeat, SEAT_LOOKUP } from '../../src/shared/seats'
 
 /** 저장된 모델이 폐기된 ID면 살아있는 ID 로 교체 */
 function migrateModel(m: string | undefined | null, fallback: Model): Model {
@@ -86,7 +86,8 @@ function migrateEmployees(raws: Partial<Employee>[]): Employee[] {
   return stage1.map(({ raw, existingSeat }) => {
     let seat: SeatId | null = existingSeat
     if (!seat) {
-      seat = findNextEmptyMemberSeat(occupied)
+      // 팀원→리더 폴백 (G-1): 팀원 12석이 다 차도 리더 3석으로 배치해 무자리(유령) 직원 방지
+      seat = findNextEmptySeat(occupied)
       if (seat) occupied.add(seat)
     }
     return {
@@ -189,6 +190,10 @@ export async function addEmployee(employee: Employee): Promise<Employee> {
   const data = await loadData()
   if (data.employees.length >= data.maxEmployees) {
     throw new Error(`최대 직원 수(${data.maxEmployees}명)에 도달했습니다`)
+  }
+  // 무자리 직원 방어 (G-1) — 자리 없는 직원은 화면에 안 보이는데 과금·카운트되므로 채용 자체를 막음
+  if (!employee.seatId) {
+    throw new Error('배치할 빈 자리가 없어 채용할 수 없습니다.')
   }
   // seatId 중복 검증
   if (employee.seatId) {

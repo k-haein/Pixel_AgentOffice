@@ -2,6 +2,7 @@ import { providerFromModel, getProvider } from './registry'
 import { loadApiKey } from './apiKeys'
 import { LLMError, type ChatRequest, type ChatResponse } from './types'
 import * as usage from './usage'
+import { loadData } from '../data/store'
 
 /** Model에서 provider 자동 결정 → 사전 rate-limit 검사 → 키 로드 → provider.chat() 호출 */
 export async function chat(request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
@@ -14,6 +15,17 @@ export async function chat(request: ChatRequest, signal?: AbortSignal): Promise<
       providerName,
       'RATE_LIMIT_LOCAL',
       `분당 한도 ${status.limit}회를 다 썼습니다. ${Math.ceil(status.resetInMs / 1000)}초 후 다시 시도해주세요.`,
+    )
+  }
+
+  // 1.5) 일일 비용 한도 — 오늘 누적 비용이 한도 이상이면 차단 (G-2).
+  //      메인 프로세스 + usage-daily.json 영구화라 앱 재시작으로 우회 불가.
+  const { settings } = await loadData()
+  if (settings.dailyLimitUsd > 0 && usage.getDailyCostUsd() >= settings.dailyLimitUsd) {
+    throw new LLMError(
+      providerName,
+      'DAILY_LIMIT',
+      `오늘 사용 한도 $${settings.dailyLimitUsd.toFixed(2)}에 도달했습니다.`,
     )
   }
 

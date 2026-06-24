@@ -228,7 +228,7 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
           >
             <h3>💰 일일 비용 한도 ($)</h3>
             <p className="modal-hint">
-              유료 모델(Claude)에만 적용. 실제 사용량은 Anthropic 콘솔에서 확인. 자동 차단은 M3-b에서.
+              유료 모델(Claude)에만 적용 (무료 Gemini는 제한 없음). 한도를 넘으면 대화가 자동 차단되고 강제 야간이 돼요. 실제 사용량은 Anthropic 콘솔에서 확인.
             </p>
             <input
               type="number"
@@ -284,9 +284,9 @@ export function SettingsModal({ onClose, initialSettings, onSaved, focusSection 
             className={`modal-section ${highlightedSection === 'usage-detail' ? 'modal-section-focus' : ''}`}
             data-section="usage-detail"
           >
-            <h3>📈 모델별 사용량 (이번 세션)</h3>
+            <h3>📈 모델별 사용량 (오늘)</h3>
             <p className="modal-hint">
-              앱 시작 후 누적 (앱 재시작 시 초기화). RPM은 최근 60초 윈도우 기준.
+              오늘 누적 (매일 자정 초기화 · 앱을 재시작해도 유지). RPM은 최근 60초 윈도우 기준.
             </p>
             <table className="usage-table">
               <thead>

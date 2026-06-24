@@ -89,6 +89,14 @@ export function humanizeError(
         debugCode: debugCode ?? 'HTTP 429',
       }
 
+    case 'DAILY_LIMIT':
+      return {
+        message: '오늘 사용 한도에 도달했어요. 🌙',
+        hint: '내일 자동으로 초기화돼요. 더 쓰시려면 ⚙️ 설정에서 일일 한도를 올려주세요.',
+        severity: 'warning',
+        debugCode: 'DAILY_LIMIT',
+      }
+
     case 'INSUFFICIENT_CREDIT':
       return {
         message: `${label} 크레딧이 부족해요.`,

@@ -183,3 +183,11 @@ export function findNextEmptyLeaderSeat(
   }
   return null
 }
+
+/** 다음 빈 직원 자리 — 팀원(12) 우선, 다 차면 리더(3)로 폴백. 15석 다 차면 null.
+ *  무자리(유령) 직원 방지용 (G-1): 로드 마이그레이션·채용 폴백에서 공통 사용 — 보이는 게 유령보다 낫다. */
+export function findNextEmptySeat(
+  occupiedSeats: ReadonlySet<SeatId>,
+): SeatId | null {
+  return findNextEmptyMemberSeat(occupiedSeats) ?? findNextEmptyLeaderSeat(occupiedSeats)
+}

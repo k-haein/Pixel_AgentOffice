@@ -28,6 +28,7 @@ export type LLMErrorCode =
   | 'NETWORK'
   | 'RATE_LIMIT'           // 서버가 429 응답 (실제 한도 초과)
   | 'RATE_LIMIT_LOCAL'     // 우리 sliding window 카운터 사전 차단
+  | 'DAILY_LIMIT'          // 오늘 누적 비용이 일일 한도 도달 (G-2 — 디스크 영구화 기반, 재시작 우회 불가)
   | 'INSUFFICIENT_CREDIT'  // 잔액/충전 부족 (Anthropic credit_balance_too_low 등)
   | 'SERVICE_BUSY'         // 503 / overloaded / high demand — Google·Anthropic 일시 과부하
   | 'API_ERROR'

@@ -1455,8 +1455,8 @@ export class OfficeScene extends Phaser.Scene {
   private async refreshTokenBoard() {
     if (this.isShutdown || !this.tokenBoard) return
 
-    // 모든 모델 병렬 fetch
-    const models = Object.keys(MODEL_INFO) as Model[]
+    // 일일 비용 한도는 유료(Claude)에만 적용 → 무료(Gemini)는 합산 제외 (설정 안내·dispatch 차단과 일치)
+    const models = (Object.keys(MODEL_INFO) as Model[]).filter(m => MODEL_INFO[m].tier !== 'free')
     let totalCost = 0
     await Promise.all(
       models.map(async m => {
@@ -1474,6 +1474,13 @@ export class OfficeScene extends Phaser.Scene {
 
     const limit = this.dailyLimitUsd
     const ratio = limit > 0 ? Math.min(1, totalCost / limit) : 0
+
+    // 일일 비용 한도 도달 → 강제 야간 (G-2: '토큰 고갈 시그니처'를 예산 기준으로 구동).
+    // 폴링이라 앱 재시작 후에도 (영구화된 오늘 비용 기준) 자동 재진입. 상태가 바뀔 때만 emit해 루프 방지.
+    const budgetExhausted = limit > 0 && totalCost >= limit
+    if (budgetExhausted !== this.forcedNight) {
+      eventBus.emit('office:night-mode', { forced: budgetExhausted })
+    }
 
     // 신호등 색 — forcedNight면 무조건 빨강 (토큰 고갈)
     let color: 'green' | 'yellow' | 'red'
@@ -2024,7 +2031,8 @@ export class OfficeScene extends Phaser.Scene {
     })
 
     // Nameplate — 리더면 약간 강조. Day 11: y deskY+36→+28 (책상에 더 가까이, 다음 자리 말풍선과 겹침 방지)
-    const isLeader = seat.role === 'leader'
+    // 리더 강조(⭐·금색)는 *실제 과장 이상*일 때만 — 자리 부족으로 저직급이 리더석에 앉은 경우(G-1) ⭐ 오표기 방지 (seats-2)
+    const isLeader = seat.role === 'leader' && canBeTeamLeader(employee.rank)
     const namePrefix = isLeader ? '⭐ ' : ''
     const nameplate = this.add
       .text(x, deskY + 28, `${namePrefix}${employee.emoji}  ${employee.name} · ${employee.role}`, {

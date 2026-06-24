@@ -349,15 +349,14 @@ export function ChatPopup() {
     eventBus.emit('settings:open', { section: 'usage-display' })
   }
 
-  // 자리비움 진입 시 랜덤 메시지 1개 픽 → 회복하면 클리어
-  // + 사무실 시간대 시스템에 강제 야간 신호 (한 캐릭터라도 한도 도달이면 강제 밤)
+  // 자리비움(분당 RPM 한도) 진입 시 랜덤 메시지 1개 픽 → 회복하면 클리어.
+  // 강제 야간은 일일 비용 한도 기준으로 OfficeScene이 구동(G-2)하므로, 여기선 office:night-mode를 emit하지 않는다.
+  // (RPM은 60초 단위 일시중단이라 사무실 전체를 어둡게 할 사안이 아님 — '자리비움' 스트립만 표시)
   useEffect(() => {
     if (isPersonaPaused) {
       setPauseMessage(prev => prev ?? pickPauseMessage())
-      eventBus.emit('office:night-mode', { forced: true })
     } else {
       setPauseMessage(null)
-      eventBus.emit('office:night-mode', { forced: false })
     }
   }, [isPersonaPaused])
 
@@ -576,18 +575,18 @@ export function ChatPopup() {
               <span className="usage-chip">
                 💬 {rateLimit.sessionRequests}회
                 <div className="usage-tip">
-                  <div className="usage-tip-title">이번 세션 누적</div>
+                  <div className="usage-tip-title">오늘 누적</div>
                   <div className="usage-tip-body">
                     {rateLimit.sessionRequests}회 대화 · {(rateLimit.sessionInputTokens + rateLimit.sessionOutputTokens).toLocaleString()} 토큰
                   </div>
-                  <div className="usage-tip-note">앱 시작 후부터의 사용량</div>
+                  <div className="usage-tip-note">오늘(자정 기준) 누적 · 재시작해도 유지</div>
                 </div>
               </span>
               {modelInfo?.tier === 'paid' ? (
                 <span className="usage-chip">
                   💸 ₩{Math.round(rateLimit.sessionCostUsd * USD_TO_KRW).toLocaleString()}
                   <div className="usage-tip">
-                    <div className="usage-tip-title">이번 세션 추정 비용</div>
+                    <div className="usage-tip-title">오늘 추정 비용</div>
                     <div className="usage-tip-body">
                       ₩{Math.round(rateLimit.sessionCostUsd * USD_TO_KRW).toLocaleString()} (${rateLimit.sessionCostUsd.toFixed(4)})
                     </div>
@@ -658,9 +657,9 @@ export function ChatPopup() {
           )}
           <div
             className="usage-cell"
-            title={`이번 세션 누적 — ${rateLimit.sessionRequests}회 대화, ${(rateLimit.sessionInputTokens + rateLimit.sessionOutputTokens).toLocaleString()} 토큰`}
+            title={`오늘 누적 — ${rateLimit.sessionRequests}회 대화, ${(rateLimit.sessionInputTokens + rateLimit.sessionOutputTokens).toLocaleString()} 토큰`}
           >
-            <div className="usage-cell-label">세션</div>
+            <div className="usage-cell-label">오늘</div>
             <div className="usage-cell-value">
               <span className="usage-big-number">{rateLimit.sessionRequests}회</span>
               <span className="usage-unit">· {formatTokens(rateLimit.sessionInputTokens + rateLimit.sessionOutputTokens)}</span>
@@ -669,7 +668,7 @@ export function ChatPopup() {
           {modelInfo?.tier === 'paid' ? (
             <div
               className="usage-cell"
-              title={`이번 세션 추정 비용 — $${rateLimit.sessionCostUsd.toFixed(4)} (모델 단가 × 토큰 사용량)`}
+              title={`오늘 추정 비용 — $${rateLimit.sessionCostUsd.toFixed(4)} (모델 단가 × 토큰 사용량)`}
             >
               <div className="usage-cell-label">비용</div>
               <div className="usage-cell-value">
