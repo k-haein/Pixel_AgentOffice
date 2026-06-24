@@ -196,12 +196,6 @@ const MEMO_CORE: TutorialStep[] = [
     advanceOn: 'next',
   },
   {
-    id: 'memo-memory-mode',
-    text: '💾 메모리 모드입니다. 기억을 언제 갱신할지 정해요. OFF·수동·미리보기(ASK)·자동 중에서요. 보통 자동이면 충분합니다.',
-    target: 'memo-memory-mode',
-    advanceOn: 'next',
-  },
-  {
     id: 'memo-emotion',
     text: '🎭 기본 감정입니다. 평소 이 직원 말풍선에 뜰 표정이에요. 대화 답변에 따라 잠깐 바뀌었다가 이 기본값으로 돌아옵니다.',
     target: 'memo-emotion',

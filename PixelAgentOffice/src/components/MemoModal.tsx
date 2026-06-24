@@ -27,13 +27,6 @@ type Props = {
   onFired: (id: string) => void
 }
 
-const MEMORY_MODES: { value: MemoryMode; label: string; desc: string }[] = [
-  { value: 'off', label: '⚙️ OFF', desc: '메모리 사용 안 함' },
-  { value: 'manual', label: '✋ MANUAL', desc: 'Ctrl+S로만 갱신' },
-  { value: 'ask', label: '💬 ASK', desc: '갱신 전 미리보기' },
-  { value: 'auto', label: '🤖 AUTO', desc: '자동 갱신 (기본)' },
-]
-
 const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
 const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
 
@@ -47,7 +40,8 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
   const [baseInstructions, setBaseInstructions] = useState(employee.baseInstructions)
   const [customInstructions, setCustomInstructions] = useState(employee.customInstructions)
   const [model, setModel] = useState<Model>(employee.model)
-  const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
+  // 메모리 모드 셀렉터는 숨김(위 주석 참고) — 값은 기존값 유지하고 저장 시 그대로 보존
+  const [memoryMode] = useState<MemoryMode>(employee.memoryMode)
   // 진급방식 (Day 13) — 메모에서 변경 가능
   const [promotionMode, setPromotionMode] = useState<PromotionMode>(employee.promotionMode)
   // 메모리 (Phase 4) — 누적 기억. mount 시 로드, 직접 편집 + "기억 정리"(LLM 요약)
@@ -292,23 +286,9 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             </div>
           </section>
 
-          {/* Memory mode — button-based (radio 문제 회피) */}
-          <section className="modal-section" data-section="memo-memory-mode">
-            <h3>💾 메모리 모드</h3>
-            <div className="promotion-grid">
-              {MEMORY_MODES.map(m => (
-                <button
-                  type="button"
-                  key={m.value}
-                  className={`promotion-option ${memoryMode === m.value ? 'selected' : ''}`}
-                  onClick={() => setMemoryMode(m.value)}
-                >
-                  <div className="promotion-label">{m.label}</div>
-                  <div className="promotion-desc">{m.desc}</div>
-                </button>
-              ))}
-            </div>
-          </section>
+          {/* 메모리 모드 셀렉터 숨김 (출시 정리) — off/manual/ask/auto가 아직 실제 동작에 연결돼 있지 않음
+              (기억은 항상 주입, 수동 [기억 정리] 버튼만 트리거). 오해 방지차 비공개. 값은 기본값 유지(저장 시 보존).
+              추후 모드를 실제로 연결하면 이 섹션을 복원한다. */}
 
           {/* 외형 편집 (v2 #17·#18) — Day 11 후속 +2: 메모에서 비활성화 (최초 채용 시에만 변경 가능).
               사용자 결정 — 캐릭터 외형은 채용 후 고정. customColor/pattern state는 저장 시 기존값 전달용으로 보존.
