@@ -11,17 +11,18 @@
 import { test, expect } from '@playwright/test'
 import { launchApp } from './helpers'
 
-// seats.ts 정의와 일치 — 같은 비율로 좌표 계산
-const TEAM_X = { A: 0.20 } as const
+// seats.ts 정의와 일치. 시드는 팀 A만 활성 → getDynamicSeatX가 팀 A를 화면 중앙(0.5)에 배치.
+// (MEMBER_OFFSETS dy는 seats.ts와 동일하게 0.20)
+const TEAM_A_BASE = 0.5
 const LEADER_Y = 0.45
 const MEMBER_OFFSETS = [
-  { dx: -0.06, dy: 0.15 }, // 0: 좌상
-  { dx:  0.06, dy: 0.15 }, // 1: 우상
+  { dx: -0.06, dy: 0.20 }, // 0: 좌상 (Mary)
+  { dx:  0.06, dy: 0.20 }, // 1: 우상 (Haewol)
 ] as const
 
 /** 자리의 캔버스 내 위치 — desk 중심 (deskY = yRatio * h) */
 function seatDeskPos(canvasBox: { x: number; y: number; width: number; height: number }, memberIdx: 0 | 1) {
-  const xRatio = TEAM_X.A + MEMBER_OFFSETS[memberIdx].dx
+  const xRatio = TEAM_A_BASE + MEMBER_OFFSETS[memberIdx].dx
   const yRatio = LEADER_Y + MEMBER_OFFSETS[memberIdx].dy
   return {
     deskX: canvasBox.x + xRatio * canvasBox.width,

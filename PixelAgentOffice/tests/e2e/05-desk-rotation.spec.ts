@@ -10,15 +10,15 @@
 import { test, expect } from '@playwright/test'
 import { launchApp } from './helpers'
 
-// seats.ts 정의와 일치
-const TEAM_X = { A: 0.20 } as const
+// seats.ts 정의와 일치. 시드는 팀 A만 활성 → getDynamicSeatX가 팀 A를 화면 중앙(0.5)에 배치.
+const TEAM_A_BASE = 0.5
 const LEADER_Y = 0.45
 const MEMBER_OFFSETS = [
-  { dx: -0.06, dy: 0.15 }, // 0: 좌상 (Mary)
+  { dx: -0.06, dy: 0.20 }, // 0: 좌상 (Mary)
 ] as const
 
 function seatDeskPos(canvasBox: { x: number; y: number; width: number; height: number }) {
-  const xRatio = TEAM_X.A + MEMBER_OFFSETS[0].dx
+  const xRatio = TEAM_A_BASE + MEMBER_OFFSETS[0].dx
   const yRatio = LEADER_Y + MEMBER_OFFSETS[0].dy
   return {
     deskX: canvasBox.x + xRatio * canvasBox.width,
