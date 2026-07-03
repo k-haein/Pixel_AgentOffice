@@ -251,6 +251,117 @@
 
 ---
 
+## 9.5. 🧠 직급 ↔ 모델 배정 (omo agent-model-matching 착안)
+
+> 추가: 2026-07-02 — omo(oh-my-openagent)·OpenAgent 연구 세션에서. 상세 흐름은 `20-omo-openagent-study-and-2F-plan.md`.
+> 세션 11(`00-log` 참조)에서 이미 나온 **"Leader=Opus, 기록=Sonnet"** 아이디어의 정식 확장.
+
+### 착안 원리 (omo가 하는 방식)
+
+oh-my-openagent는 **역할 난이도에 따라 다른 모델**을 붙인다. 핵심은 "다 비싼 모델 쓰면 낭비, 다 싼 모델 쓰면 멍청"의 균형.
+
+| omo 에이전트 | 역할 | 배정 모델 (급) |
+|---|---|---|
+| Sisyphus (팀장/기획) | 어려운 판단·위임 | **최고급** (Opus) |
+| Hephaestus (자율 일꾼) | 깊은 실행 | 고급 (GPT-5.5) |
+| Metis / Atlas (분석·Todo) | 중간 난이도 | 중급 (Sonnet) |
+| Explore / Librarian (탐색·검색) | 단순 반복 | **저급/빠름** (mini-fast) |
+| category `quick` | 잡무 | 최저급 (Haiku) |
+
+→ **비싼 머리는 리더에게, 싼 손발은 잡무에게.** 이게 비용을 확 줄이는 핵심.
+
+> 명언(omo 원문): *"단순 탐색 작업을 Opus로 올리지 마라 — 시니어 엔지니어한테 서류정리 시키는 격이다."*
+
+### 🔑 더 깊은 원리 — "모델 = 성격 다른 개발자" (핵심 통찰)
+
+omo의 진짜 철학은 "비싼 모델 = 좋음"이 **아니다.** 모델마다 **성격이 달라 맞는 일이 다르다**:
+
+| 모델 계열 | 성격 | 잘하는 일 |
+|---|---|---|
+| **Claude / Kimi / GLM** | 소통형, 지시 잘 따름 | 디테일한 지시 기반 작업, 조율, **글쓰기**(Kimi 선호) |
+| **GPT** | 원칙·자율형 | 목표만 주면 알아서 깊게 파는 일, 자율 실행, 냉정한 리뷰 |
+| **Gemini** | 시각 추론형 | UI/UX, CSS, 디자인, 레이아웃, 창작(artistry) |
+
+→ 그래서 모델 배정은 **두 개의 축**으로 결정된다:
+- **축 1 = 직급(난이도/비용)** — 얼마나 똑똑한 급이 필요한가 (아래 직급 매핑)
+- **축 2 = 직무/성격(계열)** — 어느 브랜드 성격이 이 캐릭터 일에 맞는가 (아래 §직무 매핑)
+
+### omo 카테고리별 배정 (참고 원본)
+
+| 카테고리 | 배정 모델 | 이유 |
+|---|---|---|
+| `visual-engineering` | Gemini Pro | UI/UX·CSS·디자인 토큰·레이아웃에 강함 |
+| `artistry` | Gemini Pro | 창작 작업 |
+| `ultrabrain` | GPT (xhigh) | 최대 추론 강도 필요 |
+| `deep` | GPT (medium) | 자율 탐색이 필요한 복잡한 로직 |
+| `quick` | GPT-mini | 단순·빠름·저비용 |
+| `unspecified-high` | Claude Opus | 일반 복잡 작업 (Claude 기본) |
+| `unspecified-low` | Claude Sonnet | 표준 작업, 속도/비용 균형 |
+| `writing` | **Kimi** | 텍스트·문서·산문 — 여기선 Claude보다 Kimi 선호 |
+
+> 각 에이전트엔 **fallback 체인**도 있음 (예: Sisyphus = Opus → Kimi → GLM → GPT).
+> "1순위 모델이 죽으면 다음으로". PixelAgentOffice도 나중에 "모델 품절 시 대체" 로직에 참고 가능.
+
+### 축 1 — PixelAgentOffice 직급에 매핑
+
+기존 모델 티어(Opus/Sonnet/Haiku=유료, Gemini Pro/Flash=무료)를 직급에 대응. **자동 강제가 아니라 채용/설정의 "기본 제안값"** — 사용자가 언제든 오버라이드(기존 `Employee.model` 유지).
+
+| 직급 | 기본 모델 제안 | 이유 |
+|---|---|---|
+| 🌱 알바 / 📋 사원 | `gemini-2-5-flash` (무료) | 단순 심부름·잡무. 무료로 충분 |
+| ✏️ 대리 / 📊 과장 | `gemini-2-5-flash` ~ `claude-haiku` | 실무. 가성비 |
+| 📈 부장 / ⚙️ 이사 | `claude-sonnet` | 팀 리더·분배 판단 (2층 팀장 후보) |
+| 👑 사장 / 회장 / 레전드 | `claude-opus` | 최고 난이도 판단·전체 조율 |
+
+> `canBeTeamLeader()` = 과장 이상. 즉 **2층 팀장 = 과장+ 직원**이고, 직급이 높을수록 좋은 모델이 기본 → 팀장이 자연히 더 똑똑한 모델을 쓰게 됨. omo의 "팀장=Opus"와 동일 효과가 **직급 시스템만으로** 나온다.
+
+### 축 2 — 직무·성격 → 모델 계열 (TEMPLATES / MBTI 활용)
+
+직급이 "얼마나 좋은 급"이라면, 직무·성격은 "어느 **계열**이 맞나"다. 기존 `TEMPLATES`·`MBTI`에 연동:
+
+| 직무 (TEMPLATE) | 어울리는 계열 | 현재 보유 모델로 | 확장 후(멀티모델) |
+|---|---|---|---|
+| ✍️ 편집자 / 🪼 작가 (글쓰기) | 소통·산문형 (Kimi/Claude) | Claude Sonnet | Kimi (writing 최적) |
+| 🎨 디자이너 / UI (시각) | 시각 추론형 (Gemini) | **Gemini Pro** | Gemini Pro |
+| 🤖 개발자 / 문제해결 (자율) | 원칙·자율형 (GPT) | Claude(대체) | **GPT** |
+| 📋 조율·기획 (소통) | 소통형 (Claude) | Claude Opus/Sonnet | Claude/Kimi |
+| 🔍 탐색·검색 (단순반복) | 빠르고 싼 것 | Gemini Flash | GPT-mini / Haiku |
+
+> **2축 결합 예시**: "과장 + 디자이너 캐릭터" → 축1(과장)=중급 + 축2(디자이너)=Gemini 계열 → **Gemini Pro** 제안.
+> "사장 + 개발자 캐릭터" → 축1(사장)=최고급 + 축2(개발자/자율)=GPT 계열 → **GPT 최상위**(확장 후) 또는 Opus.
+
+> ⚠️ 현재 PixelAgentOffice는 Claude+Gemini만 있어서 GPT/Kimi 칸은 **멀티모델 확장(핸드오프 Phase 0) 후** 채워진다. 지금은 "계열 개념"만 잡아두고, 확장되면 표의 오른쪽 칸을 활성화.
+
+### 게임적 가치 (일석삼조)
+
+1. **성장 실감** — 진급하면 "직원이 똑똑해진다"(더 좋은 모델). RPG 장비 업그레이드 느낌.
+2. **비용 자동 통제** — 대부분(저직급)이 무료 Flash → 전체 비용 낮게 유지. 비싼 Opus는 소수 고위직만.
+3. **2층 협업 최적화** — 팀장(고급 모델)이 팀원(저급 모델)에게 위임 = omo category routing과 같은 구조가 공짜로.
+
+### 주의 / 옵션
+
+- **강제 아님**: 진급했다고 모델을 멋대로 바꾸지 않음. "진급 시 모델도 올릴까요?" 제안 → 사용자 승인 (진급 승인 UX와 동일 톤).
+- **설정 토글**: "직급-모델 연동 ON/OFF". 끄면 모델은 순수 수동 선택.
+- **비용 경고 연계**: 저직급에 Opus 수동 배정 시 "이 직급엔 과분해요 💸" 가벼운 힌트(선택).
+
+### 데이터 영향
+
+기존 `Employee.model` 그대로 사용. 추가 필드 불필요. 진급 시 제안 로직만:
+```
+onPromotion(emp, newRank):
+  suggested = DEFAULT_MODEL_BY_RANK[newRank]
+  if settings.rankModelLink && suggested 급 > emp.model 급:
+    proposeModelUpgrade(emp, suggested)   // 사용자 승인형
+```
+
+### 미정
+
+- [ ] 직급별 기본 모델 표를 유료/무료 사용자 상황에 따라 다르게? (무료 키만 있으면 전부 Flash)
+- [ ] 멀티모델 확장(OpenAI 등) 후 티어 재정의
+- [ ] "이 직원에게 이 모델은 과분/부족" 힌트를 어디까지 보여줄지
+
+---
+
 ## 10. 데이터 구조
 
 ```ts

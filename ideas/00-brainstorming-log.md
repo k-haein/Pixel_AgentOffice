@@ -3119,6 +3119,54 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 - ✅ brainstorming §130 (이 섹션) / ✅ HANDOFF (회고 To-do·§6.P/Q·헤더) / ✅ FEATURES (메모리모드 숨김·일일한도 실제차단·테스트)
 - (다음) portfolio v0.0.2 스냅샷 + EXE
 
+## 131. 🏢 Day 14 (계속) — 2층 착수: M-2F-0 멀티모델(Vercel AI SDK) + Phase 1 tool-calling
+
+작업일: 2026-07-03 (데스크탑). 2026-07-02 연구 세션(`ideas/20-omo-openagent-study-and-2F-plan.md`)에서 잠근 결정대로, 2층 협업 로드맵의 첫 두 단계를 한 세션에 진행. (원래 "한 세션=한 단계"였으나 사용자가 M-2F-0 검증 후 "그 다음 세션 진행해"로 연속 지시.)
+
+### 발단
+사용자: "docs/2F-collaboration-handoff.md를 먼저 읽어줘. 이번 세션은 M-2F-0(멀티모델 기반)만 구현한다. 범위 밖은 건드리지 마." + 작업 전 baseline 확인·계획 3~5줄 선설명·커밋 전 3종 기준 테스트 요구. 완료 기준: ①기존 1층 대화 동작 ②새 모델 1개 채팅 성공 ③비용/한도 카운터 작동.
+
+### 1) Baseline — 마이그레이션 전 상태 고정
+- 유닛 24/24, e2e 9/10 통과. 유일한 실패(03-gemini-chat)는 `.env.local`의 GEMINI_API_KEY가 7자 placeholder라 실제 API 호출이 실패한 것 — 코드 문제 아님. "실키 필요한 테스트만 환경 요인으로 빨간불"을 baseline으로 기록.
+
+### 2) M-2F-0 — LLM 레이어를 Vercel AI SDK로 전환
+- `ai@7.0.14` + `@ai-sdk/anthropic@4`·`google@4`·`openai@4` 설치.
+- **공용 팩토리 `electron/llm/aiProvider.ts` 신설**: 세 provider의 "SDK 인스턴스 생성 → generateText → LLMError 매핑"이 동일해서 한 곳에 통합. 기존 anthropic.ts/gemini.ts의 에러 분류 규칙(INVALID_KEY/RATE_LIMIT/SERVICE_BUSY/INSUFFICIENT_CREDIT/NETWORK, Gemini quota-0 특수 안내 포함)을 그대로 이식.
+- `anthropic.ts`/`gemini.ts`는 내부만 교체(모델 alias 매핑 유지), **`LLMProvider` 인터페이스·`dispatch.ts` 한도 로직 무변경** → 협업(2층)에서도 rate/비용 한도가 자동 적용되는 §8 원칙 보존.
+- **OpenAI 확장**: `openai.ts` 신설, `ProviderName`에 'openai', registry gpt- 라우팅, apiKeys 키 파일, dispatch/에러 메시지 라벨, `MODEL_INFO`에 `gpt-5-mini`(paid, $0.25/$2 per 1M — 일일 한도 집계에 자동 포함). UI: ApiKeyModal OpenAI 입력칸 + Hire/Memo 모달 OpenAI 그룹 + SettingsModal ALL_MODELS + 키 가이드.
+- `.env.local(.example)`에 OPENAI_API_KEY 항목 추가(없으면 관련 테스트 자동 skip).
+
+### 3) 🕳 빌드 함정 — "e2e 전부 타임아웃"의 진범
+- 마이그레이션 후 e2e가 01-launch부터 전멸 → 앱 자체가 안 뜨는 회귀. electron을 직접 띄워보니: `ai@7`의 CJS 의존성(token-util)이 ESM 번들 안에서 `require("path"/"fs"/"os")` 호출 → rolldown 런타임이 "require 없음" throw.
+- 해결: `vite.config.ts`의 electron main 빌드에 **`createRequire` 배너** 주입(`import { createRequire } from 'node:module'; const require = createRequire(import.meta.url)`). 재빌드 후 정상 기동.
+- 💡 교훈: **"테스트 전부 실패 = 개별 테스트가 아니라 부팅부터 의심"**. e2e를 기다리지 말고 빌드 산출물을 직접 실행해보면 원인이 바로 나온다.
+
+### 4) 검증 — 완료 기준 3종
+- 사용자가 GEMINI_API_KEY 실키 입력(OpenAI 키는 "패스하고 테스트해줘"로 보류).
+- ① 1층 대화: e2e 03 실키 통과 — 응답 "테스트 통과" 수신. ③ 카운터: 03에 assert 추가 — 요청 1·입력 517·출력 50토큰·$0.000054·RPM used 1 실측 확인. ② OpenAI: 코드·e2e(06 스펙) 준비 완료, 키 들어오면 자동 검증.
+- 최종: e2e 10 통과+1 skip, 유닛+통합 34/34, tsc 무결. `pnpm lint`는 기존 파일들 사전 부채로 빨간불(이번 변경분 무관 — 보류 fix 등록).
+
+### 5) Phase 1 — tool-calling 인프라 (같은 세션 연속 지시)
+- `types.ts`: `ToolDef`(JSON Schema) / `ToolCall` / `ToolResultMsg` / `ChatMessage`에 tool 역할 / `ChatRequest.tools` / `ChatResponse.toolCalls + stopReason('end'|'tool_calls')` — 핸드오프 §4 갭1 스케치 그대로.
+- `aiProvider.ts`: ToolDef→AI SDK `tool()`/`jsonSchema()` 변환 + tool-call/tool-result 메시지 파트 변환. **execute를 주지 않아 SDK 내부 루프가 돌지 않고 도구 호출이 그대로 반환** — 실행은 Phase 2 루프의 몫. 세 provider가 팩토리 공유라 전부 자동 지원.
+- **왕복 통합 테스트**(`tests/integration/toolcall-roundtrip.test.ts`, 실키 없으면 skip): 1차 호출 → `stopReason:'tool_calls'` + `get_current_time` 호출 반환 / 더미 결과("오후 3시 30분") 주입 → 2차 답변 "지금은 2026년 7월 3일 오후 3시 30분입니다" — **모델이 도구 결과를 실제로 읽었다는 증거**. provider가 electron을 import하지 않는 §8 원칙 덕에 vitest에서 직접 테스트 가능했음.
+
+### 6) 문서 정리 — 참고 출처 표기 일원화
+- 2층 연구의 참고 출처 표기를 **omo(oh-my-openagent) + 기반 엔진 OpenAgent**로 문서 전반 일원화. `ideas/20` 파일명도 `20-omo-openagent-study-and-2F-plan.md`로 변경, 2F 핸드오프·ideas/11 §9.5 표기 동기화. 핸드오프에 진행 현황 표(✅ M-2F-0·Phase 1) 추가.
+
+### 결정/인사이트
+- **AI SDK 전환의 실익이 바로 증명됨**: M-2F-0(멀티모델)을 끝내자 Phase 1(tool-calling)이 "타입 확장 + 변환 함수"만으로 끝남 — provider별 tool-use 파싱을 3번 짤 필요가 없었다. 갭1+갭4 동시 해결이라는 §0 잠금 결정이 맞았다.
+- OpenAI 첫 모델은 `gpt-5-mini`(저렴·채팅용). Opus 표기 단가 불일치($15/$75 vs 실제 $5/$25)는 범위 밖이라 보류 fix로만 등록.
+
+### CONVENTIONS §7 체크리스트 (§131)
+- ✅ brainstorming §131 (이 섹션) / ✅ HANDOFF (헤더·§1·§2 Day 섹션·§3 현재 상태·§4 옵션 0) / ✅ FEATURES (멀티모델·OpenAI·tool-calling 명세)
+- ✅ PRD 드리프트 점검 — v0.0.2 PRD의 "다중 LLM = Claude+Gemini(2사)" 서술이 현재(3사+AI SDK)와 어긋남 → §3에 "v0.0.3 스냅샷 때 PRD 갱신 필요" 플래그
+- (해당 없음) ideas/06 신규 보류 결정 / 마일스톤 스냅샷(2F는 Phase 3 완성 시 검토)
+
+### 산출 커밋 (예정 2개)
+- C1 — feat: M-2F-0 멀티모델(Vercel AI SDK + OpenAI) + 2F Phase 1 tool-calling (코드+테스트)
+- C2 — docs: 세션 정리(§131 + HANDOFF + FEATURES) + 출처 표기 정리
+
 ---
 
 ## 결정 진화 요약 (M5 시점)

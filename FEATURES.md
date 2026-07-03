@@ -1601,10 +1601,10 @@ agent 응답마다 👍 버튼. 클릭 시 `totalPraises +1` + 메시지에 `pra
 
 **무엇**: 설정창의 인라인 키 입력을 *별도 미니 팝업*으로 분리. "받는 방법"은 또 다른 안내 창.
 
-**사용 방법**: ⚙ 설정 → "🔑 API 키 설정 열기" (또는 채용 모달 "키 설정", 튜토리얼 API 키 게이트) → `ApiKeyModal`(입력·저장) → "❓ 받는 방법" → `ApiKeyGuideModal`(Gemini 무료/Anthropic 유료 발급 절차 + 링크 → "키 입력하러 가기")
+**사용 방법**: ⚙ 설정 → "🔑 API 키 설정 열기" (또는 채용 모달 "키 설정", 튜토리얼 API 키 게이트) → `ApiKeyModal`(입력·저장) → "❓ 받는 방법" → `ApiKeyGuideModal`(Gemini 무료/Anthropic·OpenAI 유료 발급 절차 + 링크 → "키 입력하러 가기")
 
 **기대 동작 ☐**:
-- [ ] 설정 "🔑 API 키 설정 열기" → 미니 팝업 (Google/Anthropic 입력·저장·삭제, 저장됨 표시)
+- [ ] 설정 "🔑 API 키 설정 열기" → 미니 팝업 (Google/Anthropic/OpenAI 입력·저장·삭제, 저장됨 표시 — OpenAI는 Day 14 계속 멀티모델 확장으로 추가)
 - [ ] 미니 팝업 "❓ 받는 방법" → 별도 안내창 (절차 + 발급 링크). 링크는 **기본 브라우저**로 열림
 - [ ] 안내창 "✏️ 키 입력하러 가기" → 입력 팝업
 - [ ] 키 저장 시 채용 모달·채팅창이 즉시 실제 모드로 갱신
@@ -1626,6 +1626,36 @@ agent 응답마다 👍 버튼. 클릭 시 `totalPraises +1` + 메시지에 `pra
 - [ ] 키 저장 즉시 같은 채팅창에서 실제 LLM 응답으로 전환
 
 **알려진 한계**: 더미 답변은 캐릭터당 6종 고정 순환. 실제 페르소나·기억 반영은 키 연결 후.
+
+---
+
+## 멀티모델 확장 — Vercel AI SDK + OpenAI (Day 14 계속, 2026-07-03 — M-2F-0)
+
+**무엇**: LLM 호출 레이어를 **Vercel AI SDK**(`ai@7` + `@ai-sdk/anthropic`·`google`·`openai`)로 전환하고 **OpenAI(GPT-5 Mini)** 를 세 번째 provider로 추가. 겉보기 동작(1층 대화·에러 안내·rate/비용 한도)은 기존과 동일 — 내부 엔진만 교체.
+
+**사용 방법**:
+- 🔑 API 키 팝업에 **OpenAI 입력칸**(placeholder `sk-...`) 추가 — 저장하면 채용/메모 모달의 "💸 유료 (OpenAI)" 그룹에서 **GPT-5 Mini** 선택 가능.
+- 설정의 기본 모델 선택·사용량 통계 표에도 GPT-5 Mini 노출. 단가: 입력 $0.25 / 출력 $2.00 (per 1M tokens, 유료 티어 → 일일 비용 한도 집계에 포함).
+
+**기대 동작 ☐**:
+- [ ] 기존 Gemini/Claude 1층 대화가 예전과 동일하게 동작 (e2e 03 실키 통과로 확인됨)
+- [ ] OpenAI 키 저장 → GPT-5 Mini 직원과 채팅 성공 (`tests/e2e/06-openai-chat.spec.ts` — OPENAI_API_KEY 있으면 자동 검증)
+- [ ] 채팅 후 비용/한도 카운터 누적 (요청 수·토큰·$·RPM — 03/06 스펙이 실측 assert)
+- [ ] 키 없는 provider 모델은 데모 모드로 동작 (기존과 동일)
+- [ ] 에러 안내(키 오류/한도/서버 과부하/네트워크)가 기존 한글 문구로 표시. GPT 크레딧 부족 시 platform.openai.com 충전 안내
+
+**검증 절차**: `pnpm test:unit`(라우팅·단가 유닛 + 실키 통합) → `pnpm test:e2e`(03 Gemini 실키 / 06 OpenAI 실키 — 키 없으면 자동 skip).
+
+**알려진 한계**:
+- OpenAI 모델은 현재 GPT-5 Mini 1종 (확장은 `MODEL_INFO` + 모달 그룹에 추가만 하면 됨).
+- Claude Opus **표기 단가($15/$75)가 실제 매핑 모델(claude-opus-4-5, $5/$25)보다 높음** — 비용이 과대 표시됨. 보류 fix 등록(HANDOFF §3).
+- `ai@7`의 CJS 의존성 때문에 electron main 빌드에 createRequire 배너 필요(`vite.config.ts`) — 제거하면 앱이 안 뜸.
+
+### (내부) tool-calling 인프라 — 2F Phase 1
+
+**무엇**: 2층 팀 협업의 전제 조건. `ChatRequest.tools`(JSON Schema 도구 정의) → 모델이 도구 호출을 반환(`ChatResponse.toolCalls` + `stopReason: 'tool_calls'`) → 도구 결과(`role:'tool'` 메시지)를 되돌려주면 반영된 답변. **도구 실행은 하지 않음** — 실행 루프는 Phase 2(`electron/agent/loop.ts`)에서.
+
+**검증**: `tests/integration/toolcall-roundtrip.test.ts` (Gemini 실키) — 더미 도구 `get_current_time` 왕복: 1차 호출이 도구 호출 반환 → 더미 시각 주입 → 2차 답변이 그 시각을 그대로 반영. UI 노출 없음(내부 인프라).
 
 ---
 
