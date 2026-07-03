@@ -32,7 +32,7 @@ export function ApiKeyGuideModal({ onClose }: Props) {
         </div>
         <div className="modal-body">
           <p className="modal-hint" style={{ marginBottom: 12 }}>
-            AI 직원과 대화하려면 API 키가 필요해요. 둘 중 하나만 있어도 시작할 수 있어요.
+            AI 직원과 대화하려면 API 키가 필요해요. 셋 중 하나만 있어도 시작할 수 있어요.
           </p>
 
           <section className="modal-section">
@@ -64,6 +64,20 @@ export function ApiKeyGuideModal({ onClose }: Props) {
               <li>API Keys → "Create Key" → 키 복사</li>
             </ol>
             <p style={{ fontSize: 12, color: '#aa6020', marginTop: 6 }}>한국어 품질이 특히 좋아요</p>
+          </section>
+
+          <section className="modal-section">
+            <h3>💸 유료 — OpenAI GPT</h3>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 20, fontSize: 13, lineHeight: 1.7 }}>
+              <li>
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">
+                  platform.openai.com/api-keys
+                </a>{' '}
+                접속 후 가입
+              </li>
+              <li>결제 수단 등록 + 선불 충전</li>
+              <li>"Create new secret key" → 키 복사</li>
+            </ol>
           </section>
         </div>
         <div className="modal-footer">

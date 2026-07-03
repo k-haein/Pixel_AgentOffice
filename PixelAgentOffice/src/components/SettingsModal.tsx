@@ -27,6 +27,7 @@ const ALL_MODELS: Model[] = [
   'claude-opus-4-7',
   'claude-sonnet-4-7',
   'claude-haiku-4-7',
+  'gpt-5-mini',
 ]
 
 export function SettingsModal({ onClose, initialSettings, onSaved, focusSection }: Props) {

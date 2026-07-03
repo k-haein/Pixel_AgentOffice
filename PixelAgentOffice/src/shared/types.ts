@@ -75,6 +75,8 @@ export type Model =
   // Google (무료 티어)
   | 'gemini-2-5-pro'
   | 'gemini-2-5-flash'
+  // OpenAI (유료, BYOK) — M-2F-0 멀티모델 확장
+  | 'gpt-5-mini'
 
 /** 모델별 메타 정보 — UI에서 활용 */
 export type ModelTier = 'paid' | 'free'
@@ -87,7 +89,7 @@ export type ModelPricing = {
 export const MODEL_INFO: Record<Model, {
   label: string
   tier: ModelTier
-  provider: 'anthropic' | 'google'
+  provider: 'anthropic' | 'google' | 'openai'
   desc: string
   /** 분당 요청 한도 (Requests Per Minute). 0이면 사실상 무제한 */
   rpm: number
@@ -99,6 +101,7 @@ export const MODEL_INFO: Record<Model, {
   'claude-haiku-4-7':  { label: 'Claude Haiku',     tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴',                rpm: 50, pricing: { inputPerM: 0.80,  outputPerM: 4    } },
   'gemini-2-5-pro':    { label: 'Gemini 2.5 Pro',   tier: 'free', provider: 'google',    desc: '⚠️ 무료 한도 빡빡 (분당 5회)',  rpm: 5,  pricing: { inputPerM: 1.25,  outputPerM: 5    } },
   'gemini-2-5-flash':  { label: 'Gemini 2.5 Flash', tier: 'free', provider: 'google',    desc: '⭐ 무료 · 균형 (분당 10회)',    rpm: 10, pricing: { inputPerM: 0.075, outputPerM: 0.30 } },
+  'gpt-5-mini':        { label: 'GPT-5 Mini',       tier: 'paid', provider: 'openai',    desc: '저렴 · 빠른 응답',            rpm: 50, pricing: { inputPerM: 0.25,  outputPerM: 2    } },
 }
 
 /** USD → KRW 환율 추정값 (1 USD ≈ ₩X). 정확치 않아도 사용자 직관용. */

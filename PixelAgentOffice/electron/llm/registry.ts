@@ -1,12 +1,14 @@
 import type { Model } from '../../src/shared/types'
 import { anthropicProvider } from './anthropic'
 import { geminiProvider } from './gemini'
+import { openaiProvider } from './openai'
 import type { LLMProvider, ProviderName } from './types'
 
 /** Model 이름으로 provider 추론 */
 export function providerFromModel(model: Model): ProviderName {
   if (model.startsWith('claude')) return 'anthropic'
   if (model.startsWith('gemini')) return 'google'
+  if (model.startsWith('gpt')) return 'openai'
   // 향후 groq, ollama 등 확장
   return 'anthropic' // fallback
 }
@@ -18,6 +20,8 @@ export function getProvider(name: ProviderName): LLMProvider {
       return anthropicProvider
     case 'google':
       return geminiProvider
+    case 'openai':
+      return openaiProvider
     default:
       throw new Error(`Unknown provider: ${name}`)
   }
@@ -27,4 +31,5 @@ export function getProvider(name: ProviderName): LLMProvider {
 export function invalidateAllCaches(): void {
   anthropicProvider.invalidateCache()
   geminiProvider.invalidateCache()
+  openaiProvider.invalidateCache()
 }

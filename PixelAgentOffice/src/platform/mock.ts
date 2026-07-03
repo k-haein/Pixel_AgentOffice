@@ -111,6 +111,7 @@ export const mockPlatform: Platform = {
       ok: true,
       response: {
         text,
+        stopReason: 'end' as const,
         usage: { inputTokens: 50, outputTokens: 20 },
       },
       rateLimit: {

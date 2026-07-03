@@ -35,6 +35,7 @@ export async function chat(request: ChatRequest, signal?: AbortSignal): Promise<
     const labels: Record<typeof providerName, string> = {
       anthropic: 'Anthropic (Claude)',
       google: 'Google (Gemini)',
+      openai: 'OpenAI (GPT)',
     }
     throw new LLMError(
       providerName,

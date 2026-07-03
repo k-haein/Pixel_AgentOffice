@@ -23,6 +23,7 @@ export function ApiKeyModal({ onClose }: Props) {
   const [keys, setKeys] = useState<Record<ProviderName, KeyState>>({
     anthropic: { has: false, input: '' },
     google: { has: false, input: '' },
+    openai: { has: false, input: '' },
   })
   const [storageAvailable, setStorageAvailable] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -33,10 +34,15 @@ export function ApiKeyModal({ onClose }: Props) {
     Promise.all([
       platform.hasApiKey('anthropic'),
       platform.hasApiKey('google'),
+      platform.hasApiKey('openai'),
       platform.isApiKeyStorageAvailable(),
-    ]).then(([hasA, hasG, available]) => {
+    ]).then(([hasA, hasG, hasO, available]) => {
       if (!mounted) return
-      setKeys({ anthropic: { has: hasA, input: '' }, google: { has: hasG, input: '' } })
+      setKeys({
+        anthropic: { has: hasA, input: '' },
+        google: { has: hasG, input: '' },
+        openai: { has: hasO, input: '' },
+      })
       setStorageAvailable(available)
     })
     return () => { mounted = false }
@@ -51,8 +57,12 @@ export function ApiKeyModal({ onClose }: Props) {
   const setInput = (provider: ProviderName, value: string) =>
     setKeys(prev => ({ ...prev, [provider]: { ...prev[provider], input: value } }))
 
+  const PROVIDER_LABELS: Record<ProviderName, string> = {
+    anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI',
+  }
+
   const handleDeleteKey = async (provider: ProviderName) => {
-    if (!window.confirm(`${provider === 'anthropic' ? 'Anthropic' : 'Google'} API 키를 삭제하시겠습니까?`)) return
+    if (!window.confirm(`${PROVIDER_LABELS[provider]} API 키를 삭제하시겠습니까?`)) return
     try {
       await platform.deleteApiKey(provider)
       setKeys(prev => ({ ...prev, [provider]: { has: false, input: '' } }))
@@ -64,17 +74,22 @@ export function ApiKeyModal({ onClose }: Props) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      for (const provider of ['anthropic', 'google'] as ProviderName[]) {
+      for (const provider of ['anthropic', 'google', 'openai'] as ProviderName[]) {
         const k = keys[provider].input.trim()
         if (k) await platform.saveApiKey(provider, k)
       }
-      const [hasA, hasG] = await Promise.all([
+      const [hasA, hasG, hasO] = await Promise.all([
         platform.hasApiKey('anthropic'),
         platform.hasApiKey('google'),
+        platform.hasApiKey('openai'),
       ])
-      setKeys({ anthropic: { has: hasA, input: '' }, google: { has: hasG, input: '' } })
+      setKeys({
+        anthropic: { has: hasA, input: '' },
+        google: { has: hasG, input: '' },
+        openai: { has: hasO, input: '' },
+      })
       // 키가 하나라도 있으면 알림 — 튜토리얼이 다음 단계로 진행
-      if (hasA || hasG) eventBus.emit('apikey:saved')
+      if (hasA || hasG || hasO) eventBus.emit('apikey:saved')
       setSavedFeedback(true)
       setSaving(false)
       setTimeout(() => onClose(), 800)
@@ -144,6 +159,25 @@ export function ApiKeyModal({ onClose }: Props) {
             />
             {keys.anthropic.has && (
               <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('anthropic')}>
+                🗑 삭제
+              </button>
+            )}
+          </section>
+
+          {/* OpenAI (유료) — M-2F-0 멀티모델 확장 */}
+          <section className="modal-section">
+            <h3>💸 OpenAI API 키 <span style={{ color: '#aa6020', fontSize: 11 }}>(유료)</span></h3>
+            {keys.openai.has && <div className="key-stored-badge">✓ 저장됨</div>}
+            <input
+              type="password"
+              className="modal-input"
+              placeholder={keys.openai.has ? '새 키 입력 시 교체됨' : 'sk-...'}
+              value={keys.openai.input}
+              onChange={e => setInput('openai', e.target.value)}
+              disabled={!storageAvailable}
+            />
+            {keys.openai.has && (
+              <button type="button" className="key-delete-btn" onClick={() => handleDeleteKey('openai')}>
                 🗑 삭제
               </button>
             )}

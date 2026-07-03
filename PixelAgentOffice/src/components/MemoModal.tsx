@@ -29,6 +29,7 @@ type Props = {
 
 const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
 const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
+const OPENAI_MODELS: Model[] = ['gpt-5-mini']
 
 const PROMOTION_MODES: PromotionMode[] = ['quantitative', 'time', 'qualitative', 'mixed', 'off']
 
@@ -274,6 +275,19 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             <div className="modal-subhead">💸 유료 (Anthropic)</div>
             <div className="pill-row">
               {PAID_MODELS.map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`pill ${model === m ? 'selected' : ''}`}
+                  onClick={() => setModel(m)}
+                >
+                  {MODEL_INFO[m].label}
+                </button>
+              ))}
+            </div>
+            <div className="modal-subhead">💸 유료 (OpenAI)</div>
+            <div className="pill-row">
+              {OPENAI_MODELS.map(m => (
                 <button
                   key={m}
                   type="button"

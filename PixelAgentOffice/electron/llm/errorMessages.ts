@@ -10,7 +10,9 @@ import type { Model } from '../../src/shared/types'
 import { MODEL_INFO } from '../../src/shared/types'
 
 function providerLabel(p: ProviderName): string {
-  return p === 'anthropic' ? 'Claude' : 'Gemini'
+  if (p === 'anthropic') return 'Claude'
+  if (p === 'google') return 'Gemini'
+  return 'GPT'
 }
 
 /** 원본 에러 메시지에서 HTTP status 추출 (예: "Claude API (503): ..." → "HTTP 503") */
@@ -102,7 +104,9 @@ export function humanizeError(
         message: `${label} 크레딧이 부족해요.`,
         hint: err.provider === 'anthropic'
           ? 'console.anthropic.com에서 크레딧을 충전해주세요.'
-          : 'Google Cloud Console에서 결제 상태를 확인해주세요.',
+          : err.provider === 'openai'
+            ? 'platform.openai.com에서 크레딧을 충전해주세요.'
+            : 'Google Cloud Console에서 결제 상태를 확인해주세요.',
         severity: 'error',
         debugCode,
       }

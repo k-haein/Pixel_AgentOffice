@@ -1,21 +1,53 @@
 import type { Model } from '../../src/shared/types'
 
-export type ProviderName = 'anthropic' | 'google'
+export type ProviderName = 'anthropic' | 'google' | 'openai'
 
-export type ChatMessage = {
-  role: 'user' | 'assistant'
-  content: string
+// ───── tool-calling (Phase 1 — 2층 협업의 갭1) ─────
+
+/** 도구 정의 — AI가 호출할 수 있는 함수 스펙. parameters는 JSON Schema (루트 type: 'object') */
+export type ToolDef = {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
 }
+
+/** AI가 요청한 도구 호출 */
+export type ToolCall = {
+  id: string
+  name: string
+  args: unknown
+}
+
+/** 도구 실행 결과 — role:'tool' 메시지로 모델에 되돌려준다 */
+export type ToolResultMsg = {
+  toolCallId: string
+  name: string
+  /** JSON 직렬화 가능한 결과 값 */
+  result: unknown
+}
+
+export type ChatMessage =
+  | { role: 'user'; content: string }
+  /** toolCalls가 있으면 "모델이 도구를 호출한 턴"의 기록 — 다음 요청에 그대로 되돌려줘야 함 */
+  | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
+  /** 도구 실행 결과 턴 (Phase 2 에이전트 루프가 생성) */
+  | { role: 'tool'; results: ToolResultMsg[] }
 
 export type ChatRequest = {
   model: Model
   systemPrompt: string
   messages: ChatMessage[]
+  /** 모델에게 쥐여줄 도구 목록 (없으면 기존 1층 텍스트 대화와 동일) */
+  tools?: ToolDef[]
   maxTokens?: number
 }
 
 export type ChatResponse = {
   text: string
+  /** 모델이 도구 호출을 요청했으면 채워짐 — stopReason === 'tool_calls' */
+  toolCalls?: ToolCall[]
+  /** 'tool_calls'면 루프 계속 (도구 실행 후 재호출), 'end'면 종료 */
+  stopReason: 'end' | 'tool_calls'
   usage: {
     inputTokens: number
     outputTokens: number

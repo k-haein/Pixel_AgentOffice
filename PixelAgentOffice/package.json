@@ -33,8 +33,12 @@
     }
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.7",
+    "@ai-sdk/google": "^4.0.8",
+    "@ai-sdk/openai": "^4.0.7",
     "@anthropic-ai/sdk": "^0.95.2",
     "@google/generative-ai": "^0.24.1",
+    "ai": "^7.0.14",
     "phaser": "^4.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

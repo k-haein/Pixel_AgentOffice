@@ -78,3 +78,8 @@ export function getGeminiKey(): string | undefined {
 export function getAnthropicKey(): string | undefined {
   return process.env.ANTHROPIC_API_KEY
 }
+
+/** OpenAI API 키 가져오기 (env에서) — M-2F-0 멀티모델 테스트용 */
+export function getOpenAIKey(): string | undefined {
+  return process.env.OPENAI_API_KEY
+}

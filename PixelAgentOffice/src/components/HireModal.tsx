@@ -59,6 +59,7 @@ const PROMOTION_CRITERIA_TIP: Record<PromotionMode, string> = {
 
 const FREE_MODELS: Model[] = ['gemini-2-5-flash', 'gemini-2-5-pro']
 const PAID_MODELS: Model[] = ['claude-opus-4-7', 'claude-sonnet-4-7', 'claude-haiku-4-7']
+const OPENAI_MODELS: Model[] = ['gpt-5-mini']
 
 function makeId(template: Template): string {
   return `${template}-${Date.now().toString(36)}`
@@ -139,18 +140,21 @@ export function HireModal({
   // API key 보유 상태 (Day 12 §3) — 키 없으면 해당 provider 모델 비활성
   const [hasGoogleKey, setHasGoogleKey] = useState(true)
   const [hasAnthropicKey, setHasAnthropicKey] = useState(true)
+  const [hasOpenAIKey, setHasOpenAIKey] = useState(true)
   // 알림 모달 메시지 (Day 12 §3 +1) — window.alert 대체. 중첩 모달로 띄움.
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // 빈 input 강조 (Day 12 §3 +1) — 검증 실패 시 해당 칸 빨간 테두리
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; role?: boolean }>({})
   useEffect(() => {
     const refreshKeys = async () => {
-      const [g, a] = await Promise.all([
+      const [g, a, o] = await Promise.all([
         platform.hasApiKey('google'),
         platform.hasApiKey('anthropic'),
+        platform.hasApiKey('openai'),
       ])
       setHasGoogleKey(g)
       setHasAnthropicKey(a)
+      setHasOpenAIKey(o)
     }
     void refreshKeys()
     // 채용 모달을 연 채 "⚙ 설정 열기" → API 키 팝업에서 키 저장 시 즉시 반영 (모델 활성화)
@@ -618,7 +622,7 @@ export function HireModal({
           {/* Model — Day 14: 키 없어도 선택·채용 가능(데모). 키 안내는 막지 않고 유도만. */}
           <section className="modal-section" data-tutorial="hire-model">
             <h3>🧠 대화 모델</h3>
-            {!hasGoogleKey && !hasAnthropicKey && (
+            {!hasGoogleKey && !hasAnthropicKey && !hasOpenAIKey && (
               <div
                 style={{
                   background: '#fff3d6',
@@ -681,6 +685,24 @@ export function HireModal({
             </div>
             <div className="pill-row">
               {PAID_MODELS.map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`pill ${model === m ? 'selected' : ''}`}
+                  onClick={() => setModel(m)}
+                >
+                  {MODEL_INFO[m].label}
+                </button>
+              ))}
+            </div>
+            <div className="modal-subhead">
+              💸 유료 (OpenAI){' '}
+              {!hasOpenAIKey && (
+                <span style={{ color: '#9a7a3a', fontSize: 11 }}>· 키 없음 (데모로 동작)</span>
+              )}
+            </div>
+            <div className="pill-row">
+              {OPENAI_MODELS.map(m => (
                 <button
                   key={m}
                   type="button"

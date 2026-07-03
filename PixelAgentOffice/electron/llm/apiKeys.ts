@@ -7,6 +7,7 @@ import type { ProviderName } from './types'
 const FILES: Record<ProviderName, string> = {
   anthropic: 'api-key-anthropic.bin',
   google: 'api-key-google.bin',
+  openai: 'api-key-openai.bin',
 }
 
 // 하위 호환: M3-a에서 쓰던 단일 파일을 anthropic으로 인식
