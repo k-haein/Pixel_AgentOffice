@@ -49,6 +49,10 @@ describe('estimateCostUsd — 비용 카운터 계산 축', () => {
   it('기존 모델 단가는 변하지 않음 (claude-sonnet-4-7: $3/$15)', () => {
     expect(estimateCostUsd('claude-sonnet-4-7', 1_000_000, 1_000_000)).toBeCloseTo(18, 6)
   })
+  it('정정된 단가 (1층 폴리시) — 실제 매핑 모델 기준: Opus $5/$25, Haiku $1/$5', () => {
+    expect(estimateCostUsd('claude-opus-4-7', 1_000_000, 1_000_000)).toBeCloseTo(30, 6)
+    expect(estimateCostUsd('claude-haiku-4-7', 1_000_000, 1_000_000)).toBeCloseTo(6, 6)
+  })
   it('모든 paid 모델은 0보다 큰 비용이 계산됨 (일일 한도 판정에 포함)', () => {
     for (const m of ALL_MODELS) {
       if (MODEL_INFO[m].tier !== 'paid') continue

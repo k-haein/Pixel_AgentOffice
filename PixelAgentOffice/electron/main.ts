@@ -130,12 +130,19 @@ function registerIpc() {
   // 진행 중인 요청들의 AbortController 보관
   const activeAborts = new Map<string, AbortController>()
 
-  ipcMain.handle('llm:chat', async (_e, request: ChatRequest & { requestId?: string }) => {
+  ipcMain.handle('llm:chat', async (e, request: ChatRequest & { requestId?: string; stream?: boolean }) => {
     const requestId = request.requestId ?? `req-${Date.now()}`
     const ctrl = new AbortController()
     activeAborts.set(requestId, ctrl)
+    // 스트리밍 (1층 폴리시) — stream: true면 생성 중 텍스트 조각을 'llm:chunk'로 push.
+    // 최종 완성본은 기존과 동일하게 invoke 반환값으로 온다 (usage/비용 집계 경로 무변경).
+    const onDelta = request.stream
+      ? (delta: string) => {
+          if (!e.sender.isDestroyed()) e.sender.send('llm:chunk', { requestId, delta })
+        }
+      : undefined
     try {
-      const response = await chat(request, ctrl.signal)
+      const response = await chat(request, ctrl.signal, onDelta)
       const rateLimit = getRateLimit(request.model)
       return { ok: true, response, rateLimit }
     } catch (err) {

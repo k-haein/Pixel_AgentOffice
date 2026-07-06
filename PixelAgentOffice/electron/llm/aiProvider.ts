@@ -8,7 +8,7 @@
  * 주의: 이 파일은 electron을 import하지 않는다 (§8 — 나중에 서버로 들어올릴 두뇌).
  */
 
-import { generateText, APICallError, jsonSchema, tool } from 'ai'
+import { generateText, streamText, APICallError, jsonSchema, tool } from 'ai'
 import type { JSONSchema7, LanguageModel, ModelMessage, ToolSet } from 'ai'
 import type { Model } from '../../src/shared/types'
 import {
@@ -193,19 +193,51 @@ export function makeAiSdkProvider(opts: {
   return {
     name: opts.name,
 
-    async chat(request: ChatRequest, apiKey: string, signal?: AbortSignal): Promise<ChatResponse> {
+    async chat(
+      request: ChatRequest,
+      apiKey: string,
+      signal?: AbortSignal,
+      onDelta?: (delta: string) => void,
+    ): Promise<ChatResponse> {
       const factory = getFactory(apiKey)
       const modelId = opts.resolveModelId(request.model)
 
+      const params = {
+        model: factory(modelId),
+        system: request.systemPrompt,
+        messages: toSdkMessages(request.messages),
+        tools: toSdkTools(request.tools),
+        maxOutputTokens: request.maxTokens ?? 4096,
+        abortSignal: signal,
+      }
+
       try {
-        const result = await generateText({
-          model: factory(modelId),
-          system: request.systemPrompt,
-          messages: toSdkMessages(request.messages),
-          tools: toSdkTools(request.tools),
-          maxOutputTokens: request.maxTokens ?? 4096,
-          abortSignal: signal,
-        })
+        if (onDelta) {
+          // 스트리밍 경로 — textStream을 소비하며 조각을 콜백. 에러는 textStream 반복 중 throw됨.
+          const stream = streamText(params)
+          for await (const delta of stream.textStream) {
+            onDelta(delta)
+          }
+          const [text, usage, finishReason, sdkToolCalls] = await Promise.all([
+            stream.text, stream.usage, stream.finishReason, stream.toolCalls,
+          ])
+          const toolCalls = sdkToolCalls.map(tc => ({
+            id: tc.toolCallId,
+            name: tc.toolName,
+            args: tc.input,
+          }))
+          return {
+            text,
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+            stopReason: finishReason === 'tool-calls' ? 'tool_calls' : 'end',
+            usage: {
+              inputTokens: usage.inputTokens ?? 0,
+              outputTokens: usage.outputTokens ?? 0,
+            },
+          }
+        }
+
+        const result = await generateText(params)
         const toolCalls = result.toolCalls.map(tc => ({
           id: tc.toolCallId,
           name: tc.toolName,

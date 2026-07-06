@@ -5,6 +5,7 @@ import type { Employee, Settings, UsageDisplayMode, ChatMessage, BubbleEmotion }
 import { MODEL_INFO, USD_TO_KRW, MBTI_PROFILES } from '../shared/types'
 import { checkPromotionEligible } from '../shared/promotion'
 import { demoReply } from '../shared/demoReplies'
+import { summarizeMemory, MEMORY_AUTO_MIN_TURNS } from '../shared/memory'
 import type { RateLimitStatus } from '../platform'
 
 // ChatMessage를 Message로 alias — 기존 코드 호환
@@ -96,6 +97,51 @@ ${memory.trim()}
   return prompt
 }
 
+/** 채팅 세션 종료(닫기/직원 전환) 시 memoryMode에 따라 기억 정리 트리거 (1층 폴리시).
+ *  - auto: 조용히 자동 정리 (완료 시 💡 감정 연출)
+ *  - ask: window.confirm으로 물어본 뒤 정리
+ *  - off/manual: 아무것도 안 함
+ *  발동 조건: 이번 세션 실제 LLM 응답 턴 ≥ MEMORY_AUTO_MIN_TURNS + 메모리 모델 키 보유 */
+async function maybeSummarizeOnClose(emp: Employee, turns: number): Promise<void> {
+  if (turns < MEMORY_AUTO_MIN_TURNS) return
+  if (emp.memoryMode !== 'auto' && emp.memoryMode !== 'ask') return
+  // 메모리 모델 provider 키 없으면 조용히 skip (데모 모드 등)
+  const hasKey = await platform.hasApiKey(MODEL_INFO[emp.memoryModel].provider)
+  if (!hasKey) return
+  if (emp.memoryMode === 'ask') {
+    const go = window.confirm(
+      `${emp.name}의 기억을 이번 대화 내용으로 정리할까요?\n(메모리 모델: ${MODEL_INFO[emp.memoryModel].label})`,
+    )
+    if (!go) return
+  }
+  // 게임 연출 — 정리하는 동안 일하는 모습, 성공하면 💡
+  eventBus.emit('agent:set-state', { agentId: emp.id, state: 'working' })
+  try {
+    const outcome = await summarizeMemory(platform, emp)
+    if (outcome.status === 'saved') {
+      eventBus.emit('agent:set-emotion', { agentId: emp.id, emotion: 'idea', expireMs: 4000 })
+    } else if (outcome.status === 'error') {
+      console.error('[memory] 자동 기억 정리 실패:', outcome.message)
+    }
+  } catch (err) {
+    console.error('[memory] 자동 기억 정리 실패:', err)
+  } finally {
+    eventBus.emit('agent:set-state', { agentId: emp.id, state: 'idle' })
+  }
+}
+
+/** 스트리밍 중 표시용 텍스트 정리 — 완성된 [emotion:xxx] 태그 제거 + 끝에 만들어지는 중인
+ *  태그 조각(예: "[emo")도 잠시 숨김 (완성되면 위 replace가 제거) */
+function stripEmotionForStream(text: string): string {
+  const cleaned = text.replace(/\[emotion:[a-z]+\]\s*/gi, '')
+  const lastOpen = cleaned.lastIndexOf('[')
+  if (lastOpen !== -1 && !cleaned.slice(lastOpen).includes(']')) {
+    const partial = cleaned.slice(lastOpen, lastOpen + 9)
+    if (/^\[e?m?o?t?i?o?n?:?/i.test(partial)) return cleaned.slice(0, lastOpen).trimEnd()
+  }
+  return cleaned
+}
+
 /** LLM 응답에서 [emotion:xxx] 태그 추출 — 본문에서 제거 후 emotion 키 반환 (Day 11 후속 +2) */
 function parseEmotionTag(text: string): { cleanText: string; emotion: BubbleEmotion | null } {
   const validEmotions: BubbleEmotion[] = [
@@ -160,6 +206,14 @@ export function ChatPopup() {
   const [countdownSec, setCountdownSec] = useState<number>(0)
   /** 진행 중인 요청 ID — 중단할 때 사용 */
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
+  /** 스트리밍 중 누적 텍스트 (1층 폴리시) — null이면 스트리밍 없음(점 3개 표시) */
+  const [streamingText, setStreamingText] = useState<string | null>(null)
+  /** 청크 필터용 — state는 클로저에 갇히므로 ref로 현재 요청 ID 유지 */
+  const activeRequestIdRef = useRef<string | null>(null)
+  /** 이번 채팅 세션(열림~닫힘)의 실제 LLM 응답 턴 수 — 닫을 때 기억 정리 트리거 판정 */
+  const sessionTurnsRef = useRef(0)
+  /** 직원 전환 감지용 — chat:open 클로저(마운트 시 1회 등록)에서 현재 직원 참조 */
+  const employeeRef = useRef<Employee | null>(null)
   /** 자리비움 진입 시 랜덤으로 뽑은 상태 메시지 */
   const [pauseMessage, setPauseMessage] = useState<PauseMessage | null>(null)
   /** 사용량 표시 모드 — 설정에서 읽어옴 */
@@ -179,6 +233,11 @@ export function ChatPopup() {
   /** 채팅 영구화 (P1 #13) — employee별 메시지 보관. 같은 직원 채팅 다시 열면 복원. */
   const messagesByEmployeeRef = useRef<Record<string, Message[]>>({})
 
+  // employeeRef 동기화 — chat:open 클로저에서 최신 직원을 볼 수 있게
+  useEffect(() => {
+    employeeRef.current = employee
+  }, [employee])
+
   // 데모 모드 판별 (Day 14) — 직원 모델 provider의 키 유무. 키 저장되면 즉시 해제.
   useEffect(() => {
     if (!employee) { setDemoMode(false); return }
@@ -193,10 +252,25 @@ export function ChatPopup() {
     return () => { alive = false; eventBus.off('apikey:saved', onSaved) }
   }, [employee])
 
+  // 스트리밍 청크 구독 (1층 폴리시) — 마운트 시 1회. 현재 요청의 조각만 누적
+  useEffect(() => {
+    const unsubscribe = platform.onChatChunk(({ requestId, delta }) => {
+      if (requestId !== activeRequestIdRef.current) return
+      setStreamingText(prev => (prev ?? '') + delta)
+    })
+    return unsubscribe
+  }, [])
+
   // 채팅 열기 이벤트 (Day 11+ 풀 스펙: store.ts 영속화 추가 — 앱 재시작 후도 이력 복원)
   useEffect(() => {
     const onOpen = async (payload: unknown) => {
       const e = payload as Employee
+      // 다른 직원으로 바로 전환하는 경우 — 이전 직원 세션을 닫는 것과 동일하게 기억 트리거
+      const prev = employeeRef.current
+      if (prev && prev.id !== e.id) {
+        void maybeSummarizeOnClose(prev, sessionTurnsRef.current)
+      }
+      sessionTurnsRef.current = 0 // 새 세션 — 기억 정리 트리거 카운터 리셋
       setEmployee(e)
       setInput('')
       // 1) 메모리 ref에 있으면 즉시 표시
@@ -378,8 +452,13 @@ export function ChatPopup() {
   const blockedByLimit = rateLimit?.remaining === 0 && rateLimit?.limit > 0
 
   const close = () => {
+    const emp = employee
+    const turns = sessionTurnsRef.current
+    sessionTurnsRef.current = 0
     setEmployee(null)
-    eventBus.emit('agent:set-state', { agentId: employee.id, state: 'idle' })
+    eventBus.emit('agent:set-state', { agentId: emp.id, state: 'idle' })
+    // 세션 종료 — memoryMode(auto/ask)에 따라 기억 정리 (백그라운드, 실패해도 조용히)
+    void maybeSummarizeOnClose(emp, turns)
   }
 
   const send = async () => {
@@ -397,6 +476,8 @@ export function ChatPopup() {
     setInput('')
     setIsAgentTyping(true)
     setActiveRequestId(requestId)
+    activeRequestIdRef.current = requestId
+    setStreamingText(null)
     eventBus.emit('agent:set-state', { agentId: employee.id, state: 'working' })
 
     // 시스템 메시지 제외, user/assistant만 API로
@@ -428,13 +509,15 @@ export function ChatPopup() {
         return // finally에서 typing/state 정리
       }
 
-      // Phase 4 — 매 전송 직전 최신 메모리 로드 (메모 모달에서 갱신돼도 즉시 반영, stale 차단)
-      const freshMemory = await platform.loadMemory(employee.id)
+      // Phase 4 — 매 전송 직전 최신 메모리 로드 (메모 모달에서 갱신돼도 즉시 반영, stale 차단).
+      // memoryMode 'off'면 기억 기능 전체 비활성 — 주입하지 않음 (1층 폴리시)
+      const freshMemory = employee.memoryMode === 'off' ? '' : await platform.loadMemory(employee.id)
       const result = await platform.chat({
         model: employee.model,
         systemPrompt: buildSystemPrompt(employee, freshMemory),
         messages: apiMessages,
         requestId,
+        stream: true, // 1층 폴리시 — 응답 토큰 실시간 스트리밍 (onChatChunk 구독으로 수신)
       })
 
       // 결과와 함께 rate limit 항상 갱신
@@ -461,6 +544,8 @@ export function ChatPopup() {
         // Phase 1 — 활동 카운터: 응답 1건 성공 = 대화 1회 누적 (진급·메모리 토대).
         // Phase 3 — 갱신 결과로 진급 자격 체크 → 자격 도달 시 진급 요청 emit.
         void platform.incrementEmployeeStats(empId, { totalMessages: 1 }).then(maybeRequestPromotion)
+        // 1층 폴리시 — 세션 턴 누적 (닫을 때 memoryMode auto/ask 기억 정리 트리거 판정용)
+        sessionTurnsRef.current += 1
       } else {
         // 에러는 채팅 흐름 안에 시스템 메시지로 (debugCode 동봉)
         const f = result.error.friendly
@@ -497,6 +582,8 @@ export function ChatPopup() {
     } finally {
       setIsAgentTyping(false)
       setActiveRequestId(null)
+      activeRequestIdRef.current = null
+      setStreamingText(null)
       eventBus.emit('agent:set-state', { agentId: employee.id, state: 'idle' })
     }
   }
@@ -742,11 +829,20 @@ export function ChatPopup() {
         ))}
         {isAgentTyping && (
           <div className="msg msg-agent">
-            <div className="msg-bubble msg-typing">
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot"></span>
-            </div>
+            {/* 스트리밍 텍스트가 있으면 실시간 표시, 없으면 점 3개.
+                msg-typing 클래스 유지 — e2e가 "최종 응답"을 :not(.msg-typing)으로 구분 */}
+            {streamingText && stripEmotionForStream(streamingText) ? (
+              <div className="msg-bubble msg-typing msg-streaming">
+                {stripEmotionForStream(streamingText)}
+                <span className="stream-caret">▌</span>
+              </div>
+            ) : (
+              <div className="msg-bubble msg-typing">
+                <span className="dot"></span>
+                <span className="dot"></span>
+                <span className="dot"></span>
+              </div>
+            )}
           </div>
         )}
         <div ref={msgsEndRef} />

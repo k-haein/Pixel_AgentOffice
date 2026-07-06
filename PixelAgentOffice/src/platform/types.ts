@@ -58,8 +58,11 @@ export interface Platform {
   isApiKeyStorageAvailable(): Promise<boolean>
 
   // === LLM 호출 ===
-  /** 채팅 요청. requestId 동봉 시 abortChat으로 중단 가능 */
-  chat(request: ChatRequest & { requestId?: string }): Promise<ChatResult>
+  /** 채팅 요청. requestId 동봉 시 abortChat으로 중단 가능.
+   *  stream: true면 생성 중 텍스트 조각이 onChatChunk 구독자에게 실시간 전달됨 (1층 폴리시) */
+  chat(request: ChatRequest & { requestId?: string; stream?: boolean }): Promise<ChatResult>
+  /** 스트리밍 청크 구독 — 반환값은 구독 해제 함수 */
+  onChatChunk(listener: (payload: { requestId: string; delta: string }) => void): () => void
   /** 진행 중인 채팅 요청 중단 */
   abortChat(requestId: string): Promise<{ ok: boolean; reason?: string }>
   /** 특정 모델의 rate limit 상태 조회 (RPM 카운터 + 세션 누적) */

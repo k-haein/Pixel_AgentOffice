@@ -30,6 +30,9 @@ const FAKE_REPLIES = [
 
 let replyIdx = 0
 
+// 스트리밍 구독자 (1층 폴리시) — chat({stream: true}) 시 조각을 흘려보낸다
+const chunkListeners = new Set<(payload: { requestId: string; delta: string }) => void>()
+
 export const mockPlatform: Platform = {
   loadData: async (): Promise<AppData> => ({
     employees: [...mockEmployees],
@@ -107,6 +110,14 @@ export const mockPlatform: Platform = {
     await new Promise(r => setTimeout(r, 600))
     const text = FAKE_REPLIES[replyIdx % FAKE_REPLIES.length]
     replyIdx++
+    // 스트리밍 흉내 — 4자씩 잘라 구독자에게 push (실제 provider와 동일한 체감)
+    if (request.stream && request.requestId) {
+      for (let i = 0; i < text.length; i += 4) {
+        await new Promise(r => setTimeout(r, 30))
+        const delta = text.slice(i, i + 4)
+        chunkListeners.forEach(l => l({ requestId: request.requestId!, delta }))
+      }
+    }
     return {
       ok: true,
       response: {
@@ -126,6 +137,11 @@ export const mockPlatform: Platform = {
         sessionCostUsd: 0.0001 * replyIdx,
       },
     }
+  },
+
+  onChatChunk: (listener) => {
+    chunkListeners.add(listener)
+    return () => { chunkListeners.delete(listener) }
   },
 
   abortChat: async () => ({ ok: true }),

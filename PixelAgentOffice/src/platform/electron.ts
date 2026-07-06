@@ -32,6 +32,7 @@ declare global {
       isApiKeyStorageAvailable: Platform['isApiKeyStorageAvailable']
       // chatWithLLM 은 메서드명만 platform과 다름 — adapter에서 alias
       chatWithLLM: Platform['chat']
+      onChatChunk: Platform['onChatChunk']
       abortChat: Platform['abortChat']
       getRateLimit: Platform['getRateLimit']
     }
@@ -69,6 +70,7 @@ export const electronPlatform: Platform = {
   // === LLM ===
   // preload에서 chatWithLLM으로 노출됐지만 Platform 인터페이스는 chat() — 이름만 alias
   chat: (request) => window.api.chatWithLLM(request),
+  onChatChunk: (listener) => window.api.onChatChunk(listener),
   abortChat: (requestId) => window.api.abortChat(requestId),
   getRateLimit: (model) => window.api.getRateLimit(model),
 }

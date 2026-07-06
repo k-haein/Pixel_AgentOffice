@@ -96,9 +96,11 @@ export const MODEL_INFO: Record<Model, {
   /** 가격 (USD per 1M tokens). 무료 모델도 표기상 0 또는 paid tier 가격. */
   pricing: ModelPricing
 }> = {
-  'claude-opus-4-7':   { label: 'Claude Opus',      tier: 'paid', provider: 'anthropic', desc: '최고 성능 · 비쌈',            rpm: 50, pricing: { inputPerM: 15,    outputPerM: 75   } },
+  // 단가는 실제 매핑되는 API 모델 기준 (electron/llm/anthropic.ts resolveModelId 참조)
+  // — opus-4-7→opus-4-5($5/$25), haiku-4-7→haiku-4-5($1/$5). 2026-07-03 정정(과거 과대/과소 표시).
+  'claude-opus-4-7':   { label: 'Claude Opus',      tier: 'paid', provider: 'anthropic', desc: '최고 성능 · 비쌈',            rpm: 50, pricing: { inputPerM: 5,     outputPerM: 25   } },
   'claude-sonnet-4-7': { label: 'Claude Sonnet',    tier: 'paid', provider: 'anthropic', desc: '균형 · 권장',                rpm: 50, pricing: { inputPerM: 3,     outputPerM: 15   } },
-  'claude-haiku-4-7':  { label: 'Claude Haiku',     tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴',                rpm: 50, pricing: { inputPerM: 0.80,  outputPerM: 4    } },
+  'claude-haiku-4-7':  { label: 'Claude Haiku',     tier: 'paid', provider: 'anthropic', desc: '빠름 · 저렴',                rpm: 50, pricing: { inputPerM: 1,     outputPerM: 5    } },
   'gemini-2-5-pro':    { label: 'Gemini 2.5 Pro',   tier: 'free', provider: 'google',    desc: '⚠️ 무료 한도 빡빡 (분당 5회)',  rpm: 5,  pricing: { inputPerM: 1.25,  outputPerM: 5    } },
   'gemini-2-5-flash':  { label: 'Gemini 2.5 Flash', tier: 'free', provider: 'google',    desc: '⭐ 무료 · 균형 (분당 10회)',    rpm: 10, pricing: { inputPerM: 0.075, outputPerM: 0.30 } },
   'gpt-5-mini':        { label: 'GPT-5 Mini',       tier: 'paid', provider: 'openai',    desc: '저렴 · 빠른 응답',            rpm: 50, pricing: { inputPerM: 0.25,  outputPerM: 2    } },

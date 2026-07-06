@@ -4,8 +4,13 @@ import { LLMError, type ChatRequest, type ChatResponse } from './types'
 import * as usage from './usage'
 import { loadData } from '../data/store'
 
-/** Model에서 provider 자동 결정 → 사전 rate-limit 검사 → 키 로드 → provider.chat() 호출 */
-export async function chat(request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
+/** Model에서 provider 자동 결정 → 사전 rate-limit 검사 → 키 로드 → provider.chat() 호출.
+ *  onDelta를 주면 토큰 스트리밍 (한도·집계 로직은 동일 경로) */
+export async function chat(
+  request: ChatRequest,
+  signal?: AbortSignal,
+  onDelta?: (delta: string) => void,
+): Promise<ChatResponse> {
   const providerName = providerFromModel(request.model)
 
   // 1) Sliding-window 사전 차단 — API 호출 전에 우리가 알 수 있는 한도라면 미리 끊는다
@@ -47,7 +52,7 @@ export async function chat(request: ChatRequest, signal?: AbortSignal): Promise<
   // 3) 실제 호출 — 시도 자체는 한도 카운터에 기록 (성공/실패 무관: 한도는 시도 횟수 기준)
   usage.record(request.model)
   const provider = getProvider(providerName)
-  const response = await provider.chat(request, apiKey, signal)
+  const response = await provider.chat(request, apiKey, signal, onDelta)
   // 4) 성공 시 토큰 사용량 누적 (세션 통계)
   usage.recordTokens(request.model, response.usage.inputTokens, response.usage.outputTokens)
   return response

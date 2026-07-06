@@ -55,9 +55,17 @@ const api = {
   isApiKeyStorageAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('apikey:isAvailable'),
 
-  // === LLM 호출 (requestId 동봉 시 중단 가능) ===
-  chatWithLLM: (request: ChatRequest & { requestId?: string }): Promise<ChatResult> =>
+  // === LLM 호출 (requestId 동봉 시 중단 가능, stream: true면 llm:chunk 이벤트로 조각 push) ===
+  chatWithLLM: (request: ChatRequest & { requestId?: string; stream?: boolean }): Promise<ChatResult> =>
     ipcRenderer.invoke('llm:chat', request),
+
+  /** 스트리밍 청크 구독 — 반환값은 구독 해제 함수. requestId로 어느 요청의 조각인지 구분 */
+  onChatChunk: (listener: (payload: { requestId: string; delta: string }) => void): (() => void) => {
+    const handler = (_ev: Electron.IpcRendererEvent, payload: { requestId: string; delta: string }) =>
+      listener(payload)
+    ipcRenderer.on('llm:chunk', handler)
+    return () => ipcRenderer.removeListener('llm:chunk', handler)
+  },
 
   /** 진행 중인 chat 요청 중단 */
   abortChat: (requestId: string): Promise<{ ok: boolean; reason?: string }> =>

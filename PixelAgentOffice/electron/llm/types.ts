@@ -79,11 +79,18 @@ export class LLMError extends Error {
   }
 }
 
-/** Provider 공통 인터페이스 — Anthropic, Google, (추후) Groq 모두 구현 */
+/** Provider 공통 인터페이스 — Anthropic, Google, OpenAI 모두 구현 */
 export interface LLMProvider {
   readonly name: ProviderName
-  /** 대화 요청 (비-스트리밍). signal로 중간 취소 가능 */
-  chat(request: ChatRequest, apiKey: string, signal?: AbortSignal): Promise<ChatResponse>
+  /** 대화 요청. signal로 중간 취소 가능.
+   *  onDelta를 주면 토큰 스트리밍 — 생성되는 텍스트 조각이 실시간으로 콜백되고,
+   *  반환값(ChatResponse)은 스트림 종료 후의 완성본(usage 포함)으로 동일하게 온다. */
+  chat(
+    request: ChatRequest,
+    apiKey: string,
+    signal?: AbortSignal,
+    onDelta?: (delta: string) => void,
+  ): Promise<ChatResponse>
   /** 키 캐시 무효화 */
   invalidateCache(): void
 }

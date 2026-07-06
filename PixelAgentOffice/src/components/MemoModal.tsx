@@ -18,6 +18,7 @@ import {
   getAppointableRank,
   promotionModeLabel,
 } from '../shared/promotion'
+import { summarizeMemory } from '../shared/memory'
 
 type Props = {
   onClose: () => void
@@ -33,6 +34,20 @@ const OPENAI_MODELS: Model[] = ['gpt-5-mini']
 
 const PROMOTION_MODES: PromotionMode[] = ['quantitative', 'time', 'qualitative', 'mixed', 'off']
 
+// 메모리 모드 (1층 폴리시 — 실동작 연결). ChatPopup의 닫기 트리거·주입 gating과 짝
+const MEMORY_MODES: { value: MemoryMode; label: string }[] = [
+  { value: 'auto', label: '⚡ 자동' },
+  { value: 'ask', label: '❓ 물어보기' },
+  { value: 'manual', label: '✋ 수동' },
+  { value: 'off', label: '🚫 끔' },
+]
+const MEMORY_MODE_DESC: Record<MemoryMode, string> = {
+  auto: '대화(3턴 이상) 후 채팅창을 닫으면 자동으로 기억을 정리합니다.',
+  ask: '대화 후 채팅창을 닫을 때 기억을 정리할지 물어봅니다.',
+  manual: '아래 [기억 정리] 버튼을 누를 때만 정리합니다.',
+  off: '기억 기능을 끕니다 — 대화에 기억을 주입하지 않고, 자동 정리도 하지 않습니다.',
+}
+
 export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: Props) {
   // employee props로 초기화 (key prop으로 다른 employee 시 재마운트됨)
   const [name, setName] = useState(employee.name)
@@ -41,8 +56,8 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
   const [baseInstructions, setBaseInstructions] = useState(employee.baseInstructions)
   const [customInstructions, setCustomInstructions] = useState(employee.customInstructions)
   const [model, setModel] = useState<Model>(employee.model)
-  // 메모리 모드 셀렉터는 숨김(위 주석 참고) — 값은 기존값 유지하고 저장 시 그대로 보존
-  const [memoryMode] = useState<MemoryMode>(employee.memoryMode)
+  // 메모리 모드 (1층 폴리시 — off/manual/ask/auto 실동작 연결로 셀렉터 복원)
+  const [memoryMode, setMemoryMode] = useState<MemoryMode>(employee.memoryMode)
   // 진급방식 (Day 13) — 메모에서 변경 가능
   const [promotionMode, setPromotionMode] = useState<PromotionMode>(employee.promotionMode)
   // 메모리 (Phase 4) — 누적 기억. mount 시 로드, 직접 편집 + "기억 정리"(LLM 요약)
@@ -53,45 +68,21 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
     platform.loadMemory(employee.id).then(setMemoryText)
   }, [employee.id])
 
-  /** "지금 기억 정리" — 대화 이력 + 기존 기억을 memoryModel로 요약해 갱신 (Phase 4) */
+  /** "지금 기억 정리" — 대화 이력 + 기존 기억을 memoryModel로 요약해 갱신 (Phase 4).
+   *  로직은 shared/memory.ts 공용 (ChatPopup의 auto/ask 트리거와 동일 경로) */
   const handleSummarize = async () => {
     setSummarizing(true)
     try {
-      const history = await platform.loadChatHistory(employee.id)
-      // 긴 대화는 토큰 한도 초과 → 최근 40개만 요약 (최신 대화가 기억에 더 중요)
-      const convo = history
-        .filter(m => m.role !== 'system')
-        .slice(-40)
-        .map(m => `${m.role === 'agent' ? employee.name : '사용자'}: ${m.text}`)
-        .join('\n')
-      if (!convo.trim()) {
+      // memoryText를 기존 기억으로 전달 — 저장 전 편집분도 병합에 반영
+      const outcome = await summarizeMemory(platform, employee, memoryText)
+      if (outcome.status === 'saved') {
+        setMemoryText(outcome.memory)
+      } else if (outcome.status === 'no-history') {
         alert('아직 대화 기록이 없어요. 채팅을 나눈 뒤 정리해보세요.')
-        setSummarizing(false)
-        return
-      }
-      const result = await platform.chat({
-        model: employee.memoryModel,
-        systemPrompt:
-          '당신은 메모리 요약기입니다. 대화에서 *사용자에 대해* 기억할 사실(이름·선호·진행 중인 작업·반복 주제)만 간결한 3인칭 메모로 추출해 기존 기억과 병합하세요. 추측·창작 금지. 메모 본문만 출력하세요.',
-        messages: [
-          {
-            role: 'user',
-            content: `기존 기억:\n${memoryText || '(없음)'}\n\n새 대화:\n${convo}\n\n병합된 기억을 출력하세요:`,
-          },
-        ],
-      })
-      if (result.ok) {
-        const newMem = result.response.text.trim()
-        // 빈/무의미 결과가 기존 기억을 덮어쓰지 않게 방어
-        const meta = /^[(（]?\s*(없음|기억\s*없음|n\/?a|none)\s*[)）]?$/i
-        if (newMem.length < 2 || meta.test(newMem)) {
-          alert('정리 결과가 비어 있어 기존 기억을 그대로 유지합니다.')
-        } else {
-          setMemoryText(newMem)
-          await platform.saveMemory(employee.id, newMem)
-        }
+      } else if (outcome.status === 'empty-result') {
+        alert('정리 결과가 비어 있어 기존 기억을 그대로 유지합니다.')
       } else {
-        alert('기억 정리 실패: ' + result.error.message)
+        alert('기억 정리 실패: ' + outcome.message)
       }
     } catch (err) {
       alert('기억 정리 실패: ' + (err as Error).message)
@@ -300,9 +291,7 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             </div>
           </section>
 
-          {/* 메모리 모드 셀렉터 숨김 (출시 정리) — off/manual/ask/auto가 아직 실제 동작에 연결돼 있지 않음
-              (기억은 항상 주입, 수동 [기억 정리] 버튼만 트리거). 오해 방지차 비공개. 값은 기본값 유지(저장 시 보존).
-              추후 모드를 실제로 연결하면 이 섹션을 복원한다. */}
+          {/* (1층 폴리시) 메모리 모드 셀렉터는 위 "🧠 기억" 섹션에 복원됨 — off/manual/ask/auto 실동작 연결 완료 */}
 
           {/* 외형 편집 (v2 #17·#18) — Day 11 후속 +2: 메모에서 비활성화 (최초 채용 시에만 변경 가능).
               사용자 결정 — 캐릭터 외형은 채용 후 고정. customColor/pattern state는 저장 시 기존값 전달용으로 보존.
@@ -386,12 +375,27 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
             </div>
           </section>
 
-          {/* 기억 (Phase 4) */}
+          {/* 기억 (Phase 4 + 1층 폴리시: 모드 셀렉터 복원 — off/manual/ask/auto 실동작 연결) */}
           <section className="modal-section" data-section="memo-memory">
             <h3>🧠 기억</h3>
             <p style={{ fontSize: 12, opacity: 0.7, margin: '4px 0 8px' }}>
               이 직원이 대화에서 기억하는 내용입니다. 채팅 시 자동으로 참고합니다.
               직접 편집하거나, 대화 내용을 바탕으로 자동 정리할 수 있어요.
+            </p>
+            <div className="pill-row">
+              {MEMORY_MODES.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`pill ${memoryMode === value ? 'selected' : ''}`}
+                  onClick={() => setMemoryMode(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, opacity: 0.65, margin: '4px 0 8px' }}>
+              {MEMORY_MODE_DESC[memoryMode]} <span style={{ opacity: 0.7 }}>(저장 시 적용)</span>
             </p>
             <textarea
               className="modal-input"
@@ -399,17 +403,23 @@ export function MemoModal({ onClose, employee, settings, onUpdated, onFired }: P
               onChange={e => setMemoryText(e.target.value)}
               rows={4}
               disabled={summarizing}
-              placeholder="아직 기억이 없습니다. 채팅을 나눈 뒤 '기억 정리'를 눌러보세요."
+              placeholder={
+                memoryMode === 'off'
+                  ? '기억 모드가 꺼져 있습니다. 기존 기억은 지워지지 않고 보존됩니다.'
+                  : "아직 기억이 없습니다. 채팅을 나눈 뒤 '기억 정리'를 눌러보세요."
+              }
               style={{ resize: 'vertical', fontFamily: 'inherit', opacity: summarizing ? 0.6 : 1 }}
             />
             <button
               type="button"
               onClick={handleSummarize}
-              disabled={summarizing}
+              disabled={summarizing || memoryMode === 'off'}
               style={{
                 marginTop: 6, padding: '7px 12px', fontFamily: 'inherit', fontSize: 12,
                 background: '#e8f0ff', border: '1px solid #8aa8d8', borderRadius: 6,
-                cursor: summarizing ? 'default' : 'pointer', color: '#2a3a5a', fontWeight: 'bold',
+                cursor: summarizing || memoryMode === 'off' ? 'default' : 'pointer',
+                color: '#2a3a5a', fontWeight: 'bold',
+                opacity: memoryMode === 'off' ? 0.5 : 1,
               }}
             >
               {summarizing ? '⏳ 정리 중…' : '🧠 대화에서 기억 정리'}
