@@ -3,7 +3,8 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-07-03 (Day 14 계속, 2층 착수)** — **M-2F-0 멀티모델 기반 ✅ + 2F Phase 1 tool-calling ✅** (설계 지시서: [`PixelAgentOffice/docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md)). LLM 레이어를 **Vercel AI SDK(`ai@7`)** 로 전환 — 공용 팩토리 `aiProvider.ts` 신설, `LLMProvider` 인터페이스·`dispatch.ts` rate/비용 한도 로직은 무변경 유지. **OpenAI(`gpt-5-mini`) provider 추가**(키 저장·채용/메모/설정/API키 UI·단가 $0.25/$2). 빌드 함정: `ai@7`의 CJS 의존성이 ESM 번들에서 `require("path")` 호출해 앱이 안 뜸 → electron main 빌드에 **createRequire 배너** 주입으로 해결(`vite.config.ts`). **Phase 1**: `ToolDef`/`ToolCall`/`stopReason` 타입 확장 + provider tools 전달, 더미 도구 `get_current_time` **실키 왕복 통합 테스트 통과**(도구 호출 반환 → 결과 주입 → 반영된 최종 답변). 검증: 유닛+통합 **34/34**, e2e **10 통과 + 1 skip**(OpenAI 실키 검증은 키 준비 후 06 스펙이 자동 수행), Gemini 실키로 1층 대화·비용 카운터 실측 증명(517 in/50 out 토큰, $0.000054 집계 확인). 참고 출처 표기를 **omo(oh-my-openagent)·OpenAgent**로 일원화(ideas/20 파일명 포함 문서 정리). 다음: **Phase 2 에이전트 루프**(`electron/agent/loop.ts`). 이전 작업 ↓
+> 최종 갱신: **2026-07-03 (Day 14 계속, "1층 폴리시")** — **응답 실시간 스트리밍 ✅ + 메모리 모드(off/manual/ask/auto) 실동작 연결 ✅ + Opus/Haiku 단가 정정 ✅**. `aiProvider.ts`에 `onDelta` 콜백(있으면 `streamText`, 없으면 기존 `generateText` 그대로) → IPC `llm:chunk` 이벤트로 관통 → `ChatPopup`이 실시간 표시(usage/비용 집계 경로 무변경). §130에서 "무동작이라 숨겼던" 메모리 모드 셀렉터를 `src/shared/memory.ts`(요약 로직 공용화)로 실제 연결 — auto/ask는 채팅창 닫기·직원전환 시(3턴↑) 트리거, off는 주입 자체 생략. `MODEL_INFO` Opus/Haiku 표기 단가를 실제 매핑 모델 기준으로 정정($15/$75→$5/$25, $0.80/$4→$1/$5). 검증: vitest **38 통과/4 실패**(실패 4건은 전부 Gemini 실키 통합테스트가 이 환경 SSL inspection에 막힌 것 — 코드 회귀 아님), e2e·tsc·lint·PC 시각 확인은 **미실행**(다음 세션 이월). 커밋 전 상태로 "세션 정리해줘" 트리거로 뒤늦게 기록. 다음: **PC dev 시각 확인 후 커밋** → **2F Phase 2 에이전트 루프**(`electron/agent/loop.ts`). 이전 작업 ↓
+> **2026-07-03 (Day 14 계속, 2층 착수)** — **M-2F-0 멀티모델 기반 ✅ + 2F Phase 1 tool-calling ✅** (설계 지시서: [`PixelAgentOffice/docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md)). LLM 레이어를 **Vercel AI SDK(`ai@7`)** 로 전환 — 공용 팩토리 `aiProvider.ts` 신설, `LLMProvider` 인터페이스·`dispatch.ts` rate/비용 한도 로직은 무변경 유지. **OpenAI(`gpt-5-mini`) provider 추가**(키 저장·채용/메모/설정/API키 UI·단가 $0.25/$2). 빌드 함정: `ai@7`의 CJS 의존성이 ESM 번들에서 `require("path")` 호출해 앱이 안 뜸 → electron main 빌드에 **createRequire 배너** 주입으로 해결(`vite.config.ts`). **Phase 1**: `ToolDef`/`ToolCall`/`stopReason` 타입 확장 + provider tools 전달, 더미 도구 `get_current_time` **실키 왕복 통합 테스트 통과**(도구 호출 반환 → 결과 주입 → 반영된 최종 답변). 검증: 유닛+통합 **34/34**, e2e **10 통과 + 1 skip**(OpenAI 실키 검증은 키 준비 후 06 스펙이 자동 수행), Gemini 실키로 1층 대화·비용 카운터 실측 증명(517 in/50 out 토큰, $0.000054 집계 확인). 참고 출처 표기를 **omo(oh-my-openagent)·OpenAgent**로 일원화(ideas/20 파일명 포함 문서 정리). 다음: **Phase 2 에이전트 루프**(`electron/agent/loop.ts`). 이전 작업 ↓
 > **2026-06-24** — 전체 회고(6렌즈) → 핵심 버그 2건 픽스: **G-1 유령 직원**(무자리=null 직원이 안 보이는데 과금 → 좌석 폴백·차단 가드·정책 일관화) + **G-2 일일 비용 상한**(표시만/재시작 초기화 → 디스크 영구화 + **메인 프로세스 실제 차단**, 유료 Claude만). **메모리 모드 셀렉터 숨김**(무동작이라). **테스트 그물 복구**: vitest 유닛 24/24 + Playwright E2E 9/9(Day12부터 깨진 것). 적대적 리뷰 13에이전트로 검증. 커밋 4건(fix/chore/test/docs). **해자(페르소나)·유지보수 리팩토링은 v3 보류**(§6.P/Q). ✅ **v0.0.2 EXE 빌드(`release/PixelAgentOffice-0.0.2-portable.exe`, 98M)·포트폴리오 v0.0.2 스냅샷(PRD 정직 갱신+유저플로우/와이어프레임/코드 동기화+README 인덱스) 완료** — 다음: **GitHub Releases에 EXE 수동 업로드**(웹 UI 또는 `gh release create`). 이전 작업 ↓
 > **2026-06-23** — 튜토리얼 완성도 감사(11에이전트 Workflow: 깨진 타겟 0, 구멍 F4·F5 등) → **📝 메모지 트랙 + 🔎 캔버스 조작 단계 추가**, 이어 사용자 전체 시연 피드백으로 **대규모 재설계**: 마스코트를 **존댓말 비서 "문 비서"(🐙)** 로 통일·호칭 "사장님" / 상점 🛒 + 버튼 [대괄호] 표기 / **스크롤 먼저→포커스 1회 측정**(깜빡임 제거) + MBTI·감정 **정보 팝업 열리면 스팟라이트 숨김** / 최초 채용 **메리 강제·폼 편집 잠금**(ⓘ·채용완료만 허용) / **채용→대화→메모→상점→설정 자동 연속**(`FIRST_RUN_STEPS` + zone orchestration). dev 서버는 `Start-Process`로 분리 실행해야 안정(아래 §). 이전 Day 14 작업:
 > **첫 사용자 온보딩 대공사**: 튜토리얼 가이드 투어(T1, 마스코트+스팟라이트) + **API 키 미니팝업**(입력)/**받는법 별도 안내창** + **데모 대화 모드**(키 없이 캐릭터별 더미 응답으로 게임 루프 체험 → 키 연결 유도) + **멀티트랙 튜토리얼**(메인=직원 채용까지 / 상점·설정은 각 창 헤더 🎓로 내부 옵션 전부 스팟라이트) + 채용 폼 전 항목 안내(외형·MBTI·직급·진급방식·모델) + 외부 링크 기본 브라우저(shell.openExternal). ultracode Workflow 적대적 리뷰 다회(마이그레이션 회귀·stale 키상태·ESC 중복닫힘·폼스킵 모달잔존·데모 푸터모순·진행점 total 등 수정). 사용자 dev 검증 진행(데모·튜토리얼은 키 없이 확인 가능, `main.ts`만 재시작 필요).
@@ -38,10 +39,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + **Vercel AI SDK(Claude·Gemini·GPT 멀티모델)** + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **2층(팀 협업) 트랙 진입** — **M-2F-0 멀티모델(Vercel AI SDK + OpenAI) ✅ + 2F Phase 1 tool-calling ✅ (2026-07-03)**. 이전: M5 시그니처 폴리시 + Day 12 §3+1(알림 모달·Cody·EXE v0.0.1) + Day 13(진급/칭찬/메모리 Phase 1~4) + Day 14(온보딩·튜토리얼·v0.0.2 스냅샷) |
-| **다음 작업** | **① 2F Phase 2 에이전트 루프** — `electron/agent/loop.ts` (MAX_STEPS 상한, `dispatch.chat()` 재사용). 설계: [`docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md) §4 갭2. **② OpenAI 실키 검증** — `.env.local`에 `OPENAI_API_KEY` 채우면 `tests/e2e/06-openai-chat.spec.ts` 자동 검증. **③ GitHub Releases EXE 수동 업로드**(v0.0.2, 이월). ④ v3 리팩토링(§6.Q) + CI. ⑤ 소소한 부채: `pnpm lint` 기존 파일 오류들 / MODEL_INFO의 Claude Opus 표기 단가($15/$75)가 실제 매핑 모델(claude-opus-4-5) 단가($5/$25)와 다름 — 정정 필요. ※ 03 E2E 실키 green은 **완료**(2026-07-03). |
+| **현재 마일스톤** | **1층 폴리시** — **응답 스트리밍 ✅ + 메모리 모드 실동작 연결 ✅ + 단가 정정 ✅ (2026-07-03, 미커밋)**. 직전: **2층(팀 협업) 트랙 진입** — M-2F-0 멀티모델(Vercel AI SDK + OpenAI) ✅ + 2F Phase 1 tool-calling ✅ (2026-07-03). 이전: M5 시그니처 폴리시 + Day 12 §3+1(알림 모달·Cody·EXE v0.0.1) + Day 13(진급/칭찬/메모리 Phase 1~4) + Day 14(온보딩·튜토리얼·v0.0.2 스냅샷) |
+| **다음 작업** | **① PC dev 시각 확인 + 커밋** — 1층 폴리시(스트리밍 커서·메모리 모드 auto/ask 트리거) 실제 눈으로 확인 후 사용자 승인 받아 커밋. **② 2F Phase 2 에이전트 루프** — `electron/agent/loop.ts` (MAX_STEPS 상한, `dispatch.chat()` 재사용). 설계: [`docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md) §4 갭2. **③ OpenAI 실키 검증** — `.env.local`에 `OPENAI_API_KEY` 채우면 `tests/e2e/06-openai-chat.spec.ts` 자동 검증. **④ GitHub Releases EXE 수동 업로드**(v0.0.2, 이월). ⑤ v3 리팩토링(§6.Q) + CI. ⑥ `pnpm lint` 기존 파일 오류들(사전 부채). ※ Opus/Haiku 단가 정정은 **완료**(2026-07-03, 이번 세션). ※ 03 E2E 실키 green은 **완료**(2026-07-03). |
 | **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
-| **검증 상태** | **2026-07-03 최신**: 유닛+통합 34/34, e2e 10 통과+1 skip(OpenAI 키 대기), tsc 무결. Gemini 실키로 1층 대화("테스트 통과" 응답)·비용/RPM 카운터 실측 검증. tool-calling 왕복(1차 도구 호출 → 2차 결과 반영 답변) 실키 통과. 이전: Day 12 §3 EXE 재배포 검증 진행 중(timer·thinking emoji fix 포함), 외부 테스터 본격 배포 대기. |
+| **검증 상태** | **2026-07-03 최신(1층 폴리시, 미커밋)**: vitest 38 통과/4 실패 — 실패 4건은 전부 `streaming.test.ts`·`toolcall-roundtrip.test.ts`의 Gemini 실키 네트워크 호출이 이 환경(회사망 SSL inspection)에서 막힌 것, 코드 회귀 아님. e2e·tsc·lint·PC 시각 확인은 **이번 세션 미실행**(다음 세션 이월). 이전(2층 M-2F-0 시점): 유닛+통합 34/34, e2e 10 통과+1 skip, tsc 무결, Gemini 실키 1층 대화·카운터·tool-calling 왕복 실측 검증 완료. |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -456,13 +457,34 @@
 
 ---
 
+### **2026-07-03 (Day 14 계속) — 1층 폴리시: 응답 스트리밍 + 메모리 모드 실동작 연결 + 단가 정정**
+
+> §131 커밋 직후 연속 작업이었으나 커밋 없이 세션이 끊겼다가, 이번 "세션 정리해줘" 트리거로 뒤늦게 기록됨(파일 mtime 기준 13:43~13:50, 커밋 `0e22f7f` 13분 후).
+
+#### 한 일
+1. **응답 실시간 스트리밍** — `aiProvider.ts`에 `onDelta` 콜백 추가(있으면 `streamText`, 없으면 기존 `generateText` 그대로) → `dispatch.ts`/`main.ts`/`preload.ts`/`platform/*`까지 관통 → IPC `llm:chunk` 이벤트로 렌더러 push. usage/비용 집계는 최종 완성본 반환값 기준 그대로. `ChatPopup`이 조각을 누적 표시(커서 깜빡임, emotion 태그는 완성 전까지 숨김). mock provider도 4자씩 흉내내 데모 모드 동일 체감.
+2. **메모리 모드(off/manual/ask/auto) 실동작 연결** — §130에서 "무동작이라 숨겼다"고 기록한 부채 해소. 요약 로직을 `src/shared/memory.ts`(`summarizeMemory`)로 공용화해 메모 모달 수동 버튼과 ChatPopup 자동/확인 트리거가 같은 함수 사용. auto/ask는 채팅창 닫기·직원 전환 시(응답 턴 ≥3) 트리거, off는 기억 주입 자체 생략, manual은 기존 수동 버튼만.
+3. **단가 정정** — `MODEL_INFO`의 Opus/Haiku 표기 단가가 실제 매핑 API 모델과 달랐던 것 정정: Opus $15/$75→$5/$25, Haiku $0.80/$4→$1/$5 (§42 보류 fix 해소).
+4. 신규 테스트: `tests/integration/streaming.test.ts`(실키 필요), `tests/unit/memory-summarize.test.ts`.
+
+#### 검증 상태
+- vitest **38 통과 / 4 실패** — 실패 4건은 전부 Gemini 실키 네트워크 호출(`streaming.test.ts` 2건 + 기존 `toolcall-roundtrip.test.ts` 2건)이 이 환경의 SSL inspection(self-signed certificate)에 막힌 것. 코드 회귀 아님.
+- e2e(Playwright)·tsc·`pnpm lint`·PC 시각 확인(스트리밍 커서 체감, 메모리 auto/ask 실제 동작)은 **이번 세션에서 실행하지 않음** — 다음 세션 우선 검증 항목.
+
+#### 산출 커밋 (사용자 승인 대기)
+- feat: 1층 폴리시 — 응답 스트리밍 + 메모리 모드 실동작 연결 + Opus/Haiku 단가 정정 (코드+테스트)
+- docs: 세션 정리(§132 + HANDOFF + FEATURES)
+
+---
+
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 📌 현재 상태 (2026-07-03 세션 종료 시점)
+### 📌 현재 상태 (2026-07-03 세션 종료 시점, 1층 폴리시 — "세션 정리해줘"로 뒤늦게 기록됨)
 
-- **워킹 트리**: 이번 세션 산출물 커밋 2건(코드 / 문서)으로 정리 → push 완료 목표. `.env.local`(실키)은 gitignore라 미추적 유지.
-- **다음 세션 진입점**: **2F Phase 2 에이전트 루프** — `electron/agent/loop.ts` 신설. 설계는 [`docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md) §4 갭2 그대로 (MAX_STEPS 상한 / `dispatch.chat()` 재사용 / electron import 금지).
-- **보류 fix**: ① OpenAI 실키 검증(06 e2e) ② GitHub Releases v0.0.2 EXE 업로드(이월) ③ `pnpm lint` 기존 부채 ④ MODEL_INFO Claude Opus 표기 단가 정정($15/$75 → 실제 매핑 모델 단가 $5/$25) ⑤ PRD 드리프트: v0.0.2 PRD의 "다중 LLM = Claude + Gemini(2사)" 서술이 현재(3사 + Vercel AI SDK 엔진 + tool-calling 인프라)와 어긋남 — **다음 버전(v0.0.3) 스냅샷 때 PRD 갱신 필요**.
+- **워킹 트리**: 코드 변경 13개 파일 + 신규 3개(`shared/memory.ts`, `tests/integration/streaming.test.ts`, `tests/unit/memory-summarize.test.ts`) **커밋 대기 중** — 사용자 사전 승인 후 C1(feat 코드+테스트)/C2(docs 세션정리) 2건으로 분할 커밋 예정. `.env.local`(실키)은 gitignore라 미추적 유지.
+- **별도 무관 미추적 파일**: `portfolio/22-kgwebcil-anatomy-report.html` + `portfolio/kgwebcil_analysis_parts/` — PixelAgentOffice와 무관한 별개 산출물(웹 보안 분석 리포트류). **사용자 확인: 이 저장소에 커밋하는 대상이 아님** — 항상 미추적 상태로 둘 것.
+- **다음 세션 진입점**: ① **PC dev에서 시각 확인**(스트리밍 커서 체감, 메모리 모드 auto/ask 실제 트리거) 후 커밋 → ② **2F Phase 2 에이전트 루프** — `electron/agent/loop.ts` 신설. 설계는 [`docs/2F-collaboration-handoff.md`](PixelAgentOffice/docs/2F-collaboration-handoff.md) §4 갭2 그대로 (MAX_STEPS 상한 / `dispatch.chat()` 재사용 / electron import 금지).
+- **보류 fix**: ① OpenAI 실키 검증(06 e2e) ② GitHub Releases v0.0.2 EXE 업로드(이월) ③ `pnpm lint` 기존 부채 ④ ~~MODEL_INFO Claude Opus 표기 단가 정정~~ — **완료**(이번 세션, $15/$75→$5/$25 + Haiku $0.80/$4→$1/$5) ⑤ PRD 드리프트: v0.0.2 PRD의 "다중 LLM = Claude + Gemini(2사)"·"메모리는 반자동·수동 트리거만" 서술이 현재(3사 + Vercel AI SDK + tool-calling + 메모리 모드 실동작)와 어긋남 — **다음 버전(v0.0.3) 스냅샷 때 PRD 갱신 필요** ⑥ e2e·tsc·lint 재실행(1층 폴리시 변경분 대상, 이번 세션 미실행).
 
 ### 🎯 다음 작업 우선순위 (Day 12 §1)
 
@@ -631,7 +653,7 @@
 
 ✅ **Day 13에 A 전부 해소** — 진급(Phase 1 활동 카운터 + Phase 3 요청 모달) + 칭찬(Phase 2 👍) + **메모리(Phase 4 반자동 — app-data.json 저장·system prompt 주입 + 메모 모달 수동 요약 버튼)**. 명세는 `FEATURES.md` "활동 카운터/칭찬/진급 시스템 + 직원 기억(메모리) 시스템", 경위는 brainstorming §123·§124·§127.
 
-> 메모리 후속 잔여(멈춘 게 아닌 단순 확장): 완전 자동·야간 압축 트리거, `MemoryMode`(off/manual/ask/auto) 토글을 실제 동작에 연결. 현재는 메모 모달 "🧠 대화에서 기억 정리" 버튼이 실질 트리거.
+> ✅ **`MemoryMode`(off/manual/ask/auto) 토글 실제 동작 연결 — 2026-07-03(Day 14 계속, 1층 폴리시)에 완료**. 요약 로직 공용화(`src/shared/memory.ts`) + ChatPopup 닫기/직원전환 시 auto(조용히)/ask(confirm) 트리거 + off는 주입 생략. 명세는 `FEATURES.md` "직원 기억 시스템", 경위는 brainstorming §132. 잔여(멈춘 게 아닌 단순 확장): 완전 자동 야간 압축 트리거는 여전히 미구현.
 
 ### B. 코드는 완성됐는데 시각 품질로 비활성 (PNG asset 도입 시 부활)
 

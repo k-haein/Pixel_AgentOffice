@@ -3167,6 +3167,42 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 - C1 — feat: M-2F-0 멀티모델(Vercel AI SDK + OpenAI) + 2F Phase 1 tool-calling (코드+테스트)
 - C2 — docs: 세션 정리(§131 + HANDOFF + FEATURES) + 출처 표기 정리
 
+## 132. 🏢 Day 14 (계속) — 1층 폴리시: 응답 스트리밍 + 메모리 모드 실동작 연결 + 단가 정정
+
+작업일: 2026-07-03 (데스크탑, §131 커밋 직후 연속 작업 — 커밋 전에 세션이 끊겨 이번 "세션 정리해줘" 트리거로 뒤늦게 기록).
+
+### 발단
+2층(M-2F-0 + tool-calling Phase 1) 완료 직후, 사용자가 §130에서 보류해뒀던 **1층(Solo) 완성도 부채 2건**을 이어서 처리: ① §130 "메모리 모드 셀렉터 숨김"(무동작이라 비공개했던 것)을 실제로 연결, ② 채팅 체감을 위한 응답 스트리밍. 겸사겸사 §42 보류 fix로 등록돼 있던 Opus/Haiku 표기 단가 불일치도 정정.
+
+### 1) 응답 토큰 스트리밍
+- `aiProvider.ts`에 `onDelta` 콜백 파라미터 추가 — 있으면 `streamText()`로 `textStream`을 소비하며 조각마다 콜백, 없으면 기존 `generateText()`(비스트리밍) 경로 그대로 유지. `dispatch.ts`/`main.ts`/`preload.ts`/`platform/*`까지 관통시켜 `llm:chunk` IPC 이벤트로 렌더러 push. **최종 완성본은 기존과 동일하게 invoke 반환값으로 오므로 usage/비용 집계·rate-limit 로직은 무변경**.
+- `ChatPopup.tsx`: `onChatChunk` 구독 → 현재 요청 ID(`activeRequestIdRef`)와 일치하는 조각만 누적해 실시간 표시, `[emotion:xxx]` 태그는 완성 전까지 숨김(`stripEmotionForStream`) + 깜빡이는 커서. mock provider도 4자씩 30ms 간격으로 흉내내 데모/키없음 모드도 체감 동일.
+- 상세: [`FEATURES.md` 실시간 스트리밍 응답](FEATURES.md#실시간-스트리밍-응답-day-14-계속-1층-폴리시)
+
+### 2) 메모리 모드(off/manual/ask/auto) 실동작 연결
+- §130에서 "4모드가 무동작이라 셀렉터를 숨겼다"고 기록했던 부채 해소. 요약 로직을 `src/shared/memory.ts`의 `summarizeMemory(platform, employee, existingMemory?)`로 공용화 — 메모 모달 수동 버튼과 ChatPopup 자동/확인 트리거가 같은 함수 사용 (electron import 없어 유닛 테스트 가능, `tests/unit/memory-summarize.test.ts` 신규).
+- `ChatPopup`: 채팅창 닫기 또는 다른 직원으로 전환 시 `maybeSummarizeOnClose` — auto는 조용히, ask는 `confirm` 후 정리(둘 다 이번 세션 응답 턴 ≥`MEMORY_AUTO_MIN_TURNS`(3) 조건). off는 기억 주입 자체를 생략(`buildSystemPrompt`에 빈 문자열 전달), manual은 기존 수동 버튼만.
+- `MemoModal`: 숨겼던 pill 셀렉터 복원 + 모드별 설명 문구, off일 때 textarea/버튼 비활성 안내.
+- 상세: [`FEATURES.md` 직원 기억 시스템](FEATURES.md#직원-기억-메모리-시스템-day-13-phase-4--day-14-계속-1층-폴리시에서-모드-실동작-연결)
+
+### 3) 단가 정정 (§42/HANDOFF §4 보류 fix 해소)
+- `MODEL_INFO`의 표기 단가가 실제 매핑되는 API 모델과 달랐음 — `claude-opus-4-7`→실제 `opus-4-5`($5/$25인데 $15/$75로 표기), `claude-haiku-4-7`→실제 `haiku-4-5`($1/$5인데 $0.80/$4로 표기). 둘 다 실제 매핑 기준으로 정정 + 회귀 테스트 추가(`llm-models.test.ts`).
+
+### 검증
+- vitest 유닛+통합: **38 통과 / 4 실패** — 실패 4건은 전부 `tests/integration/streaming.test.ts`·`toolcall-roundtrip.test.ts`의 **Gemini 실키 네트워크 호출**이 이 환경(회사망 SSL inspection, self-signed certificate)에서 막힌 것. 코드 회귀 아님 — PC dev(회사망 밖 또는 인증서 등록 환경)에서 재확인 필요.
+- e2e(Playwright)·tsc·lint는 이번 세션에서 **재실행하지 않음** — 다음 세션 우선 검증 항목으로 이월.
+- PC 시각 확인(스트리밍 커서 체감, 메모리 모드 자동/확인 트리거 실제 동작) **미수행** — 코드/유닛 테스트만 완료 상태.
+
+### CONVENTIONS §7 체크리스트 (§132)
+- ✅ brainstorming §132 (이 섹션) / ✅ HANDOFF (헤더·§1·§2·§3·§4) / ✅ FEATURES (스트리밍 신규 섹션 + 메모리 시스템 갱신)
+- ✅ PRD 드리프트 점검 — §131에서 이미 플래그한 "다중 LLM 3사" 건에 더해, v0.0.2 PRD의 메모리 기능 서술("반자동·수동 트리거만")도 이제 어긋남 → 동일하게 "v0.0.3 스냅샷 때 갱신" 플래그에 합침 (신규 플래그 추가 안 함, HANDOFF §3 참고)
+- (해당 없음) ideas/06 신규 보류 결정 / 마일스톤 스냅샷
+
+### 산출 커밋 (예정, 사용자 승인 대기)
+- C1 — feat: 1층 폴리시 — 응답 스트리밍 + 메모리 모드(off/manual/ask/auto) 실동작 연결 + Opus/Haiku 단가 정정 (코드+테스트)
+- C2 — docs: 세션 정리(§132 + HANDOFF + FEATURES)
+- (별도 무관 항목) `portfolio/22-kgwebcil-anatomy-report.html` + `portfolio/kgwebcil_analysis_parts/` — PixelAgentOffice와 무관한 별개 산출물. **사용자 확인: 이 저장소에 커밋 대상 아님** — 항상 미추적으로 둘 것
+
 ---
 
 ## 결정 진화 요약 (M5 시점)
