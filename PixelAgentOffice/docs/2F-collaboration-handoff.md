@@ -19,7 +19,7 @@
 | **M-2F-0 멀티모델 기반** | ✅ **완료** | Vercel AI SDK(`ai@7`) 전환 + OpenAI(`gpt-5-mini`) provider. 완료 기준 3종 중 ①1층 대화·③비용 카운터는 Gemini 실키 e2e로 증명, ②OpenAI 실채팅은 키 준비 후 `tests/e2e/06-openai-chat.spec.ts`가 자동 검증 |
 | **Phase 1 tool-calling 인프라** | ✅ **완료** | `ToolDef`/`ToolCall`/`stopReason` 확장 + provider tools 전달. 더미 도구 `get_current_time` 왕복 통합 테스트 통과(`tests/integration/toolcall-roundtrip.test.ts`) |
 | **Phase 2 에이전트 루프** | ✅ **완료** | `electron/agent/loop.ts` `runAgent` — MAX_STEPS 상한(기본 20)·도구 실패 `{ error }` 격리·`AgentEvent` 훅·chat 주입식(프로덕션=dispatch.chat → §8 한도 경로 유지). 유닛 17케이스 + 실키 루프 왕복(`tests/integration/agent-loop-roundtrip.test.ts`, 키 없으면 skip) |
-| Phase 3 위임 협업 | 🔨 진행 중 | 2층 완성 (2026-07-07 착수) |
+| **Phase 3 위임 협업** | ✅ **완료 (엔진)** | `delegate_to_member`(자식 루프 재귀·재위임 구조 차단) + `runTeamTask`(팀장 검증·팀원 명단 주입·usage 팀 전체 합산) + IPC `agent:run-team`(dispatch.chat 주입 → 한도 자동) + platform/mock. 유닛 12 + 실키 왕복 테스트(키 대기). **UI 트리거·게임 연출은 Phase 4** |
 | Phase 4 게임 연출 | ⏳ | 선택 |
 
 ---
@@ -153,7 +153,7 @@ async function runAgent(employee, messages, tools, ctx):
 > main.ts IPC)에서 `dispatch.chat`을 넘기면 위 문장 그대로 한도가 자동 적용된다. MAX_STEPS 도달은
 > throw가 아니라 `stopped:'max_steps'` 반환, 도구 실패는 `{ error }`로 모델에 되돌려 루프 생존.
 
-### 갭 3 — 위임 도구 `delegate_to_member`
+### 갭 3 — 위임 도구 `delegate_to_member` → ✅ 완료 (Phase 3)
 팀장 루프에만 등록하는 도구:
 
 ```
@@ -248,10 +248,13 @@ omo/OpenAgent 협업 코드 조사 결과, **이식 난이도가 극과 극**이
 - chat 주입식(§8 테스트 가능성 — 프로덕션 배선은 dispatch.chat). `get_current_time` 실행기(`agent/tools/time.ts`) 승격.
 - ✅ **확인**: 유닛 17케이스(`tests/unit/agent-loop.test.ts`) + 실키 루프 왕복(`tests/integration/agent-loop-roundtrip.test.ts` — 루프가 스스로 도구 실행·반영, 키 없으면 자동 skip). vitest 55 통과/5 skip, tsc 무결.
 
-**Phase 3 — 위임 협업 (갭3) ★2층 완성★** ← 진행 중 (2026-07-07 착수)
-- `delegate_to_member` 도구 작성. 팀장 시스템 프롬프트에 팀원 목록 주입.
-- 팀장 루프에만 위임 도구 등록, 팀원 자식 루프엔 제외.
-- IPC 진입점 `agent:run-team`(팀 단위 작업) 추가(`main.ts`).
+**Phase 3 — 위임 협업 (갭3) ★2층 엔진 완성★** ✅ **완료 (2026-07-07)**
+- `electron/agent/tools/delegate.ts` — 실행 시 팀원 페르소나로 자식 루프 **재귀 호출**, 보고 반환. 팀원 tools에 위임 도구가 구조적으로 안 들어가 재위임 원천 차단.
+- `electron/agent/team.ts` — `runTeamTask`: 팀장 검증(리더 자리 + `canBeTeamLeader`) + 같은 팀 member 수집 + **팀장 프롬프트에 팀원 명단 주입** + `TeamEvent`(delegation:start/done·leader/member) 스트림. usage는 팀장+팀원 전체 합산(테스트가 잡은 갭 픽스).
+- `electron/agent/persona.ts` — 팀장·팀원 공용 페르소나(정체성+지침+MBTI, 1층 전용 감정 태그 제외).
+- IPC `agent:run-team`(main.ts, dispatch.chat 주입 → rate/일일 한도 자동) + preload `runTeamTask`/`onTeamEvent` + platform 3종(mock은 데모 위임 연출).
+- ✅ **확인**: 유닛 12케이스(`tests/unit/agent-team.test.ts` — 팀 검증·위임 왕복·재위임 방지·오류 정정·2인 동시 위임) + 실키 왕복(`tests/integration/agent-team-roundtrip.test.ts`, 키 대기). vitest 67 통과/6 skip, tsc·pnpm build 무결.
+- ⏳ 남은 것: UI 트리거·게임 연출(Phase 4), 실키 왕복 검증(키 준비 시 자동), 팀원 기억(memory) 주입 미연결.
 
 **Phase 4 — 게임 연출 (선택, 차별화 포인트)**
 - 위임 이벤트(`delegation:start/done`)를 `eventBus.ts`로 흘려 팀장→팀원 캐릭터 애니메이션/말풍선 연출.

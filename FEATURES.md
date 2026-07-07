@@ -1700,6 +1700,18 @@ LLM 응답이 한 번에 완성되어 오는 대신, 생성되는 대로 말풍�
 - 한 턴의 여러 도구 호출은 순차 실행(병렬 아님).
 - max_steps 도달 시 마지막 텍스트가 빈 문자열일 수 있음 — 호출부에서 안내 문구 처리 필요.
 
+### (내부) 위임 협업 — 2F Phase 3 ★2층 엔진 완성★
+
+**무엇**: 팀장에게 팀 단위 작업을 시키면 팀장이 같은 팀 팀원들에게 **실제로 위임**하고 결과를 모아 보고하는 엔진(`electron/agent/team.ts`의 `runTeamTask`). ① 팀장 검증 — 리더 자리(leader:A/B/C) + 과장 이상(`canBeTeamLeader` 재사용), 같은 팀 member 좌석 직원만 팀원으로 수집(기존 좌석 시스템이 곧 조직도). ② 팀장 시스템 프롬프트에 팀원 명단(id·이름·역할·직급·MBTI) 주입 → AI가 위임 대상을 고름. ③ `delegate_to_member` 도구(`agent/tools/delegate.ts`) — 실행 시 팀원 페르소나(`agent/persona.ts`: 정체성+지침+MBTI)로 **자식 루프를 재귀 호출**, 보고를 팀장에게 반환. ④ 재위임 방지 — 팀원 루프의 tools엔 위임 도구가 구조적으로 안 들어감. ⑤ 진행 이벤트 `TeamEvent`(delegation:start/done + leader/member 스텝) 스트림 — IPC `agent:team-event`로 렌더러 push(Phase 4 게임 연출 훅). usage는 팀장+팀원 자식 루프 **전체 합산**. IPC `agent:run-team`은 `dispatch.chat` 주입이라 위임으로 호출이 늘어도 rate/일일 비용 한도 자동 적용. 중단은 기존 `abortChat(requestId)` 재사용. platform `runTeamTask`/`onTeamEvent` 노출(mock은 데모 위임 연출 포함).
+
+**검증**: `tests/unit/agent-team.test.ts` 12케이스(팀 구성 검증 5 + 위임 왕복·재위임 방지·잘못된 memberId 정정·2인 동시 위임 + 페르소나 2) / `tests/integration/agent-team-roundtrip.test.ts`(Gemini 실키 — 팀장이 실제로 위임 후 보고 종합, 키 없으면 자동 skip). vitest 67 통과/6 skip, tsc·`pnpm build` 무결.
+
+**알려진 한계**:
+- **UI 트리거 없음** — 엔진+IPC+platform까지가 Phase 3 범위. 채팅창에서 팀 작업을 시키는 UI·게임 연출은 Phase 4.
+- 실키 왕복 미검증(이 PC `.env.local` 없음 — 키 넣으면 통합 테스트 자동).
+- 팀원 자식 루프에 직원 기억(memory) 주입은 미연결(1층 기억 시스템과 별개).
+- 위임 도중 오류로 끝난 팀원 루프의 소비 토큰은 usage 합산에 미포함(0 처리).
+
 ---
 
 ## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)

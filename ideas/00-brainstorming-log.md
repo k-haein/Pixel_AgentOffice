@@ -3239,8 +3239,51 @@ Phase 1이 "도구 호출을 반환만" 하게 만들어놨으니(§131), 이번
 - (해당 없음) ideas/06 신규 보류 결정 / 마일스톤 스냅샷(2F는 Phase 3 완성 시 검토)
 
 ### 산출 커밋 (사용자 승인: "세션 정리 커밋 푸시 하고")
-- C1 — feat: 2F Phase 2 — 에이전트 루프(runAgent) + get_current_time 실행기 + 테스트
-- C2 — docs: 세션 정리(§133) — HANDOFF·FEATURES·2F핸드오프 동기화
+- C1 — feat: 2F Phase 2 — 에이전트 루프(runAgent) + get_current_time 실행기 + 테스트 (`236bc10`)
+- C2 — docs: 세션 정리(§133) — HANDOFF·FEATURES·2F핸드오프 동기화 (`0a4e476`)
+
+## 134. 🤝 Day 14 (계속) — 2F Phase 3: 위임 협업 (★2층 엔진 완성★)
+
+작업일: 2026-07-07 (데스크탑, §133 커밋·푸시 직후 같은 세션 연속). 사용자 "세션 정리 커밋 푸시 하고 phase 3 위임해줘" — Phase 2 정리와 Phase 3 착수를 한 지시로.
+
+### 발단
+핸드오프 §3의 5개 원리 중 남은 3(위임 도구)·4(재위임 방지)·5(진행 스트리밍) 구현 — "위임은 별도 프로세스가 아니라 같은 루프를 자식 대화로 재귀 호출하는 것". Phase 2의 runAgent가 있으니 위임 도구는 그 루프를 팀원 페르소나로 다시 부르면 된다.
+
+### 1) `electron/agent/persona.ts` — 공용 페르소나 빌더 (신규)
+- 정체성(이름·역할·직급) + baseInstructions + customInstructions + MBTI 조립. 팀장·팀원 루프 공용.
+- 1층 ChatPopup buildSystemPrompt의 감정 태그·기억 섹션은 **의도적으로 제외** — 2층 위임 대화의 산출물은 말풍선이 아니라 보고 텍스트(게임 연출은 Phase 4 이벤트로). ChatPopup은 손대지 않음(블라스트 반경 최소화 — 1층 프롬프트는 기존 그대로).
+
+### 2) `electron/agent/tools/delegate.ts` — 위임 도구 (신규)
+- `delegate_to_member(memberId, task)`: 팀원 검증 → `delegation:start` emit → **팀원 페르소나로 runAgent 재귀 호출**(자식 대화) → 보고 반환 → `delegation:done` emit.
+- **재위임 방지(원리 4)**: 자식 루프 tools에는 opts.memberTools만 전달 — 위임 도구가 구조적으로 못 들어감 (omo BLOCKED_TOOLS와 같은 효과를 타입 구조로).
+- 잘못된 memberId·빈 task는 throw → Phase 2 루프가 `{ error }`로 감싸 팀장 모델에 되돌림(가능한 팀원 명단을 에러에 포함해 정정 유도).
+
+### 3) `electron/agent/team.ts` — 팀 러너 (신규)
+- `resolveTeam`: 팀장 존재 + 리더 자리(SEAT_LOOKUP) + `canBeTeamLeader`(과장 이상, 기존 함수 재사용) 검증, 같은 팀 member 좌석 직원만 수집 — **기존 좌석 시스템이 곧 조직도**(핸드오프 §2 강점 그대로).
+- `runTeamTask`: 팀장 프롬프트 = 페르소나 + 팀 협업 모드 + **팀원 명단(id·이름·역할·직급·MBTI) 주입**(omo dynamic-agent-prompt-builder 원리) → 팀장 루프에만 위임 도구 등록 → `TeamEvent`(leader/member 스텝 + delegation:start/done) 스트림.
+
+### 4) IPC·platform 배선
+- main.ts `agent:run-team`: **dispatch.chat 주입** — 위임으로 호출이 늘어도 rate/일일 비용 한도 자동 적용(§8 원칙 3, 과금 폭주 방지). 이벤트는 `agent:team-event`로 push, 중단은 기존 `llm:abort`(같은 activeAborts 맵) 재사용. 팀 구성 검증 실패는 `code:'INVALID'`로 구분.
+- preload `runTeamTask`/`onTeamEvent` + platform 3종(types/electron/mock). mock은 데모용 위임 연출(start→done→캔 보고) 포함 — 키 없이도 Phase 4 UI 개발 가능하게.
+
+### 🐛 테스트가 잡은 설계 갭 — usage 합산 누락
+- 위임 왕복 유닛 테스트(팀장 2회+팀원 1회 = 30/15 기대)가 20/10 반환을 잡음 — **팀원 자식 루프 토큰이 팀 결과 usage에 빠져 있었음**.
+- 픽스: `delegation:done` 이벤트에 팀원 usage를 실어 team.ts가 누적 → 최종 usage = 팀장+팀원 전체 합산. 2층은 1층보다 토큰을 많이 쓰므로(핸드오프 §과금) 전체 합산이 정직한 보고.
+
+### 검증
+- 신규 유닛 12케이스(`agent-team.test.ts`): resolveTeam 5(존재·리더자리·직급·팀원없음·수집범위) + 명단 주입·위임 왕복·memberTools 전달·잘못된 memberId 정정·2인 동시 위임 + 페르소나 2.
+- 전체 vitest **67 통과 / 6 skip**(실키 통합 4파일 — 키 부재 자동 skip), `tsc -b` 무결, **`pnpm build` 무결**(§131 createRequire 함정 재발 없음 — electron main 번들에 agent/* 포함 확인).
+- ⏳ 실키 왕복(`agent-team-roundtrip.test.ts`) 키 대기. UI·게임 연출은 Phase 4.
+
+### CONVENTIONS §7 체크리스트 (§134)
+- ✅ brainstorming §134 (이 섹션) / ✅ HANDOFF (헤더·§1·§2·§3·§4 옵션 0) / ✅ FEATURES ((내부) 위임 협업 명세) / ✅ 2F 핸드오프 진행표·§4 갭3·§7 Phase 3 ✅
+- ✅ PRD 드리프트 점검 — 기존 "v0.0.3 스냅샷 때 갱신" 플래그에 2층 엔진 완성 포함(신규 플래그 없음)
+- ⏸ 마일스톤 스냅샷 — "2F는 Phase 3 완성 시 검토"였으나 **UI 없는 엔진 단계라 보류**: Phase 4(UI+연출)와 실키 검증까지 묶어 스냅샷하는 게 산출물이 완결적
+- (해당 없음) ideas/06 신규 보류 결정
+
+### 산출 커밋 (사용자 승인: "여기까지 세션정리 커밋푸시")
+- C1 — feat: 2F Phase 3 — 위임 협업 엔진(delegate_to_member·runTeamTask) + IPC·platform + 테스트
+- C2 — docs: 세션 정리(§134) — HANDOFF·FEATURES·2F핸드오프 동기화
 
 ---
 
