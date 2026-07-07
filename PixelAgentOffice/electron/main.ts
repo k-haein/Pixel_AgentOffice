@@ -36,6 +36,8 @@ import { chat, getRateLimit } from './llm/dispatch'
 import { invalidateAllCaches } from './llm/registry'
 import { humanizeError } from './llm/errorMessages'
 import { LLMError, type ChatRequest, type ProviderName } from './llm/types'
+import { runTeamTask } from './agent/team'
+import { getCurrentTimeTool } from './agent/tools/time'
 import type { Employee, Settings, Model, EmployeeStatsDelta } from '../src/shared/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -175,6 +177,51 @@ function registerIpc() {
       activeAborts.delete(requestId)
     }
   })
+
+  // === 2층 팀 협업 (Phase 3) — 팀장에게 작업 지시 → 팀원 위임 → 종합 보고 ===
+  // 진행 이벤트는 'agent:team-event'로 push. 중단은 llm:abort(requestId) 재사용 (같은 activeAborts).
+  // chat은 dispatch.chat 주입 — 위임으로 LLM 호출이 늘어도 rate/일일 비용 한도가 자동 적용된다 (§8).
+  ipcMain.handle(
+    'agent:run-team',
+    async (e, payload: { leaderId: string; task: string; requestId?: string }) => {
+      const requestId = payload.requestId ?? `team-${Date.now()}`
+      const ctrl = new AbortController()
+      activeAborts.set(requestId, ctrl)
+      let leaderModel: Model | undefined
+      try {
+        const { employees } = await loadData()
+        leaderModel = employees.find(emp => emp.id === payload.leaderId)?.model
+        const result = await runTeamTask({
+          chat,
+          leaderId: payload.leaderId,
+          task: payload.task,
+          employees,
+          leaderTools: [getCurrentTimeTool],
+          memberTools: [getCurrentTimeTool],
+          signal: ctrl.signal,
+          onEvent: ev => {
+            if (!e.sender.isDestroyed()) e.sender.send('agent:team-event', { requestId, event: ev })
+          },
+        })
+        return { ok: true as const, result }
+      } catch (err) {
+        if (err instanceof LLMError) {
+          const friendly = humanizeError(err, { model: leaderModel })
+          return {
+            ok: false as const,
+            error: { code: err.code, message: err.message, provider: err.provider, friendly },
+          }
+        }
+        // 팀 구성 검증 실패(팀장 아님·팀원 없음 등) 또는 분류 못 한 예외
+        return {
+          ok: false as const,
+          error: { code: 'INVALID' as const, message: (err as Error).message ?? '알 수 없는 오류' },
+        }
+      } finally {
+        activeAborts.delete(requestId)
+      }
+    },
+  )
 
   // === 진행 중인 LLM 호출 중단 ===
   ipcMain.handle('llm:abort', async (_e, requestId: string) => {

@@ -35,6 +35,8 @@ declare global {
       onChatChunk: Platform['onChatChunk']
       abortChat: Platform['abortChat']
       getRateLimit: Platform['getRateLimit']
+      runTeamTask: Platform['runTeamTask']
+      onTeamEvent: Platform['onTeamEvent']
     }
   }
 }
@@ -73,4 +75,8 @@ export const electronPlatform: Platform = {
   onChatChunk: (listener) => window.api.onChatChunk(listener),
   abortChat: (requestId) => window.api.abortChat(requestId),
   getRateLimit: (model) => window.api.getRateLimit(model),
+
+  // === 2층 팀 협업 (Phase 3) ===
+  runTeamTask: (payload) => window.api.runTeamTask(payload),
+  onTeamEvent: (listener) => window.api.onTeamEvent(listener),
 }

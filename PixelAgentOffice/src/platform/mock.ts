@@ -9,9 +9,10 @@
  *   - 미래 "데모 모드" — API 키 없이 SNS 영상 촬영
  */
 
-import type { Platform } from './types'
+import type { Platform, TeamEvent } from './types'
 import type { AppData, Settings, Employee, ChatMessage } from '../shared/types'
 import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, TEMPLATES } from '../shared/types'
+import { SEAT_LOOKUP } from '../shared/seats'
 
 // 메모리 상 가짜 저장소
 const mockEmployees: Employee[] = []
@@ -32,6 +33,9 @@ let replyIdx = 0
 
 // 스트리밍 구독자 (1층 폴리시) — chat({stream: true}) 시 조각을 흘려보낸다
 const chunkListeners = new Set<(payload: { requestId: string; delta: string }) => void>()
+
+// 2층 팀 실행 이벤트 구독자 (Phase 3) — runTeamTask 진행 연출용
+const teamEventListeners = new Set<(payload: { requestId: string; event: TeamEvent }) => void>()
 
 export const mockPlatform: Platform = {
   loadData: async (): Promise<AppData> => ({
@@ -157,6 +161,59 @@ export const mockPlatform: Platform = {
     sessionOutputTokens: 0,
     sessionCostUsd: 0,
   }),
+
+  // === 2층 팀 협업 (Phase 3) — 위임 연출 흉내 후 캔 보고 반환 ===
+  runTeamTask: async ({ leaderId, task, requestId }) => {
+    const rid = requestId ?? `team-mock-${Date.now()}`
+    const emit = (event: TeamEvent) => teamEventListeners.forEach(l => l({ requestId: rid, event }))
+    const leader = mockEmployees.find(e => e.id === leaderId)
+    if (!leader) {
+      return { ok: false, error: { code: 'INVALID', message: `직원 id "${leaderId}"를 찾을 수 없습니다.` } }
+    }
+    const leaderSeat = leader.seatId ? SEAT_LOOKUP[leader.seatId] : null
+    if (!leaderSeat || leaderSeat.role !== 'leader' || !leaderSeat.team) {
+      return { ok: false, error: { code: 'INVALID', message: `${leader.name}은(는) 팀장 자리에 앉아있지 않습니다.` } }
+    }
+    const team = leaderSeat.team
+    const members = mockEmployees.filter(e => {
+      if (e.id === leader.id || !e.seatId) return false
+      const s = SEAT_LOOKUP[e.seatId]
+      return s?.team === team && s.role === 'member'
+    })
+    if (members.length === 0) {
+      return { ok: false, error: { code: 'INVALID', message: `팀 ${team}에 팀원이 없습니다.` } }
+    }
+    // 첫 팀원에게 위임하는 척 — 이벤트 순서는 실제 구현과 동일
+    const member = members[0]
+    await new Promise(r => setTimeout(r, 400))
+    emit({ type: 'delegation:start', leaderId: leader.id, memberId: member.id, memberName: member.name, task })
+    await new Promise(r => setTimeout(r, 800))
+    const report = `(데모) ${member.name}의 보고: "${task.slice(0, 30)}" 작업을 처리했습니다.`
+    emit({ type: 'delegation:done', leaderId: leader.id, memberId: member.id, memberName: member.name, report, isError: false, usage: { inputTokens: 50, outputTokens: 20 } })
+    await new Promise(r => setTimeout(r, 400))
+    const text = `(데모) 팀 ${team} 최종 보고입니다.\n- ${member.name}: ${report}\n실제 위임 협업은 API 키를 연결하면 동작합니다.`
+    return {
+      ok: true,
+      result: {
+        text,
+        steps: 2,
+        stopped: 'end',
+        usage: { inputTokens: 100, outputTokens: 40 },
+        messages: [
+          { role: 'user', content: task },
+          { role: 'assistant', content: text },
+        ],
+        leaderId: leader.id,
+        team,
+        delegations: 1,
+      },
+    }
+  },
+
+  onTeamEvent: (listener) => {
+    teamEventListeners.add(listener)
+    return () => { teamEventListeners.delete(listener) }
+  },
 }
 
 // TEMPLATES import 사용 명시 (lint) — mock 데이터 시드 시 활용 가능

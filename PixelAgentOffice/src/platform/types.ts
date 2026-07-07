@@ -11,12 +11,12 @@
 
 import type { AppData, Employee, Settings, Model, ChatMessage, EmployeeStatsDelta } from '../shared/types'
 import type { ChatRequest } from '../../electron/llm/types'
-import type { ChatResult, RateLimitStatus } from '../../electron/preload'
+import type { ChatResult, RateLimitStatus, TeamEvent, TeamRunIpcResult } from '../../electron/preload'
 import type { ProviderName } from '../../electron/llm/types'
 
 // preload.ts에서 정의한 타입들을 그대로 재사용 (preload는 electron 환경 의존이지만,
 // 타입 자체는 환경 무관이므로 platform layer에서도 사용 가능)
-export type { ChatResult, RateLimitStatus, ProviderName }
+export type { ChatResult, RateLimitStatus, ProviderName, TeamEvent, TeamRunIpcResult }
 
 export interface Platform {
   // === Data 영속화 ===
@@ -63,8 +63,14 @@ export interface Platform {
   chat(request: ChatRequest & { requestId?: string; stream?: boolean }): Promise<ChatResult>
   /** 스트리밍 청크 구독 — 반환값은 구독 해제 함수 */
   onChatChunk(listener: (payload: { requestId: string; delta: string }) => void): () => void
-  /** 진행 중인 채팅 요청 중단 */
+  /** 진행 중인 채팅 요청 중단 — 2층 팀 실행(runTeamTask requestId)도 같은 경로로 중단 */
   abortChat(requestId: string): Promise<{ ok: boolean; reason?: string }>
   /** 특정 모델의 rate limit 상태 조회 (RPM 카운터 + 세션 누적) */
   getRateLimit(model: Model): Promise<RateLimitStatus>
+
+  // === 2층 팀 협업 (Phase 3) ===
+  /** 팀장에게 팀 단위 작업 지시 — 팀장이 같은 팀 팀원에게 위임 후 종합 보고 반환 */
+  runTeamTask(payload: { leaderId: string; task: string; requestId?: string }): Promise<TeamRunIpcResult>
+  /** 팀 실행 진행 이벤트 구독(위임 시작/완료·루프 스텝) — 반환값은 구독 해제 함수 */
+  onTeamEvent(listener: (payload: { requestId: string; event: TeamEvent }) => void): () => void
 }

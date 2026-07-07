@@ -3,8 +3,9 @@ import type { AppData, Employee, Settings, Model, ChatMessage, EmployeeStatsDelt
 import type { ChatRequest, ChatResponse, ProviderName, LLMErrorCode } from './llm/types'
 import type { FriendlyError } from './llm/errorMessages'
 import type { RateLimitStatus } from './llm/usage'
+import type { TeamEvent, TeamRunResult } from './agent/team'
 
-export type { FriendlyError, RateLimitStatus }
+export type { FriendlyError, RateLimitStatus, TeamEvent, TeamRunResult }
 
 export type ChatError = {
   code: LLMErrorCode
@@ -16,6 +17,19 @@ export type ChatError = {
 export type ChatResult =
   | { ok: true; response: ChatResponse; rateLimit: RateLimitStatus }
   | { ok: false; error: ChatError; rateLimit: RateLimitStatus }
+
+/** 2층 팀 협업 실행 결과 (Phase 3) — 'INVALID'는 팀 구성 검증 실패(팀장 아님·팀원 없음 등) */
+export type TeamRunIpcResult =
+  | { ok: true; result: TeamRunResult }
+  | {
+      ok: false
+      error: {
+        code: LLMErrorCode | 'INVALID'
+        message: string
+        provider?: ProviderName
+        friendly?: FriendlyError
+      }
+    }
 
 const api = {
   // === Data ===
@@ -67,9 +81,24 @@ const api = {
     return () => ipcRenderer.removeListener('llm:chunk', handler)
   },
 
-  /** 진행 중인 chat 요청 중단 */
+  /** 진행 중인 chat 요청 중단 — 2층 팀 실행(runTeamTask requestId)도 같은 경로로 중단 */
   abortChat: (requestId: string): Promise<{ ok: boolean; reason?: string }> =>
     ipcRenderer.invoke('llm:abort', requestId),
+
+  // === 2층 팀 협업 (Phase 3) ===
+  /** 팀장에게 팀 단위 작업 지시 — 팀장이 팀원에게 위임하고 종합 보고를 반환 */
+  runTeamTask: (payload: { leaderId: string; task: string; requestId?: string }): Promise<TeamRunIpcResult> =>
+    ipcRenderer.invoke('agent:run-team', payload),
+
+  /** 팀 실행 진행 이벤트 구독(위임 시작/완료·루프 스텝) — 반환값은 구독 해제 함수 */
+  onTeamEvent: (
+    listener: (payload: { requestId: string; event: TeamEvent }) => void,
+  ): (() => void) => {
+    const handler = (_ev: Electron.IpcRendererEvent, payload: { requestId: string; event: TeamEvent }) =>
+      listener(payload)
+    ipcRenderer.on('agent:team-event', handler)
+    return () => ipcRenderer.removeListener('agent:team-event', handler)
+  },
 
   // === Rate limit 조회 ===
   getRateLimit: (model: Model): Promise<RateLimitStatus> =>
