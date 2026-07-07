@@ -12,14 +12,14 @@
 
 ---
 
-## 진행 현황 (2026-07-03 갱신)
+## 진행 현황 (2026-07-07 갱신)
 
 | 단계 | 상태 | 비고 |
 |---|---|---|
 | **M-2F-0 멀티모델 기반** | ✅ **완료** | Vercel AI SDK(`ai@7`) 전환 + OpenAI(`gpt-5-mini`) provider. 완료 기준 3종 중 ①1층 대화·③비용 카운터는 Gemini 실키 e2e로 증명, ②OpenAI 실채팅은 키 준비 후 `tests/e2e/06-openai-chat.spec.ts`가 자동 검증 |
 | **Phase 1 tool-calling 인프라** | ✅ **완료** | `ToolDef`/`ToolCall`/`stopReason` 확장 + provider tools 전달. 더미 도구 `get_current_time` 왕복 통합 테스트 통과(`tests/integration/toolcall-roundtrip.test.ts`) |
-| Phase 2 에이전트 루프 | 🔜 다음 세션 | `electron/agent/loop.ts` |
-| Phase 3 위임 협업 | ⏳ | 2층 완성 |
+| **Phase 2 에이전트 루프** | ✅ **완료** | `electron/agent/loop.ts` `runAgent` — MAX_STEPS 상한(기본 20)·도구 실패 `{ error }` 격리·`AgentEvent` 훅·chat 주입식(프로덕션=dispatch.chat → §8 한도 경로 유지). 유닛 17케이스 + 실키 루프 왕복(`tests/integration/agent-loop-roundtrip.test.ts`, 키 없으면 skip) |
+| Phase 3 위임 협업 | 🔨 진행 중 | 2층 완성 (2026-07-07 착수) |
 | Phase 4 게임 연출 | ⏳ | 선택 |
 
 ---
@@ -131,7 +131,7 @@ export type ChatResponse = {
 
 → 세 provider(`anthropic.ts`, `gemini.ts`, `openai.ts`)는 `aiProvider.ts` 공용 팩토리로 tools를 API에 전달하고 tool 호출을 파싱해 반환한다. 왕복 검증: `tests/integration/toolcall-roundtrip.test.ts`.
 
-### 갭 2 — 에이전트 루프 ← 다음 세션 (Phase 2)
+### 갭 2 — 에이전트 루프 → ✅ 완료 (Phase 2)
 현재 `dispatch.chat()`은 1회 요청-응답. 2층용 **반복 루프**를 새 파일로:
 
 ```
@@ -147,6 +147,11 @@ async function runAgent(employee, messages, tools, ctx):
 ```
 
 `dispatch.chat()`를 그대로 재사용하므로 rate-limit·비용 한도가 자동 적용된다.
+
+> ✅ 구현 노트 (2026-07-07): dispatch가 `store.ts`(→`app.getPath`, electron)를 물고 있어 vitest에서
+> import 불가 → 루프는 동일 시그니처의 `ChatFn`을 **주입**받는 형태로 구현. 프로덕션 배선(Phase 3
+> main.ts IPC)에서 `dispatch.chat`을 넘기면 위 문장 그대로 한도가 자동 적용된다. MAX_STEPS 도달은
+> throw가 아니라 `stopped:'max_steps'` 반환, 도구 실패는 `{ error }`로 모델에 되돌려 루프 생존.
 
 ### 갭 3 — 위임 도구 `delegate_to_member`
 팀장 루프에만 등록하는 도구:
@@ -238,11 +243,12 @@ omo/OpenAgent 협업 코드 조사 결과, **이식 난이도가 극과 극**이
 - 더미 도구 `get_current_time` 왕복 확인: 1차 호출 → `stopReason: 'tool_calls'` + 도구 호출 반환,
   도구 결과 주입 후 2차 호출 → 결과를 반영한 최종 텍스트. (`tests/integration/toolcall-roundtrip.test.ts`)
 
-**Phase 2 — 에이전트 루프 (갭2)** ← 다음 세션
-- `electron/agent/loop.ts` 작성. MAX_STEPS 상한, 무한루프 방지.
-- 단일 직원 + 도구 1~2개로 루프 동작 확인.
+**Phase 2 — 에이전트 루프 (갭2)** ✅ **완료 (2026-07-07)**
+- `electron/agent/loop.ts` `runAgent` — MAX_STEPS 상한(기본 20), 무한루프 방지, 도구 실패 `{ error }` 격리, `AgentEvent`(step/tool:start/tool:done) 훅, abort 체크.
+- chat 주입식(§8 테스트 가능성 — 프로덕션 배선은 dispatch.chat). `get_current_time` 실행기(`agent/tools/time.ts`) 승격.
+- ✅ **확인**: 유닛 17케이스(`tests/unit/agent-loop.test.ts`) + 실키 루프 왕복(`tests/integration/agent-loop-roundtrip.test.ts` — 루프가 스스로 도구 실행·반영, 키 없으면 자동 skip). vitest 55 통과/5 skip, tsc 무결.
 
-**Phase 3 — 위임 협업 (갭3) ★2층 완성★**
+**Phase 3 — 위임 협업 (갭3) ★2층 완성★** ← 진행 중 (2026-07-07 착수)
 - `delegate_to_member` 도구 작성. 팀장 시스템 프롬프트에 팀원 목록 주입.
 - 팀장 루프에만 위임 도구 등록, 팀원 자식 루프엔 제외.
 - IPC 진입점 `agent:run-team`(팀 단위 작업) 추가(`main.ts`).

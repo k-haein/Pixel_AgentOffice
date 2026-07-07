@@ -1690,6 +1690,16 @@ LLM 응답이 한 번에 완성되어 오는 대신, 생성되는 대로 말풍�
 
 **검증**: `tests/integration/toolcall-roundtrip.test.ts` (Gemini 실키) — 더미 도구 `get_current_time` 왕복: 1차 호출이 도구 호출 반환 → 더미 시각 주입 → 2차 답변이 그 시각을 그대로 반영. UI 노출 없음(내부 인프라).
 
+### (내부) 에이전트 루프 — 2F Phase 2
+
+**무엇**: 도구 호출을 실제로 실행하는 반복 루프(`electron/agent/loop.ts`의 `runAgent`). `LLM 호출 → 도구 실행 → role:'tool' 결과 주입 → 반복 → 도구 호출 없으면 종료`. MAX_STEPS 상한(기본 20) 도달 시 `stopped:'max_steps'` 반환(throw 아님 — 호출부가 안내 결정), 도구 실패(미등록·execute throw)는 `{ error }`로 모델에 되돌려 루프 유지, `AgentEvent`(step/tool:start/tool:done)로 진행 노출(Phase 4 게임 연출 훅). chat 함수는 주입식 — 프로덕션은 `dispatch.chat`을 넘겨 rate/일일 비용 한도 자동 적용. 첫 실전 도구 `get_current_time`(`electron/agent/tools/time.ts`, timezone 지원).
+
+**검증**: `tests/unit/agent-loop.test.ts` 17케이스(각본 ChatFn — LLM 없이 루프 로직) + `tests/integration/agent-loop-roundtrip.test.ts`(Gemini 실키 — 루프가 스스로 도구 실행·반영, 키 없으면 자동 skip). UI 노출 없음(내부 인프라 — 2층 UI는 Phase 3~4에서).
+
+**알려진 한계**:
+- 한 턴의 여러 도구 호출은 순차 실행(병렬 아님).
+- max_steps 도달 시 마지막 텍스트가 빈 문자열일 수 있음 — 호출부에서 안내 문구 처리 필요.
+
 ---
 
 ## 🚀 배포 전 검증 (회사망 dev 영향 cleanup)

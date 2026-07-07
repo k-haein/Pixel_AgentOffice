@@ -3203,6 +3203,45 @@ Day 12 §1 세션 정리(감정 자동 트리거 등 3커밋)로 시작 → 사�
 - C2 — docs: 세션 정리(§132 + HANDOFF + FEATURES)
 - (별도 무관 항목) `portfolio/22-kgwebcil-anatomy-report.html` + `portfolio/kgwebcil_analysis_parts/` — PixelAgentOffice와 무관한 별개 산출물. **사용자 확인: 이 저장소에 커밋 대상 아님** — 항상 미추적으로 둘 것
 
+## 133. 🔁 Day 14 (계속) — 2F Phase 2: 에이전트 루프 (electron/agent/loop.ts)
+
+작업일: 2026-07-07 (데스크탑). §131~132 산출물을 pull로 받아 시작(이 PC는 `pnpm install`도 필요했음 — vitest·ai@7 등 새 의존성 미설치 상태). 사용자 "phase 2 착수하자" 지시로 HANDOFF 진입점 그대로 진행, 이어 "세션 정리 커밋 푸시 하고 phase 3 위임해줘"로 정리+Phase 3 연속 착수.
+
+### 발단
+Phase 1이 "도구 호출을 반환만" 하게 만들어놨으니(§131), 이번엔 그 호출을 실제로 실행하고 결과를 되먹이는 심장부 — 핸드오프 §4 갭2 스케치 그대로.
+
+### 1) runAgent — 에이전트 루프 본체 (`electron/agent/loop.ts` 신규)
+- `LLM 호출 → stopReason이 tool_calls면 도구 실행 → role:'tool' 결과 주입 → 재호출 → 도구 호출 없으면 종료`.
+- **MAX_STEPS 상한(기본 20)** — omo는 200이지만 사무실 규모(도구 왕복 + Phase 3 위임)엔 과함. 도달 시 throw가 아니라 `stopped:'max_steps'` 반환 — 호출부(위임 도구·IPC)가 안내 문구를 결정.
+- **도구 실패 격리**: 미등록 도구·execute throw 모두 `{ error }` 결과로 모델에 되돌림 — 루프는 죽지 않고 모델이 복구 시도.
+- **AgentEvent 훅**(step/tool:start/tool:done) — Phase 3 위임 중계·Phase 4 게임 연출 대비. abort signal은 스텝 전·각 도구 실행 전 체크.
+- usage 전 스텝 합산(보고용), 원본 messages 불변(복사 후 사용), onDelta는 전 스텝 관통(스텝 경계는 이벤트로 구분).
+
+### 2) 🔑 설계 결정 — chat 함수 주입식
+- 핸드오프 스케치는 `dispatch.chat()` 직접 재사용이지만, dispatch가 `store.ts`(→`app.getPath`)를 물고 있어 **electron 밖(vitest)에서 import 자체가 불가**.
+- 그래서 루프는 `ChatFn`(dispatch.chat과 동일 시그니처)을 **주입**받는다 — 프로덕션 배선(Phase 3 main.ts IPC)에서 dispatch.chat을 넘기면 rate/일일 한도 자동 적용(§8 원칙 3 보존), 테스트에선 각본 ChatFn·provider 직접 주입. Phase 1 테스트가 provider를 직접 부른 것과 같은 사정의 일반화.
+
+### 3) get_current_time 실행기 승격 (`electron/agent/tools/time.ts` 신규)
+- Phase 1 통합 테스트의 더미 스펙을 실제 `AgentTool`(def+execute)로. timezone 인자 지원, 잘못된 타임존이면 throw → 루프가 `{ error }`로 감싸 모델 재시도 유도.
+
+### 4) 테스트
+- 유닛 `tests/unit/agent-loop.test.ts` **17케이스**: 종료 조건(즉시 종료·빈 tool_calls 방어·max_steps·기본값), 왕복 메시지 형태(도구 호출 턴+결과 턴), 멀티 도구 호출 순차 실행, 미등록·throw 도구 복구, 원본 불변, 이벤트 순서, abort 2종(사전·도중), ctx(employeeId) 전달, time 도구 3종.
+- 통합 `tests/integration/agent-loop-roundtrip.test.ts`: 실키로 루프가 **스스로** 도구를 실행해 답하는지(Phase 1은 수동 주입이었음). 키 없으면 자동 skip.
+
+### 검증
+- 신규 유닛 17/17, 전체 vitest **55 통과 / 5 skip**, `tsc -b` 무결.
+- ⚠️ 이 PC엔 `.env.local` 자체가 없어 실키 통합 3파일(agent-loop·toolcall·streaming) **자동 skip** — §132의 "실키 있는데 SSL로 실패 4건"과 다른 상태(키 부재). 실키 왕복 검증은 키 준비 후 자동.
+- e2e·lint·PC 시각 확인(§132 이월분)은 여전히 미실행.
+
+### CONVENTIONS §7 체크리스트 (§133)
+- ✅ brainstorming §133 (이 섹션) / ✅ HANDOFF (헤더·§1·§2·§3·§4 옵션 0) / ✅ FEATURES ((내부) 에이전트 루프 명세) / ✅ 2F 핸드오프 진행표 Phase 2 ✅
+- ✅ PRD 드리프트 점검 — 기존 "v0.0.3 스냅샷 때 갱신" 플래그에 포함(신규 플래그 없음)
+- (해당 없음) ideas/06 신규 보류 결정 / 마일스톤 스냅샷(2F는 Phase 3 완성 시 검토)
+
+### 산출 커밋 (사용자 승인: "세션 정리 커밋 푸시 하고")
+- C1 — feat: 2F Phase 2 — 에이전트 루프(runAgent) + get_current_time 실행기 + 테스트
+- C2 — docs: 세션 정리(§133) — HANDOFF·FEATURES·2F핸드오프 동기화
+
 ---
 
 ## 결정 진화 요약 (M5 시점)
