@@ -6,10 +6,12 @@ import { HireModal } from './components/HireModal'
 import { MemoModal } from './components/MemoModal'
 import { ShopModal } from './components/ShopModal'
 import { PromotionModal } from './components/PromotionModal'
+import { TeamTaskModal } from './components/TeamTaskModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation, Rank } from './shared/types'
-import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES } from './shared/types'
+import { DEFAULT_SETTINGS, DEFAULT_MAX_EMPLOYEES, canBeTeamLeader } from './shared/types'
+import { SEAT_LOOKUP } from './shared/seats'
 import { checkPromotionEligible } from './shared/promotion'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { ApiKeyModal } from './components/ApiKeyModal'
@@ -33,6 +35,8 @@ function App() {
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 진급 요청 모달 (Phase 3) — 자격 도달 시 캐릭터가 사장에게 요청 */
   const [promotionReq, setPromotionReq] = useState<{ employee: Employee; toRank: Rank } | null>(null)
+  /** 팀 작업 모달 (2F Phase 4) — 팀장에게 팀 단위 작업 지시 */
+  const [teamTask, setTeamTask] = useState<{ leader: Employee; members: Employee[] } | null>(null)
   /** 캐릭터 우클릭 시 띄울 컨텍스트 메뉴 위치/대상 */
   const [employeeContextMenu, setEmployeeContextMenu] = useState<{ x: number; y: number; employee: Employee } | null>(null)
   /** 줌 토글 상태 (B-5) — true=1.4x, false=1.0x. Phaser scene과 동기화 */
@@ -299,6 +303,19 @@ function App() {
     eventBus.on('employee:context-menu', onContextMenu)
     return () => eventBus.off('employee:context-menu', onContextMenu)
   }, [])
+
+  // 팀장(리더 자리 + 과장 이상)인지 + 같은 팀 팀원 목록 (2F Phase 4 팀 작업 트리거 조건)
+  const leaderTeamMembers = (emp: Employee): Employee[] | null => {
+    if (!emp.seatId) return null
+    const seat = SEAT_LOOKUP[emp.seatId]
+    if (!seat || seat.role !== 'leader' || !seat.team || !canBeTeamLeader(emp.rank)) return null
+    const members = employeesRef.current.filter(e => {
+      if (e.id === emp.id || !e.seatId) return false
+      const s = SEAT_LOOKUP[e.seatId]
+      return s?.team === seat.team && s.role === 'member'
+    })
+    return members.length > 0 ? members : null
+  }
 
   // 드래그앤드롭으로 자리 이동 완료 → 직원 상태 갱신 + scene 재구성
   useEffect(() => {
@@ -771,6 +788,14 @@ function App() {
           onDismiss={() => setPromotionReq(null)}
         />
       )}
+      {/* 팀 작업 모달 (2F Phase 4) — 팀장에게 팀 단위 작업 지시 */}
+      {teamTask && (
+        <TeamTaskModal
+          leader={teamTask.leader}
+          members={teamTask.members}
+          onClose={() => setTeamTask(null)}
+        />
+      )}
       {/* API 키 미니 팝업 + 받는 법 안내 (Day 14) */}
       {apiKeyOpen && <ApiKeyModal onClose={() => setApiKeyOpen(false)} />}
       {apiKeyGuideOpen && <ApiKeyGuideModal onClose={() => setApiKeyGuideOpen(false)} />}
@@ -835,6 +860,22 @@ function App() {
           >
             💬 채팅 열기
           </button>
+          {/* 팀 작업 (2F Phase 4) — 팀장(리더 자리 + 과장 이상, 팀원 보유)에게만 노출 */}
+          {(() => {
+            const members = leaderTeamMembers(employeeContextMenu.employee)
+            if (!members) return null
+            return (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setTeamTask({ leader: employeeContextMenu.employee, members })
+                  setEmployeeContextMenu(null)
+                }}
+              >
+                🤝 팀 작업 시키기
+              </button>
+            )
+          })()}
           <button
             className="context-menu-item"
             onClick={() => {
