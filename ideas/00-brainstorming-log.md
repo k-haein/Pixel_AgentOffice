@@ -3282,8 +3282,45 @@ Phase 1이 "도구 호출을 반환만" 하게 만들어놨으니(§131), 이번
 - (해당 없음) ideas/06 신규 보류 결정
 
 ### 산출 커밋 (사용자 승인: "여기까지 세션정리 커밋푸시")
-- C1 — feat: 2F Phase 3 — 위임 협업 엔진(delegate_to_member·runTeamTask) + IPC·platform + 테스트
-- C2 — docs: 세션 정리(§134) — HANDOFF·FEATURES·2F핸드오프 동기화
+- C1 — feat: 2F Phase 3 — 위임 협업 엔진(delegate_to_member·runTeamTask) + IPC·platform + 테스트 (`137de0c`)
+- C2 — docs: 세션 정리(§134) — HANDOFF·FEATURES·2F핸드오프 동기화 (`df7af25`)
+
+## 135. 🎮 Day 14 (계속) — 2F Phase 4: 팀 작업 UI + 위임 이벤트 캐릭터 연출 (★2층 트랙 완성★)
+
+작업일: 2026-07-09 (데스크탑, §134 커밋·푸시 직후 "이 다음거 진행하자"로 연속 착수). 2층 팀 협업 로드맵의 마지막 단계 — 눈에 보이는 조작 + 게임 연출.
+
+### 발단
+Phase 3까지 엔진(runTeamTask·delegate·IPC·platform)은 완성됐지만 "팀장에게 일 시키는" UI가 없었음. platform.runTeamTask/onTeamEvent + mock 데모 연출까지 배선돼 있어 UI만 얹으면 되는 상태였다.
+
+### 1) `src/components/TeamTaskModal.tsx` (신규)
+- 팀원 명단 + 작업 지시 textarea + `platform.runTeamTask({leaderId, task, requestId})` 실행.
+- `platform.onTeamEvent` 구독(requestId로 자기 요청만 필터) → 팀원별 **위임 카드** 실시간(⏳ 위임 중 → ✅ 완료/⚠️ 오류 + 각 팀원 보고). 최종 보고 초록 박스 + 오류 안내.
+- 실행 중 **중단 버튼**(기존 `abortChat` 재사용), 모달 닫기(언마운트) 시 진행 중이면 abort.
+
+### 2) 게임 연출 브리지 (모달 내부 → 기존 eventBus)
+- delegation 이벤트를 기존 `agent:set-state`·`agent:set-emotion`으로 흘려보냄: 작업 시작 → 팀장 working / delegation:start → 팀원 working + thinking / delegation:done → 팀원 idea💡(성공)·confused(실패) + idle 복귀 / 완료 → 팀장 happy😊, 오류 → confused.
+- **OfficeScene 핸들러(setStateHandler·setEmotionHandler)가 이미 있어 씬 코드 0줄 변경** — 이벤트 버스가 React↔Phaser 브리지라는 구조가 여기서 값어치를 함.
+
+### 3) App.tsx 배선
+- 팀장 우클릭 메뉴에 "🤝 팀 작업 시키기" — `leaderTeamMembers(emp)` 헬퍼로 **리더 자리(SEAT_LOOKUP) + `canBeTeamLeader`(과장↑) + 팀원 보유**일 때만 노출. `teamTask` 상태 + 모달 렌더링.
+
+### 검증
+- `pnpm build`(tsc -b + vite, electron main 포함) 무결, vitest **67 통과/6 skip**(회귀 없음).
+- ⚠️ **PC 시각 검증 미수행** — 데스크탑이지만 이번 세션 `pnpm dev` 실행 확인 안 함. 실제 모달 흐름·캐릭터 연출은 사용자 눈 검증 대기. mock 데모 연출로 키 없이도 체험 가능.
+- 실키 팀 위임 왕복(`agent-team-roundtrip`)은 `.env.local` 키 넣으면 자동.
+
+### 커밋 순서 관찰 — 사용자 트리거 분리
+- 사용자가 "커밋푸시해줘"로 **코드만 먼저 커밋**(`daef554`) → 이어 "세션도 해야지"로 docs 정리. Claude가 코드 커밋 시 "문서는 아직 미동기화(HANDOFF에 Phase 4가 아직 '다음 세션' 표기)"임을 먼저 보고한 뒤 진행 — §7 "위반 시 즉시 보고" 취지대로 stale 상태를 숨기지 않음.
+
+### CONVENTIONS §7 체크리스트 (§135)
+- ✅ brainstorming §135 (이 섹션) / ✅ HANDOFF (헤더·§1·§2·§3·§4 진행표 Phase 4 ✅) / ✅ FEATURES (팀 작업 UI 명세) / ✅ 2F 핸드오프 진행표·§7 Phase 4 ✅
+- ✅ PRD 드리프트 점검 — 기존 "v0.0.3 스냅샷 때 갱신" 플래그에 2층 완성 포함(신규 플래그 없음)
+- ⏸ 마일스톤 스냅샷 — 2층 트랙 완성이지만 **PC 시각 검증 + 실키 왕복 확인 후** 스냅샷하는 게 완결적(§134에서 "Phase 4까지 묶어서" 결정한 그 시점 도래 — 단 검증 선행)
+- (해당 없음) ideas/06 신규 보류 결정
+
+### 산출 커밋
+- C1 — feat: 2F Phase 4 — 팀 작업 UI(TeamTaskModal) + 위임 이벤트 캐릭터 연출 (`daef554`, 코드만 선커밋)
+- C2 — docs: 세션 정리(§135) — HANDOFF·FEATURES·2F핸드오프 동기화
 
 ---
 

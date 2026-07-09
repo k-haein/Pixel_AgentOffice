@@ -19,8 +19,8 @@
 | **M-2F-0 멀티모델 기반** | ✅ **완료** | Vercel AI SDK(`ai@7`) 전환 + OpenAI(`gpt-5-mini`) provider. 완료 기준 3종 중 ①1층 대화·③비용 카운터는 Gemini 실키 e2e로 증명, ②OpenAI 실채팅은 키 준비 후 `tests/e2e/06-openai-chat.spec.ts`가 자동 검증 |
 | **Phase 1 tool-calling 인프라** | ✅ **완료** | `ToolDef`/`ToolCall`/`stopReason` 확장 + provider tools 전달. 더미 도구 `get_current_time` 왕복 통합 테스트 통과(`tests/integration/toolcall-roundtrip.test.ts`) |
 | **Phase 2 에이전트 루프** | ✅ **완료** | `electron/agent/loop.ts` `runAgent` — MAX_STEPS 상한(기본 20)·도구 실패 `{ error }` 격리·`AgentEvent` 훅·chat 주입식(프로덕션=dispatch.chat → §8 한도 경로 유지). 유닛 17케이스 + 실키 루프 왕복(`tests/integration/agent-loop-roundtrip.test.ts`, 키 없으면 skip) |
-| **Phase 3 위임 협업** | ✅ **완료 (엔진)** | `delegate_to_member`(자식 루프 재귀·재위임 구조 차단) + `runTeamTask`(팀장 검증·팀원 명단 주입·usage 팀 전체 합산) + IPC `agent:run-team`(dispatch.chat 주입 → 한도 자동) + platform/mock. 유닛 12 + 실키 왕복 테스트(키 대기). **UI 트리거·게임 연출은 Phase 4** |
-| Phase 4 게임 연출 | ⏳ | 선택 |
+| **Phase 3 위임 협업** | ✅ **완료 (엔진)** | `delegate_to_member`(자식 루프 재귀·재위임 구조 차단) + `runTeamTask`(팀장 검증·팀원 명단 주입·usage 팀 전체 합산) + IPC `agent:run-team`(dispatch.chat 주입 → 한도 자동) + platform/mock. 유닛 12 + 실키 왕복 테스트(키 대기) |
+| **Phase 4 게임 연출 + 팀 작업 UI** | ✅ **완료** | `TeamTaskModal`(팀장 우클릭 "🤝 팀 작업 시키기" → 위임 카드 실시간 + 최종 보고 + 중단) + delegation 이벤트를 기존 eventBus로 흘려 팀장·팀원 캐릭터 연출(OfficeScene 무변경). mock 데모 연출로 키 없이 체험. ⚠️ PC 시각 검증 대기 |
 
 ---
 
@@ -256,9 +256,11 @@ omo/OpenAgent 협업 코드 조사 결과, **이식 난이도가 극과 극**이
 - ✅ **확인**: 유닛 12케이스(`tests/unit/agent-team.test.ts` — 팀 검증·위임 왕복·재위임 방지·오류 정정·2인 동시 위임) + 실키 왕복(`tests/integration/agent-team-roundtrip.test.ts`, 키 대기). vitest 67 통과/6 skip, tsc·pnpm build 무결.
 - ⏳ 남은 것: UI 트리거·게임 연출(Phase 4), 실키 왕복 검증(키 준비 시 자동), 팀원 기억(memory) 주입 미연결.
 
-**Phase 4 — 게임 연출 (선택, 차별화 포인트)**
-- 위임 이벤트(`delegation:start/done`)를 `eventBus.ts`로 흘려 팀장→팀원 캐릭터 애니메이션/말풍선 연출.
-- 이게 "게임 + 실제 협업"이 만나는 이 프로젝트만의 킬러 UX.
+**Phase 4 — 게임 연출 + 팀 작업 UI** ✅ **완료 (2026-07-09)**
+- `src/components/TeamTaskModal.tsx` — 팀장 우클릭 "🤝 팀 작업 시키기"(리더 자리 + 과장↑ + 팀원 보유일 때만) → 작업 지시 → `runTeamTask`. `onTeamEvent`로 팀원별 위임 카드(⏳→✅/⚠️ + 보고) 실시간 + 최종 보고 + 중단.
+- 위임 이벤트(`delegation:start/done`)를 기존 `eventBus`(`agent:set-state`·`agent:set-emotion`)로 흘려 팀장→팀원 캐릭터 연출(working·thinking·idea/confused·happy). **OfficeScene 핸들러 재사용 → 씬 코드 0줄 변경.**
+- mock platform 데모 위임 연출로 API 키 없이도 체험 가능(포트폴리오·SNS 쇼케이스용).
+- ⚠️ PC 시각 검증(모달 흐름·캐릭터 연출) + 실키 팀 위임 왕복은 다음 세션 대기. 이게 "게임 + 실제 협업"이 만나는 이 프로젝트만의 킬러 UX.
 
 ---
 
