@@ -7,6 +7,7 @@ import { MemoModal } from './components/MemoModal'
 import { ShopModal } from './components/ShopModal'
 import { PromotionModal } from './components/PromotionModal'
 import { TeamTaskModal } from './components/TeamTaskModal'
+import { TechModal } from './components/TechModal'
 import { eventBus } from './game/eventBus'
 import { platform } from './platform'
 import type { Employee, Settings, DeskOrientation, Rank } from './shared/types'
@@ -32,6 +33,8 @@ function App() {
   // Day 12 §3 — 채용 모달 트리거 제거 (모달이 화면 가려서 빈 자리 보일 필요 X).
   // 빈 자리는 *자리 이동 모드* 시에만 표시 (OfficeScene.enterMoveMode).
   const [shopOpen, setShopOpen] = useState(false)
+  /** 기술 스택·설계 패널 (?) — 포트폴리오 열람자용 읽기 화면 */
+  const [techOpen, setTechOpen] = useState(false)
   const [memoEmployee, setMemoEmployee] = useState<Employee | null>(null)
   /** 진급 요청 모달 (Phase 3) — 자격 도달 시 캐릭터가 사장에게 요청 */
   const [promotionReq, setPromotionReq] = useState<{ employee: Employee; toRank: Rank } | null>(null)
@@ -154,6 +157,7 @@ function App() {
         setSettingsOpen(false)
         setHireOpen(false)
         setMemoEmployee(null)
+        setTechOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -706,6 +710,13 @@ function App() {
           >
             ⚙
           </button>
+          <button
+            className="topbar-btn"
+            onClick={() => setTechOpen(true)}
+            title="기술 스택 · 설계 — 무엇을 왜 이렇게 만들었는지"
+          >
+            ?
+          </button>
         </div>
       </header>
 
@@ -788,6 +799,8 @@ function App() {
           onDismiss={() => setPromotionReq(null)}
         />
       )}
+      {techOpen && <TechModal onClose={() => setTechOpen(false)} />}
+
       {/* 팀 작업 모달 (2F Phase 4) — 팀장에게 팀 단위 작업 지시 */}
       {teamTask && (
         <TeamTaskModal
