@@ -3,7 +3,8 @@
 > 새 세션 또는 미래의 본인이 이 파일 *하나*만 봐도 즉시 컨텍스트가 잡히도록 정리한 단일 진입점.
 > 태블릿/주말 작업 시 GitHub에서 이 파일부터 열면 됩니다.
 >
-> 최종 갱신: **2026-07-09 (Day 14 계속, 2F Phase 4)** — **팀 작업 UI + 위임 이벤트 캐릭터 연출 ✅ ★2층 팀 협업 트랙 완성★**. `TeamTaskModal`(신규) — 팀장 우클릭 "🤝 팀 작업 시키기"(리더 자리+과장↑+팀원 보유일 때만, `leaderTeamMembers` 헬퍼) → 작업 지시 → `runTeamTask` 실행. `onTeamEvent` 구독(requestId 필터)으로 **팀원별 위임 카드 실시간**(⏳→✅/⚠️ + 보고) + 최종 보고 + 중단 버튼. delegation 이벤트를 기존 `agent:set-state`·`agent:set-emotion`으로 흘려 **팀장·팀원 캐릭터 연출**(working·thinking·idea/confused·happy) — OfficeScene 핸들러 재사용이라 씬 코드 0줄 변경. mock 데모 연출로 키 없이도 체험. 검증: `pnpm build` 무결, vitest **67 통과/6 skip**. ⚠️ **PC 시각 검증 미수행**(이번 세션 `pnpm dev` 안 띄움) — 모달 흐름·캐릭터 연출 눈 검증 대기. 커밋: 코드 선커밋(`daef554`) 후 docs 정리. 다음: **① PC 시각 검증**(팀 작업 흐름·연출), **② 실키 팀 위임 왕복**(키 넣으면 자동), **③ v0.0.3 스냅샷**(PRD 갱신 + 마일스톤 + EXE 재빌드 — 2층 완성 반영). 이전 작업 ↓
+> 최종 갱신: **2026-08-27 (Day 15 — 포트폴리오 정리 착수)** — **킥 정립(v0.0.3 PRD) + `?` 패널 + 🚨 Electron 실행 불가 발견**. 약 7주 공백 후 재개, 개발이 아니라 *"이걸 포폴로 어떻게 쓸까"*에서 출발. ① **웹 데모가 이미 거의 되어 있었음을 발견** — Platform Adapter가 `window.api` 없으면 mockPlatform 자동 폴백 + mock 220줄이 완제품 + `dist/` 에셋 경로가 상대경로 → **렌더러 0줄 수정으로 정적 배포 가능**. Day 8 "미래 모바일 대비" 투자가 여기서 회수됨. ② **킥 발굴** — `agent/team.ts` 주석의 *"좌석 시스템이 곧 조직도"*가 이 프로젝트의 발명품인데 소스 주석에만 있었음. CrewAI·AutoGen은 위계를 전부 코드로 선언 / 이 앱은 **의자에 앉히면 조직도** + 위임 권한을 `allow_delegation=True`가 아니라 **과장 진급**으로 획득 → **v0.0.3 PRD §2.2 신규**(570→732줄) + §8.3 **"제품화하지 않기로 결정"**(근거 3개). ③ **`?` 패널**(`TechModal.tsx` 신규) — AI_ToDo_App `tech/page.js` 구조 이식, 4탭 `why` 줄글, 렌더러 공용이라 **EXE·웹 양쪽 자동 노출**. ④ 🚨 **`pnpm dev`·`dist:exe` 실행 불가 발견** — `de41fe0`(7/3)의 createRequire 배너가 ESM `import` 문이라 메인 번들이 ESM으로 굳음 → `electron`(CJS) 네임드 임포트 실패. **`pnpm build`는 번들링만 하니 통과** → §132~§135 "PC 시각 검증 이월" 4연속이 이 버그를 가리고 있었음. **2층은 실제 앱에서 한 번도 돌아본 적 없음**([`ideas/23`](ideas/23-electron-esm-blocker.md)). ⑤ **우회 검증 성공** — 웹은 Electron 메인을 안 쓰므로 무관. `dist/`를 정적 서버로 띄워 **`?` 패널·2층 팀 작업 흐름 눈 검증 완료**(사용자 "다 잘 나와"). ⑥ **다음 방향 결정** — "진짜 도구(파일·웹검색) 추가"는 **기각**(웹 데모에서 죽고 차별점도 안 늘어남), 대신 **결과물 보관함**으로 위임에 결말 붙이기([`ideas/22`](ideas/22-team-output-archive.md)). 검증: tsc 0, `vite build` 무결, vitest **67 통과/6 skip**(회귀 없음). 다음: **① 웹 데모 배포**(§3 진입점) ② 위임 연출 ③ 결과물 보관함 ④ Electron 수정(A안). 이전 작업 ↓
+> **2026-07-09 (Day 14 계속, 2F Phase 4)** — **팀 작업 UI + 위임 이벤트 캐릭터 연출 ✅ ★2층 팀 협업 트랙 완성★**. `TeamTaskModal`(신규) — 팀장 우클릭 "🤝 팀 작업 시키기"(리더 자리+과장↑+팀원 보유일 때만, `leaderTeamMembers` 헬퍼) → 작업 지시 → `runTeamTask` 실행. `onTeamEvent` 구독(requestId 필터)으로 **팀원별 위임 카드 실시간**(⏳→✅/⚠️ + 보고) + 최종 보고 + 중단 버튼. delegation 이벤트를 기존 `agent:set-state`·`agent:set-emotion`으로 흘려 **팀장·팀원 캐릭터 연출**(working·thinking·idea/confused·happy) — OfficeScene 핸들러 재사용이라 씬 코드 0줄 변경. mock 데모 연출로 키 없이도 체험. 검증: `pnpm build` 무결, vitest **67 통과/6 skip**. ⚠️ **PC 시각 검증 미수행**(이번 세션 `pnpm dev` 안 띄움) — 모달 흐름·캐릭터 연출 눈 검증 대기. 커밋: 코드 선커밋(`daef554`) 후 docs 정리. 다음: **① PC 시각 검증**(팀 작업 흐름·연출), **② 실키 팀 위임 왕복**(키 넣으면 자동), **③ v0.0.3 스냅샷**(PRD 갱신 + 마일스톤 + EXE 재빌드 — 2층 완성 반영). 이전 작업 ↓
 > **2026-07-07 (Day 14 계속, 2F Phase 3)** — **위임 협업 엔진 ✅ ★2층 엔진 완성★** (2F 핸드오프 §4 갭3). `delegate_to_member` 도구(`agent/tools/delegate.ts`) — 실행 시 **팀원 페르소나로 runAgent 자식 루프 재귀 호출** 후 보고 반환, 팀원 tools에 위임 도구가 구조적으로 안 들어가 **재위임 원천 차단**. `runTeamTask`(`agent/team.ts`) — 팀장 검증(리더 자리+`canBeTeamLeader` 과장↑) + 같은 팀 member 수집(좌석 시스템=조직도) + **팀장 프롬프트에 팀원 명단(id·이름·역할·직급·MBTI) 주입** + `TeamEvent`(delegation:start/done·leader/member 스텝) 스트림. 공용 페르소나 `agent/persona.ts`(1층 감정 태그 제외, ChatPopup 무변경). IPC `agent:run-team`(main.ts) — **dispatch.chat 주입이라 위임으로 호출 늘어도 rate/일일 한도 자동**, 이벤트 `agent:team-event` push, 중단은 기존 `llm:abort` 재사용. preload/platform 3종 배선(mock은 데모 위임 연출). 🐛 테스트가 usage 합산 누락을 잡음 → `delegation:done`에 팀원 usage 실어 **팀장+팀원 전체 합산**으로 픽스. 검증: 신규 유닛 12, vitest **67 통과/6 skip**, tsc·**pnpm build** 무결. ⏳ 실키 왕복(`agent-team-roundtrip`) 키 대기, **UI 트리거·게임 연출은 Phase 4**. 다음: **Phase 4**(채팅창 팀 작업 UI + delegation 이벤트 캐릭터 연출) 또는 실키 검증. 이전 작업 ↓
 > **2026-07-07 (Day 14 계속, 2F Phase 2)** — **에이전트 루프 ✅** (`electron/agent/loop.ts` 신설 — 2F 핸드오프 §4 갭2). `LLM 호출 → 도구 호출 있으면 실행 → role:'tool' 결과 주입 → 반복 → 없으면 종료`. **MAX_STEPS 상한(기본 20)** — 도달 시 throw가 아니라 `stopped:'max_steps'` 반환. 도구 실패(미등록·execute throw)는 `{ error }`로 모델에 되돌려 **루프가 죽지 않고 모델이 복구**. `AgentEvent`(step/tool:start/tool:done) 훅으로 Phase 3 위임 중계·Phase 4 게임 연출 대비. **chat 함수는 주입식** — dispatch.chat이 store.ts(→`app.getPath`, electron)를 물어 vitest에서 import 불가라 동일 시그니처 `ChatFn`을 주입받음. 프로덕션 배선(Phase 3 main.ts IPC)에서 dispatch.chat을 넘기면 rate/일일 한도 자동 적용(§8 원칙 보존). Phase 1 더미였던 `get_current_time`을 실제 실행기로 승격(`agent/tools/time.ts`). 검증: 신규 유닛 17/17, 전체 vitest **55 통과/5 skip**, tsc 무결 — 단 이 PC엔 `.env.local` 자체가 없어 **실키 통합 3파일 자동 skip**(§132의 "SSL로 실패"와 다른 상태 — 키 부재). pull 직후 `pnpm install` 필요했음(vitest 등 신규 의존성 미설치). e2e·lint·PC 시각 확인(§132 이월)은 계속 이월. 다음: **Phase 3 위임 협업**(`delegate_to_member` + 팀장 프롬프트에 팀원 목록 주입 + IPC `agent:run-team`). 이전 작업 ↓
 > **2026-07-03 (Day 14 계속, "1층 폴리시")** — **응답 실시간 스트리밍 ✅ + 메모리 모드(off/manual/ask/auto) 실동작 연결 ✅ + Opus/Haiku 단가 정정 ✅**. `aiProvider.ts`에 `onDelta` 콜백(있으면 `streamText`, 없으면 기존 `generateText` 그대로) → IPC `llm:chunk` 이벤트로 관통 → `ChatPopup`이 실시간 표시(usage/비용 집계 경로 무변경). §130에서 "무동작이라 숨겼던" 메모리 모드 셀렉터를 `src/shared/memory.ts`(요약 로직 공용화)로 실제 연결 — auto/ask는 채팅창 닫기·직원전환 시(3턴↑) 트리거, off는 주입 자체 생략. `MODEL_INFO` Opus/Haiku 표기 단가를 실제 매핑 모델 기준으로 정정($15/$75→$5/$25, $0.80/$4→$1/$5). 검증: vitest **38 통과/4 실패**(실패 4건은 전부 Gemini 실키 통합테스트가 이 환경 SSL inspection에 막힌 것 — 코드 회귀 아님), e2e·tsc·lint·PC 시각 확인은 **미실행**(다음 세션 이월). 커밋 전 상태로 "세션 정리해줘" 트리거로 뒤늦게 기록. 다음: **PC dev 시각 확인 후 커밋** → **2F Phase 2 에이전트 루프**(`electron/agent/loop.ts`). 이전 작업 ↓
@@ -42,10 +43,10 @@
 | **스택** | Electron + Vite + React 19 + Phaser 4 + TypeScript + **Vercel AI SDK(Claude·Gemini·GPT 멀티모델)** + Playwright E2E |
 | **컨셉** | "Two Point Hospital + The Sims" 류 게임 메커니즘으로 AI 에이전트 관리 |
 | **GitHub** | [k-haein/Pixel_AgentOffice](https://github.com/k-haein/Pixel_AgentOffice) |
-| **현재 마일스톤** | **2층(팀 협업) 트랙 완성** — M-2F-0 멀티모델 ✅ + Phase 1 tool-calling ✅ (2026-07-03) + Phase 2 에이전트 루프 ✅ + Phase 3 위임 협업 엔진 ✅ (2026-07-07) + **Phase 4 팀 작업 UI + 캐릭터 연출 ✅ (2026-07-09)**. 남은 것: PC 시각 검증 + 실키 왕복 + v0.0.3 스냅샷. 직전: 1층 폴리시(응답 스트리밍 + 메모리 모드 + 단가 정정, 2026-07-03). 이전: M5 폴리시 + Day 12~13(진급/칭찬/메모리) + Day 14(온보딩·튜토리얼·v0.0.2 스냅샷) |
-| **다음 작업** | **① PC 시각 검증** — `pnpm dev`로 팀장 우클릭 "🤝 팀 작업 시키기" → 위임 카드·최종 보고·팀장/팀원 캐릭터 연출(working·thinking·idea) 눈 확인. mock은 키 없이도 데모 연출. **② 실키 팀 위임 왕복** — `.env.local`에 GEMINI_API_KEY 넣으면 `agent-team-roundtrip`·루프·스트리밍 통합 자동, OPENAI_API_KEY 넣으면 06 e2e 자동. **③ v0.0.3 스냅샷** — 2층 완성 반영(PRD 갱신: 3사 멀티모델·tool-calling·메모리 모드·2층 팀 협업 / 마일스톤 스냅샷 / EXE 재빌드 / GitHub Releases 업로드). **④ 1층 폴리시 PC 시각 확인**(스트리밍 커서·메모리 auto/ask, §132 이월). ⑤ v3 리팩토링(§6.Q) + CI. ⑥ `pnpm lint` 기존 부채. |
-| **큰 결정** | 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
-| **검증 상태** | **2026-07-09 최신(2F Phase 4)**: vitest **67 통과/6 skip**, **pnpm build** 무결(Phase 4는 UI만 추가, 신규 유닛 없음 — 엔진 테스트는 Phase 3의 팀 위임 12건이 커버). skip 6건은 실키 통합 4파일 — 이 PC에 `.env.local` 자체가 없어 자동 skip. ⚠️ **PC 시각 검증(팀 작업 모달·캐릭터 연출) 미수행** — 이번 세션 `pnpm dev` 안 띄움, 눈 검증 대기. e2e·lint·1층 폴리시 시각 확인은 §132부터 계속 이월. 이전(2층 M-2F-0 시점): 유닛+통합 34/34, e2e 10 통과+1 skip, Gemini 실키 1층 대화·카운터·tool-calling 왕복 실측 검증 완료. |
+| **현재 마일스톤** | **포트폴리오 정리 단계 (Day 15~)** — 제품 개발 종료, 자산화 진행 중. 킥("좌석이 곧 조직도") 정립 + v0.0.3 PRD + `?` 패널 완료. 다음은 **웹 데모 배포**. 이전: **2층(팀 협업) 트랙 완성** — M-2F-0 멀티모델 ✅ + Phase 1 tool-calling ✅ (2026-07-03) + Phase 2 에이전트 루프 ✅ + Phase 3 위임 협업 엔진 ✅ (2026-07-07) + **Phase 4 팀 작업 UI + 캐릭터 연출 ✅ (2026-07-09)**. 남은 것: PC 시각 검증 + 실키 왕복 + v0.0.3 스냅샷. 직전: 1층 폴리시(응답 스트리밍 + 메모리 모드 + 단가 정정, 2026-07-03). 이전: M5 폴리시 + Day 12~13(진급/칭찬/메모리) + Day 14(온보딩·튜토리얼·v0.0.2 스냅샷) |
+| **다음 작업** | **① 웹 데모 배포 (최우선)** — `build:web` 스크립트 + GitHub Actions + Pages. **시드 데이터**(지금 웹은 빈 사무실로 시작 → 방문자가 텅 빈 화면을 봄) + **localStorage**(새로고침하면 다 날아감) 필수. URL이 생겨야 노션·이력서에 붙일 게 생김. 상세 절차는 §3 진입점. **② 위임 연출** — 팀장→팀원 화살표(delegation 이벤트는 이미 흐름). GIF 소재 확보용, 반나절. **③ 결과물 보관함**([`ideas/22`](ideas/22-team-output-archive.md)) — 위임에 결말 붙이기, 하루. **④ Electron 수정**([`ideas/23`](ideas/23-electron-esm-blocker.md) A안 CJS) — 실키 왕복·EXE 재빌드는 이게 선행. **⑤ 스크린샷·GIF** — 웹 데모 배포 후 캡처(정적 샷은 Playwright 자동, GIF는 사용자 직접 녹화). **⑥ README 재작성 + `docs/internal/` 정리** — 표지를 케이스 스터디로. ⑦ 리포 메타(topics·homepage·license). ⑧ 실키 팀 위임 왕복(④ 이후). |
+| **큰 결정** | **★ 2026-08-27 — 제품화하지 않기로 결정** (PRD v0.0.3 §8.3). 근거: ① 진입 장벽 2겹(exe 다운로드 + 키 발급) vs 경쟁 상대는 무료·모바일·설치만 ② 2층이 완성돼도 결론 불변 — "게임화가 실용성을 더하는가"는 미검증 가설이고 검증 비용이 개인 범위 밖 ③ 표현력 상한이 구조적(좌석 16석·위계 2단계, 조건 분기·병렬 합류 표현 불가). → **"에이전트 위계를 공간으로 표현할 수 있는가"에 대한 UX 실험 기록**으로 포지셔닝 전환. "안 팔릴 것 같다"는 판단 자체가 산출물. 이전: 모바일 출시 + 백엔드 + BYOK 확정. Platform Adapter Phase 1 완료. **Day 11**~**Day 12 §2** 진행 후 **Day 12 §3**: 사용자가 EXE 시각 검증 → 14건 피드백 → 즉시 반영. MBTI 16종 페르소나 시스템 도입(LLM 시스템 프롬프트 자동 주입). 말풍선 픽셀 5×5로 ^_^ 표현 한계 → Phaser Text + 이모지로 전환. 캐릭터 눈 표정 4픽셀·3×3 둘 다 시도 후 사용자 결정으로 롤백 (Day 10 sleepy만 유지). 기본 가구 고정 배치 제거 → 사용자가 상점에서 직접. |
+| **검증 상태** | **2026-08-27 최신(Day 15)**: tsc `-b` 0 errors, `vite build` 무결(렌더러 CSS 25.8→28.5KB, TechModal 번들 포함 확인), vitest **67 통과/6 skip**(회귀 없음). ✅ **웹 데모 시각 검증 완료** — `dist/`를 `python -m http.server 4173`로 띄워 `?` 패널 4탭 + 사무실·채용·데모 대화 + **2층 팀 작업 흐름**(위임 카드·캐릭터 연출) 사용자 눈 확인. ❌ **`pnpm dev` 실행 불가 = Electron 앱 미검증**([`ideas/23`](ideas/23-electron-esm-blocker.md)). ❌ 실키 왕복·e2e·lint 여전히 미실행. ⚠️ **교훈: `pnpm build` 통과는 "앱이 뜬다"가 아니다** — 앞으로 "빌드 무결"과 "실행 확인"을 분리 기재할 것. 이전: **2026-07-09(2F Phase 4)**: vitest **67 통과/6 skip**, **pnpm build** 무결(Phase 4는 UI만 추가, 신규 유닛 없음 — 엔진 테스트는 Phase 3의 팀 위임 12건이 커버). skip 6건은 실키 통합 4파일 — 이 PC에 `.env.local` 자체가 없어 자동 skip. ⚠️ **PC 시각 검증(팀 작업 모달·캐릭터 연출) 미수행** — 이번 세션 `pnpm dev` 안 띄움, 눈 검증 대기. e2e·lint·1층 폴리시 시각 확인은 §132부터 계속 이월. 이전(2층 M-2F-0 시점): 유닛+통합 34/34, e2e 10 통과+1 skip, Gemini 실키 1층 대화·카운터·tool-calling 왕복 실측 검증 완료. |
 
 자세한 *제품 비전*은 [`portfolio/PixelAgentOffice/PRD.md`](portfolio/PixelAgentOffice/PRD.md)에 600줄로 정리되어 있음.
 
@@ -528,14 +529,107 @@
 
 ---
 
+### **2026-08-27 (Day 15) — 포트폴리오 정리 착수: 킥 정립 + `?` 패널 + 🚨 Electron blocker 발견**
+
+> 약 7주 공백 후 재개. **개발이 아니라 "이걸 포폴로 어떻게 쓸까"에서 출발한 세션.**
+> 발단 질문: *"AI_ToDo_App은 guest 계정으로 포폴 쓰는데 이건 어떻게 하지?"* → *"1층만으로 팔릴 가능성이 있냐가 문제야."*
+
+#### 한 일
+
+1. **분석 — 웹 데모가 이미 거의 되어 있었음을 발견**
+   - `platform/index.ts`가 `window.api` 없으면 **mockPlatform 자동 폴백**. 렌더러에서 Electron API 직접 호출은 `platform/electron.ts` 한 파일뿐
+   - `platform/mock.ts` 220줄이 **완제품** — 채용·좌석·메모리·스트리밍 채팅·팀 위임 연출까지. 주석에 이미 *"미래 데모 모드"*라 적혀 있었음
+   - `dist/index.html`의 에셋 경로가 **상대경로**(`./assets/`) → Pages 서브경로에 그대로 얹혀도 동작
+   - → **Day 8의 "미래 모바일 대비" Platform Adapter 투자가 여기서 회수됨.** 렌더러 0줄 수정으로 웹 데모 가능
+
+2. **킥 발굴 — "좌석이 곧 조직도"**
+   - `agent/team.ts` 주석의 *"기존 좌석 시스템이 곧 조직도"*가 이 프로젝트의 발명품인데 **소스 주석에만 있고 README에도 PRD에도 없었음**
+   - CrewAI·AutoGen·LangGraph는 위계를 **전부 코드로 선언** / 이 앱은 **의자에 앉히면 조직도**, 자리를 옮기면 조직도가 바뀜
+   - 권한 게이팅도 게임 메커니즘 — `allow_delegation=True` 대신 **과장 진급**(대화·메모·칭찬 누적) = **신뢰가 쌓여야 위임 권한**
+   - → *"위계가 있으면서 코드가 아닌"* 자리가 비어 있음 (Claude Projects·Custom GPTs엔 위계 자체가 없음)
+
+3. **v0.0.3 PRD 신규** (570→732줄) — v0.0.2는 2층 착수 *직전*(7/6) 스냅샷이라 거기 끼워넣으면 거짓이 되므로 새 버전
+   - **§2.2 핵심 인터페이스 — 좌석이 곧 조직도** (신규, 6개 하위절): 문제 / 규칙 3개 + 16석 배치도 / 권한=진급 / CrewAI 대응표 / 실행 모델 / **구현 상태 + 미검증 가설 + 검증 설계**
+   - §2.1 비전 재정의("게임화는 목적이 아니라 수단") · §2.3 차별점 표에 위계·권한 ★ 두 줄 · §2.5 정직 평가 갱신(v0.0.2 평가 보존 + 표현력 상한 명시)
+   - **§8.3 → "제품화하지 않기로 결정"** — 근거 3개 + "다시 판단하려면 무엇이 뒤집혀야 하는지"
+   - `portfolio/PixelAgentOffice/README.md` 버전 인덱스·표지·차별점 표·폴더구조 동기화
+
+4. **`?` 패널** (`TechModal.tsx` + `.css` 신규) — AI_ToDo_App `src/app/tech/page.js` 구조 이식
+   - 탭 4개(기술 스택 / 데이터 / 핵심 인터페이스 / 기획 관점), 항목마다 **`why` 줄글**. 원칙: *"무엇을 썼는지가 아니라 왜 골랐는지"*
+   - 툴바 `⚙` 옆 `?` 버튼 + ESC 배선. **렌더러 공용이라 EXE·웹 양쪽에 자동 노출**
+
+5. **🚨 Electron 실행 불가 발견** — 사용자 "어 실행해" → `pnpm dev` 실패, Electron 바이너리 직접 실행도 동일
+   - `SyntaxError: The requested module 'electron' does not provide an export named 'BrowserWindow'`
+   - 원인: `de41fe0`(M-2F-0, 7/3)의 `createRequire` 배너가 **ESM `import` 문**이라 메인 번들이 ESM으로 굳음 → `electron`(CJS) 네임드 임포트 실패
+   - **`pnpm build`는 번들링만 하니 통과.** 실패는 실행 시점에만 남
+   - §132~§135의 "PC 시각 검증 이월" 4연속이 **이 버그를 가리고 있었음** — 매번 `build 무결 / vitest 67 통과`로 기록됐고 둘 다 이 버그를 못 잡는 검사
+   - → **2층(Phase 2·3·4)은 실제 앱에서 한 번도 돌아본 적 없음.** 유닛은 `chat` 주입식 가짜로 통과한 것
+
+6. **우회 검증 성공** — 웹은 Electron 메인을 안 쓰므로 무관. `dist/`를 `python -m http.server 4173`으로 띄워 사용자 눈 확인
+   - `?` 패널 4탭 ✅ / 사무실·채용·데모 대화 ✅ / **2층 팀 작업 흐름**(위임 카드·캐릭터 연출) ✅ — 사용자 평 **"다 잘 나와"**
+   - 검증 경로 발견: 채용 시 **직급 과장**을 고르면 `resolveSeatId`가 자동으로 리더석 배정 → **드래그 불필요**
+   - → 4세션 이월된 "PC 시각 검증"이 **브라우저로 대신 해소**됨 (실키 왕복은 여전히 미검증)
+
+7. **다음 방향 결정** — 사용자 *"2층을 만드는 게 아니라 여기서 에이전트 기능을 추가하는 게 맞나?"*
+   - 확인: 에이전트 도구가 `get_current_time` **하나뿐**(`main.ts`의 `leaderTools`/`memberTools`). 팀 작업의 실체 = "문장이 두 번 생김"
+   - **진짜 도구(파일·웹검색) 추가는 기각** — 웹 데모에서 전부 죽는데 포폴 가치는 거기 있음. 차별점도 안 늘어남(도구 실행은 CrewAI·Claude Code가 더 잘함)
+   - **채택: 결과물 보관함** — 입력은 공간(좌석)인데 출력이 채팅창이라 은유가 끊김. 출력도 공간으로 → 킥이 닫힘. 웹에서 100% 동작. 하루
+
+#### 왜 그렇게 결정했는지
+- **제품화 중단**: 진입 장벽 2겹(exe + 키 발급) vs 무료·모바일·설치만인 경쟁 상대. 2층이 완성돼도 이 결론은 안 바뀜. 표현력 상한(16석·2단계)도 구조적
+- **포지셔닝 전환**: "완성된 제품"이 아니라 **"에이전트 위계를 공간으로 표현할 수 있는가"라는 질문에 동작하는 답을 하나 만들어 본 기록**. "안 팔릴 것 같다"는 판단 자체가 산출물 — 만들어보지 않고는 도달할 수 없는 결론
+- **v0.0.2가 아닌 v0.0.3 신규**: 스냅샷 무결성. v0.0.2는 2층 착수 직전 시점이라 킥을 소급 삽입하면 문서가 거짓말을 함
+
+#### 검증 상태
+- tsc `-b` **0 errors**, `vite build` 무결(렌더러 CSS 25.8→28.5KB, TechModal 번들 포함 확인), vitest **67 통과/6 skip** — 회귀 없음
+- ✅ **웹 데모 시각 검증 완료** (위 6번)
+- ❌ **Electron 앱 미검증** — 실행 불가 상태. 실키 왕복·e2e·lint도 여전히 미실행
+
+#### 인사이트
+- **"미래 대비" 추상화가 회수되는 순간을 관측했다.** Platform Adapter(Day 8) → 웹 데모(Day 15). 포폴에서 이건 설계 자랑보다 강한 증거
+- **킥은 이미 코드 안에 있었고 문서가 그걸 안 보여주고 있었다.** 신규 개발이 아니라 *발굴*이 필요했던 케이스
+- **`build 통과`를 `동작함`으로 읽으면 안 된다.** 4세션치 "검증 이월"이 실은 blocker였다. **e2e 1개만 돌았어도 즉시 잡혔을 것**
+
+#### 산출 커밋
+- feat: `?` 패널(TechModal) — 기술 스택·설계 읽기 화면
+- docs: 포트폴리오 v0.0.3 PRD — 킥("좌석이 곧 조직도") 정립 + 제품화 중단 결정
+- docs: 세션 정리(§136) — 아이디어 2건 + Electron blocker 진단 + HANDOFF·FEATURES 동기화
+
+---
+
 ## 🛠 3. 현재 위치 + 미커밋 작업
 
-### 📌 현재 상태 (2026-07-09 세션, 2F Phase 4 완료 — 2층 트랙 완성 시점)
+### 📌 현재 상태 (2026-08-27 세션, Day 15 — 포트폴리오 정리 착수)
 
-- **워킹 트리**: 이번 세션 커밋 — Phase 4 코드 선커밋(`daef554`, 사용자 "커밋푸시해줘") 후 docs 세션 정리(§135, 사용자 "세션도 해야지"). `.env.local`(실키)은 이 PC에 없음.
+- **워킹 트리**: 이번 세션 커밋 3건(C1 `?` 패널 코드 / C2 v0.0.3 PRD / C3 세션 정리) 후 푸시. `.env.local`(실키)은 이 PC에 여전히 없음.
+- **🚨 blocker**: `pnpm dev` · `pnpm dist:exe` **실행 불가** — ESM 번들 + `electron` CJS 충돌. `de41fe0`(7/3)부터 잠복. 웹 데모·vitest·`pnpm build`는 영향 없음. 수정안 A(CJS 빌드)/B(import 변경) 미결 → [`ideas/23`](ideas/23-electron-esm-blocker.md) · `ideas/06 §R`
 - **별도 무관 미추적 파일**: `portfolio/22-kgwebcil-anatomy-report.html` + `portfolio/kgwebcil_analysis_parts/` — PixelAgentOffice와 무관한 별개 산출물(웹 보안 분석 리포트류). **사용자 확인: 이 저장소에 커밋하는 대상이 아님** — 항상 미추적 상태로 둘 것.
-- **다음 세션 진입점**: **PC 시각 검증 → v0.0.3 스냅샷**. ① `pnpm dev`로 팀 작업 모달·캐릭터 연출 눈 확인(mock 데모로 키 없이 가능) ② 실키 넣고 팀 위임 왕복 확인 ③ **v0.0.3 스냅샷** — PRD 갱신(3사 멀티모델·tool-calling·메모리 모드·2층 팀 협업) + 마일스톤 스냅샷 + EXE 재빌드 + GitHub Releases.
-- **보류 fix**: ① 실키 검증 — GEMINI_API_KEY 넣으면 위임 왕복·루프·스트리밍·toolcall 통합 4파일 자동, OPENAI_API_KEY 넣으면 06 e2e 자동 ② GitHub Releases v0.0.2/v0.0.3 EXE 업로드 ③ `pnpm lint` 기존 부채 ④ PRD 드리프트(3사 멀티모델·메모리 모드·2층 완성) — **v0.0.3 스냅샷 때 PRD 갱신 필요** ⑤ 1층 폴리시 PC 시각 확인(스트리밍 커서·메모리 auto/ask) + e2e 재실행(§132 이월) ⑥ 팀원 자식 루프에 직원 기억(memory) 주입 미연결.
+- **다음 세션 진입점**: **웹 데모 배포**. 아래 순서 그대로 진행하면 됨:
+  1. `package.json`에 `build:web` 스크립트 — env 플래그로 `vite.config.ts`의 electron 플러그인만 건너뛰기 (렌더러만 빌드)
+  2. **시드 데이터** — `platform/mock.ts`의 `mockEmployees`가 빈 배열이라 웹에서 **텅 빈 사무실**로 시작. 직원 3~4명 배치 필요. `tests/e2e/helpers.ts`의 `seedAppData()`(Mary·Haewol + 좌석 지정)를 재사용하면 됨. **팀장 1명(과장↑, 리더석) + 팀원 2명**을 넣으면 방문자가 2층 팀 작업까지 바로 볼 수 있음
+  3. **localStorage** — mock이 메모리 저장이라 새로고침하면 전부 소실. `loadData`/`addEmployee`/`updateSettings` 등에 저장·복원 + "🔄 데모 초기화" 버튼
+  4. **데모 배지** — "🎮 데모 모드 · 실제 앱은 EXE 다운로드" + Releases 링크. `?` 패널에 GitHub·PRD 링크도 함께(현재 패널에 외부 통로 없음)
+  5. GitHub Actions 워크플로 — push → `build:web` → Pages 배포
+  6. **사용자가 직접**: 리포 Settings → Pages 활성화. 그 후 About의 homepage에 URL + topics(`electron` `phaser` `ai-agent` `llm` 등)
+  - ⚠️ **배포는 외부 공개 행위** — 워크플로 작성 후 push 전에 사용자에게 다시 확인받을 것
+- **로컬 확인 방법(서버 없이)**: `cd PixelAgentOffice/dist && python -m http.server 4173` → http://127.0.0.1:4173 . 이번 세션 눈 검증을 이 방식으로 했음
+- **2층 검증 경로(웹에서 가능)**: 튜토리얼 건너뛰기 → `+ 채용` 팀A·**직급 과장** → `resolveSeatId`가 자동으로 리더석 배정(드래그 불필요) → `+ 채용` 팀A·사원 → **팀장 우클릭 → 🤝 팀 작업 시키기**. 반대 테스트: 직급 **대리**로 채용하면 리더석이 비어도 팀원석으로 감(권한 게이트 실동작 확인)
+- **보류 fix**: ① **Electron 실행 불가**([`ideas/23`](ideas/23-electron-esm-blocker.md)) — 실키 왕복·e2e·EXE 재빌드가 전부 여기 막혀 있음 ② 실키 검증 — GEMINI_API_KEY 넣으면 위임 왕복·루프·스트리밍·toolcall 통합 4파일 자동, OPENAI_API_KEY 넣으면 06 e2e 자동(단 ① 선행) ③ GitHub Releases v0.0.3 EXE 업로드(① 선행) ④ `pnpm lint` 기존 부채 ⑤ 1층 폴리시 시각 확인(스트리밍 커서·메모리 auto/ask, §132 이월) ⑥ 팀원 자식 루프에 직원 기억(memory) 주입 미연결 ⑦ **v0.0.3 산출물 미완** — PRD만 갱신했고 user-flow·wireframes·FEATURES·code-snapshot은 v0.0.2 상태 ⑧ `?` 패널 내용이 하드코딩 — PRD 갱신 시 손으로 동기화 필요(드리프트 위험).
+
+### ✅ 이번 세션(Day 15) 산출물
+
+| 파일 | 종류 | 내용 |
+|---|---|---|
+| `PixelAgentOffice/src/components/TechModal.tsx` | 신규 | `?` 패널 — 4탭 읽기 화면 |
+| `PixelAgentOffice/src/components/TechModal.css` | 신규 | 위 스타일(기존 `.modal` 뼈대 재사용) |
+| `PixelAgentOffice/src/App.tsx` | 수정 | import·state·툴바 `?` 버튼·ESC·모달 렌더 배선 |
+| `portfolio/PixelAgentOffice/v0.0.3/PRD.md` | 신규 | 킥 §2.2 + 정직 평가 §2.5 + 제품화 중단 §8.3 (732줄) |
+| `portfolio/PixelAgentOffice/README.md` | 수정 | 버전 인덱스·표지·차별점 표·폴더구조 동기화 |
+| `ideas/22-team-output-archive.md` | 신규 | 결과물 보관함 아이디어 + 도구 추가 기각 근거 |
+| `ideas/23-electron-esm-blocker.md` | 신규 | Electron 실행 불가 진단 + 수정안 A/B |
+| `ideas/06-decisions-to-make.md` | 수정 | §Q(보관함) · §R(Electron 수정안) 등록 |
+| `ideas/00-brainstorming-log.md` | 수정 | §136 세션 로그 |
+| `FEATURES.md` | 수정 | `?` 패널 명세 + 팀 작업 시각 검증 상태 갱신 |
 
 ### 🎯 다음 작업 우선순위 (Day 12 §1)
 
@@ -756,6 +850,42 @@
 ---
 
 ## 🚀 4. 다음 작업 가이드
+
+### 🎯 옵션 W — 웹 데모 배포 (2026-08-27 신규 · **최우선**)
+
+> **왜 최우선인가**: 링크 하나가 생기면 노션·이력서·GitHub 어디에나 붙는다. 지금은 URL이 없어서 뭘 만들어도 보여줄 데가 없다.
+> **왜 가능한가**: 렌더러가 Electron과 100% 공용이고 `platform`이 자동으로 mockPlatform으로 폴백한다. **화면 코드 수정 0줄.**
+> **Electron blocker와 무관**: 웹은 메인 프로세스를 안 쓴다.
+
+| 단계 | 할 일 | 파일 |
+|---|---|---|
+| W-1 | `build:web` 스크립트 — electron 플러그인만 건너뛰는 빌드 | `package.json` · `vite.config.ts` |
+| W-2 | **시드 데이터** — 빈 사무실로 시작하는 문제. 팀장 1(과장↑) + 팀원 2 배치 | `src/platform/mock.ts` (`tests/e2e/helpers.ts`의 `seedAppData()` 재사용) |
+| W-3 | **localStorage** — 새로고침 시 전부 소실되는 문제 + "🔄 데모 초기화" | `src/platform/mock.ts` |
+| W-4 | 데모 배지 + EXE/GitHub/PRD 링크 | `src/App.tsx` · `src/components/TechModal.tsx` |
+| W-5 | GitHub Actions — push → build → Pages | `.github/workflows/*.yml` (신규) |
+| W-6 | **사용자 직접**: Settings → Pages 활성화 → homepage·topics 설정 | GitHub 웹 |
+
+- ⚠️ **W-5 push 전에 사용자 재확인 필수** (외부 공개 행위)
+- 로컬 확인: `cd PixelAgentOffice/dist && python -m http.server 4173`
+
+### 🎯 옵션 X — 위임 연출 (GIF 소재, 반나절)
+
+팀장 → 팀원으로 지시가 날아가는 시각 연출. `delegation:start`/`done` 이벤트는 **이미 흐르고 있고** OfficeScene에 연출만 추가하면 됨.
+→ 이거 하나로 **GIF 한 장이 프로젝트 전체를 설명**하게 된다("의자에 앉히면 조직도, 일 시키면 위임이 보인다").
+
+### 🎯 옵션 Y — 결과물 보관함 (하루)
+
+위임에 결말 붙이기. 상세: [`ideas/22-team-output-archive.md`](ideas/22-team-output-archive.md)
+
+### 🎯 옵션 Z — Electron 실행 불가 수정 (blocker)
+
+A안(CJS 빌드) 추천. 실키 왕복·e2e·EXE 재빌드가 전부 여기 막혀 있음. 상세: [`ideas/23-electron-esm-blocker.md`](ideas/23-electron-esm-blocker.md)
+
+> **주의**: 옵션 X·Y는 *"포폴이 더 잘 팔리게 하는 것"*이지 제품을 향한 게 아니다.
+> 제품화 중단 결정(PRD v0.0.3 §8.3)은 유효하다. **옵션 W만 하고 멈춰도 포폴로는 성립한다.**
+
+---
 
 ### 📣 외부 테스터 피드백 (누적)
 
